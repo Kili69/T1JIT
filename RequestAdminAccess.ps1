@@ -60,22 +60,28 @@ $Servername,
 [Parameter(Mandatory=$false)]
 $ServerDomain,
 [Parameter(Mandatory=$false)]
-$ElevatedMinutes,
+[INT]$ElevatedMinutes,
 [Parameter(Mandatory=$false)]
-$configurationFile = ".\JIT.config"
+$configurationFile
 )
 #constantes
-$_scriptVersion = "0.1"
-$_configfileVersion = "0.1"
+$_scriptVersion = "0.1.2021294"
+$_configfileVersion = "0.1.2021294"
 #Reading and validating configuration file
+if ($configurationFile -eq $null)
+{
+    $configurationFile = (Get-Location).Path + '\JIT.config'
+}
 if (!(Test-Path $configurationFile))
 {
     Write-Host "Missing configuration file"
+    Return
 }
 $config = Get-Content $configurationFile | ConvertFrom-Json
 if ($config.ConfigScriptVersion -ne $_configfileVersion)
 {
     Write-Output "Invalid configuration file version. Script aborted"
+    return
 }
 #if the user parameter is not set used the current user
 if ($User -eq $null){$User = $env:USERNAME}
@@ -88,35 +94,34 @@ if (!(Get-ADUser -Identity $User -Server $Domain)) #validate the user name exist
 #read and validate the server name where the user will be elevated
 if ($Servername -eq $null)
 {
-    while ($Servername -eq "")
+    do
     {
         $Servername = Read-Host -Prompt "ServerName"
-    }
+    } while ($Servername -eq "")
 }
+
 #read the domain name if the user press return the current domain will be used
 if ($ServerDomain -eq $null)
 {
     $ServerDomain = Read-Host "Server DNS domain [$((Get-ADDomain).DNSroot)]" 
     if ($ServerDomain -eq ""){ $ServerDomain = (Get-ADDomain).DNSroot}
 }
-
 $ServerGroupName = $config.AdminPreFix + $ServerName
-if (!(Get-ADGroup -Filter {SamAccountName -eq $ServerGroupName} -Server $ServerDomain))
+if (!(Get-ADGroup -Filter {SamAccountName -eq $ServerGroupName} -Server $config.Domain))
 {
     Write-Host "Can not file Group $ServerGroupName"
     return
 }
 #read the elevated minutes
-if ($ElevatedMinutes -eq $null) 
+if ($ElevatedMinutes -eq 0) 
 {
-    $DefaultElevateMinutes = $config.DefaultElevatedTime
-    $ElevatedMinutes = Read-Host "Elevated time [$($DefaultElevateMinutes) minutes]"
-    if ($ElevatedMinutes -eq "")
+    [INT]$ElevatedMinutes = Read-Host "Elevated time [$($config.DefaultElevatedTime) minutes]"
+    if ($ElevatedMinutes -eq 0)
     {
         $ElevatedMinutes = $config.DefaultElevatedTime
     }
 }
-if (($ElevatedMinutes -lt 10) -and ($ElevatedMinutes -gt $config.MaxElevatedTime))
+if (($ElevatedMinutes -lt 10) -or ($ElevatedMinutes -gt $config.MaxElevatedTime))
 {
     Write-Host "invalid elevation time"
     Return
