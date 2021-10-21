@@ -32,16 +32,21 @@ possibility of such damages
         Install the solution into another directory then the Windows Powershell script directory 
     -CreateGMSA [$true|$false]
         Create a new GMSA and install the GMSA on this computer
+    -ServerEnumerationTime
+        Rerun time for scheduled task
     -DebugOutput [$true|$false]
         For test purposes only, print out debug info.
 
 .OUTPUTS
-   By default, it generates only an HTML report. If the -XmlExport is set to $true, it will generate an XML output.
+   none
 .NOTES
     Version Tracking
     2021-10-12 
     Version 0.1
         - First internal release
+    Version 0.1.2021294
+        - Default installation directory changed from c:\Program Files\windowsPowershell\script to %working directory%
+        - New parameter ServerEnumerationTime added. Time for scheduled task to evaluate the existing servers
 #>
 <#
     script parameters
@@ -70,7 +75,9 @@ param (
     [Parameter (Mandatory=$false)]
     [bool] $DebugOutput = $false,
     [Parameter (Mandatory=$false)]
-    [bool] $CreateScheduledTaskADGroupManagement= $true
+    [bool] $CreateScheduledTaskADGroupManagement= $true,
+    [Parameter (Mandatory=$false)]
+    [INT] $ServerEnumerationTime = 10
 )
 
 function New-ADDGuidMap
@@ -149,7 +156,7 @@ function Add-LogonAsABatchJobPrivilege
 }
 
 #Constant section
-$_scriptVersion = "0.1"
+$_scriptVersion = "0.1.2021294"
 $configFileName = "JIT.config"
 $MaximumElevatedTime = 1440
 $DefaultElevatedTime = 60
@@ -173,13 +180,12 @@ $ADDomainDNS = (Get-ADDomain).DNSRoot
 if ($DebugOutput -eq $true) {$DebugPreference = "Continue"} else {$DebugPreference = "SilentlyContinue"}
 #Validate the installation directory and stop execution if installation directory doesn't exists
 if ($InstallationDirectory -eq $null)
-    {$InstallationDirectory = $env:ProgramFiles + '\WindowsPowershell\scripts'}
+    {$InstallationDirectory = (Get-Location).Path}
 if (!(Test-Path $InstallationDirectory))
 {
     Write-Output "Installation directory missing"
     return
 }
-
 #check for an existing configuration file and read the configuration
 if (Test-Path "$InstallationDirectory\$configFileName")
 {
@@ -365,7 +371,7 @@ if ($CreateScheduledTaskADGroupManagement -eq $true)
         $STaction = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $InstallationDirectory + '\Tier1LocalAdminGroup.ps1"') -WorkingDirectory $InstallationDirectory
         $DurationTimeSpan = New-TimeSpan -Minutes $config.GroupManagementTaskRerun
         $DurationTimeSpanIndefinite = ([TimeSpan]::MaxValue) 
-        $STtrigger = New-ScheduledTaskTrigger -Once -RepetitionInterval (New-TimeSpan -Minutes 5) -At (Get-Date)
+        $STtrigger = New-ScheduledTaskTrigger -Once -RepetitionInterval (New-TimeSpan -Minutes $ServerEnumerationTime) -At (Get-Date)
         Register-ScheduledTask -Principal $STprincipal -TaskName $STGroupManagementTaskName -TaskPath $StGroupManagementTaskPath -Action $STaction -Trigger $STtrigger
         Start-ScheduledTask -TaskPath "$StGroupManagementTaskPath\" -TaskName $STGroupManagementTaskName
     }
