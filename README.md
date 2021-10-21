@@ -1,5 +1,12 @@
 # Introduction 
-TODO: Give a short introduction of your project. Let this section explain the objectives or the motivation behind this project. 
+This is a active directory Just-In-Time solution based on the Active Directory Version 2016 or higher and powershell scripts. The reduce the risk of a administrator ist 24x7 administrator on all or many computers. 
+
+The project is based on:
+1) Active directory Forest functional Level Windwos Server 2016
+2) A schedule task who create a group for each computer object. 
+3) A Group Policy who add the computer specified group to the local administrators group on each computer
+4) A scheduled task to add a user to one of these tasks. this task is triggered by an event
+5) A powershell script which triggers the scheduled task
 
 # Getting Started
 TODO: Guide users through getting your code up and running on their own system. In this section you can talk about:
