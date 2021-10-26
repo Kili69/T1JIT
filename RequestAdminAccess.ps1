@@ -65,7 +65,7 @@ $ServerDomain,
 $configurationFile
 )
 #constantes
-$_scriptVersion = "0.1.2021294"
+$_scriptVersion = "0.1.2021299"
 $_configfileVersion = "0.1.2021294"
 #Reading and validating configuration file
 if ($configurationFile -eq $null)
@@ -109,7 +109,7 @@ if ($ServerDomain -eq $null)
 $ServerGroupName = $config.AdminPreFix + $ServerName
 if (!(Get-ADGroup -Filter {SamAccountName -eq $ServerGroupName} -Server $config.Domain))
 {
-    Write-Host "Can not file Group $ServerGroupName"
+    Write-Host "Can not find group $ServerGroupName"
     return
 }
 #read the elevated minutes
@@ -134,3 +134,4 @@ $ElevateUser | Add-Member -MemberType NoteProperty -Name "ServerDomain" -Value $
 $ElevateUser | Add-Member -MemberType NoteProperty -Name "ElevationTime" -Value $ElevatedMinutes
 $EventMessage = ConvertTo-Json $ElevateUser
 Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId $config.ElevateEventID -Message $EventMessage
+Read-Host "Request send. The account will be elevated soon"
