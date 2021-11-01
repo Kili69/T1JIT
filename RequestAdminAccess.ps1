@@ -65,10 +65,10 @@ $ServerDomain,
 $configurationFile
 )
 #constantes
-$_scriptVersion = "0.1.2021294"
+$_scriptVersion = "0.1.2021299"
 $_configfileVersion = "0.1.2021294"
 #Reading and validating configuration file
-if ($configurationFile -eq $null)
+if ($null -eq $configurationFile )
 {
     $configurationFile = (Get-Location).Path + '\JIT.config'
 }
@@ -84,15 +84,15 @@ if ($config.ConfigScriptVersion -ne $_configfileVersion)
     return
 }
 #if the user parameter is not set used the current user
-if ($User -eq $null){$User = $env:USERNAME}
-if ($Domain -eq $null){$Domain = $env:USERDNSDOMAIN}
+if ($null -eq $User){$User = $env:USERNAME}
+if ($null -eq $Domain){$Domain = $env:USERDNSDOMAIN}
 if (!(Get-ADUser -Identity $User -Server $Domain)) #validate the user name exists in the active directory
 {
     Write-Host "User not found $User"
     Return
 }
 #read and validate the server name where the user will be elevated
-if ($Servername -eq $null)
+if ($null -eq $Servername)
 {
     do
     {
@@ -101,7 +101,7 @@ if ($Servername -eq $null)
 }
 
 #read the domain name if the user press return the current domain will be used
-if ($ServerDomain -eq $null)
+if ($null -eq $ServerDomain)
 {
     $ServerDomain = Read-Host "Server DNS domain [$((Get-ADDomain).DNSroot)]" 
     if ($ServerDomain -eq ""){ $ServerDomain = (Get-ADDomain).DNSroot}
@@ -109,7 +109,7 @@ if ($ServerDomain -eq $null)
 $ServerGroupName = $config.AdminPreFix + $ServerName
 if (!(Get-ADGroup -Filter {SamAccountName -eq $ServerGroupName} -Server $config.Domain))
 {
-    Write-Host "Can not file Group $ServerGroupName"
+    Write-Host "Can not find group $ServerGroupName"
     return
 }
 #read the elevated minutes
@@ -134,3 +134,4 @@ $ElevateUser | Add-Member -MemberType NoteProperty -Name "ServerDomain" -Value $
 $ElevateUser | Add-Member -MemberType NoteProperty -Name "ElevationTime" -Value $ElevatedMinutes
 $EventMessage = ConvertTo-Json $ElevateUser
 Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId $config.ElevateEventID -Message $EventMessage
+Read-Host "Request send. The account will be elevated soon"
