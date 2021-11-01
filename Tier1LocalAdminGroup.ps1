@@ -61,7 +61,7 @@ Param(
 $_scriptVersion = "0.1.2021294"
 
 #Read configuration
-if ($configurationFile -eq $null)
+if ($null -eq $configurationFile)
 {
     $configurationFile = (Get-Location).Path + '\jit.config'
 }
@@ -79,7 +79,7 @@ $serverList = Get-ADComputer -LDAPFilter $config.LDAPT0Computers
 Foreach ($Server in $serverList)
 {
     $GroupName = $config.AdminPreFix + $Server.Name
-    if ((Get-ADGroup -LDAPFilter "(SAMAccountName=$GroupName)" -Server $config.Domain) -eq $null)
+    if ($null -eq (Get-ADGroup -LDAPFilter "(SAMAccountName=$GroupName)" -Server $config.Domain))
     {
         try {
             New-ADGroup -GroupCategory Security -GroupScope DomainLocal -SamAccountName $GroupName -Name $GroupName -Description ("Administrators on " + $Server.Name) -Path $config.OU -Server $config.Domain

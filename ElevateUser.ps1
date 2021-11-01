@@ -32,7 +32,7 @@ param(
     $ConfigurationFile
     )
 
-if ($ConfigurationFile -eq $null)
+if ($null -eq $ConfigurationFile )
 {
     $ConfigurationFile = (Get-Location).Path + '\JIT.config'
 }
@@ -45,21 +45,21 @@ if (!(Test-Path $ConfigurationFile))
 $config = Get-Content $ConfigurationFile | ConvertFrom-Json
 $eventLog = $config.EventLog
 $ElevateEventID = $config.ElevateEventID
-$Event = Get-WinEvent  -LogName $eventLog     -FilterXPath "<QueryList><Query Id='$ElevateEventID' Path='$eventLog'><Select Path='$eventLog'>*[System[(EventRecordID='$eventRecordID')]]</Select></Query></QueryList>"
-$Request = ConvertFrom-Json $Event.Message
+$RequestEvent = Get-WinEvent  -LogName $eventLog     -FilterXPath "<QueryList><Query Id='$ElevateEventID' Path='$eventLog'><Select Path='$eventLog'>*[System[(EventRecordID='$eventRecordID')]]</Select></Query></QueryList>"
+$Request = ConvertFrom-Json $RequestEvent.Message
 $ServerGroupName = $Request.ServerGroup
-$ServerDomain = $Request.ServerDomain
+#$ServerDomain = $Request.ServerDomain
 $UserDN = $Request.UserDN
 $TTL = $Request.ElevationTime
 $AdminGroup = Get-ADGroup -Filter {SamAccountName -eq $ServerGroupName} -Server $config.Domain
 $User = Get-ADuser -Filter {DistinguishedName -eq $UserDN} -Properties MemberOf -Server $config.Domain
-if ($AdminGroup -eq $null)
+if ($null -eq $AdminGroup )
 {
     Write-EventLog -Source $config.EventLog -EventId 2001 -EntryType Error -Message "Can not find $ServerGroupName"
     return
 }
 
-if ($User -eq $null) 
+if ($null -eq $User ) 
 {
     Write-EventLog -Source $config.EventLog -EventId 2002 -EntryType Error -Message "Invalid user in request $config"
     return

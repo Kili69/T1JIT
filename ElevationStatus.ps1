@@ -18,15 +18,24 @@ possibility of such damages
 #>
 <#
 .Synopsis
-
+    Get current elevation status
 .Description
-
+    This script shows the time restricted gorup membership of a user
 .Example
-
+    .\ElevationStatus.ps1 
+        Shows the current time restricted group membership of the current user
+    .\ElevationStatus.ps1 -SamAccountName <UserName>
+        Shows the current time restricted group membership of a user
+    .\ElevationStauts.ps1 -SamAcocuntname <UserName> -Domain <Domain DNS Name>
+        Shows the current time restricted group mebership of a user from a differten domain
 .Inputs
+    -SamAccountNam
+        The user domain SAM account name of a user
+    -Domain
+        The DNS domain name of the user
 
 .Outputs
-    
+    List of time restricted group member ship
 .Notes
 
 #>

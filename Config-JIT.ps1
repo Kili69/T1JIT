@@ -179,7 +179,7 @@ $ADDomainDNS = (Get-ADDomain).DNSRoot
 #Setting Debugging option
 if ($DebugOutput -eq $true) {$DebugPreference = "Continue"} else {$DebugPreference = "SilentlyContinue"}
 #Validate the installation directory and stop execution if installation directory doesn't exists
-if ($InstallationDirectory -eq $null)
+if ($null -eq $InstallationDirectory )
     {$InstallationDirectory = (Get-Location).Path}
 if (!(Test-Path $InstallationDirectory))
 {
@@ -216,14 +216,14 @@ else
 }
 
 #Definition of the AD group prefix. Use the default value if the question is not answerd
-if ($AdminPreFix -eq $null)
+if ($null -eq $AdminPreFix )
 {
     $AdminPreFix = Read-Host -Prompt "Admin Prefix for local administrators default[$($config.AdminPreFix)]"
     if ($AdminPreFix -ne "")
         {$config.AdminPreFix = $AdminPreFix}
 }
 #Validation of the GroupManagedService Account
-if ($GroupManagedServiceAccountName -eq $null)
+if ($null -eq $GroupManagedServiceAccountName )
 {
    $gmsaName = Read-Host -Prompt "Group Managed account name [$($config.GroupManagedServiceAccountName)]"
    if ($gmsaName -ne "")
@@ -231,7 +231,7 @@ if ($GroupManagedServiceAccountName -eq $null)
 }
 $gmsaName = $config.GroupManagedServiceAccountName #$config.groupManagedServiceAccountName wird nicht akzeptiert was mach ich falsch?
 #if ((Get-ADServiceAccount -Filter {Name -eq "$($config.GroupManagedServiceAccountName)"}) -eq $null)
-if ((Get-ADServiceAccount -Filter {Name -eq $gmsaName} -Server $($config.Domain)) -eq $null)
+if ($null -eq (Get-ADServiceAccount -Filter {Name -eq $gmsaName} -Server $($config.Domain)))
 {
     if ($InstallGroupManagedServiceAccount)
     {
@@ -262,14 +262,14 @@ Write-Debug "Test $GMSAName $(Test-ADServiceAccount -Identity $($config.GroupMan
 Add-LogonAsABatchJobPrivilege -Sid ($GmSaccount.SID).Value
 
 #Definition of the AD OU where the AD groups are stored
-if ($ou -eq $null)
+if ($null -eq $ou)
 {
     $OU = Read-Host -Prompt "OU for the local administrator groups Default[$($config.OU)]"
     if ($OU -ne "")
         {$config.OU = $OU}
 }
 $OU = $config.OU
-if ((Get-ADOrganizationalUnit -Filter {DistinguishedName -eq $OU} -Server $config.Domain) -eq $null)
+if ($null -eq (Get-ADOrganizationalUnit -Filter {DistinguishedName -eq $OU} -Server $config.Domain))
 {
     Write-Output "The Ou $($config.ou) is not available"
     return
@@ -288,7 +288,7 @@ if (!($aclGroupOU.Sddl.Contains($GMSaccount.SID)))
     Write-Output "check ACL!!!!"
 }
 #Definition of the maximum time for elevated administrators
-if ($MaxMinutes -eq $null) 
+if ($null -eq $MaxMinutes ) 
 {
 
     [UINT16]$MaxMinutes = Read-Host "Maximum elevated time [$($config.MaxElevatedTime)]"
@@ -329,7 +329,7 @@ if ($DefaultElevatedTime -eq $null)
     }
 }
 
-if ($Tier0ServerGroupName -eq $null)
+if ($null -eq $Tier0ServerGroupName )
 {
     $DefaultT0ComputerGroup = $config.Tier0ServerGroupName
     $T0computergroup = Read-Host -Prompt "Tier 0 computers group default[$($DefaultT0computerGroup)]"
@@ -338,7 +338,7 @@ if ($Tier0ServerGroupName -eq $null)
     else
         {$config.Tier0ServerGroupName = $DefaultT0ComputerGroup}
 }
-if ((Get-ADGroup $config.Tier0ServerGroupName) -eq $null)
+if ($null -eq (Get-ADGroup $config.Tier0ServerGroupName))
 {
     Write-Output "$($config.Tier0ServerGroupName) is not a valid AD group"
     Return
@@ -355,7 +355,7 @@ if ($GroupManagementTaskRerun -eq $null)
 ConvertTo-Json $config | Out-File "$InstallationDirectory\$configFileName" -Confirm:$false
 
 #create eventlog and register EventSource id required
-if ((Get-EventLog -List | where {$_.LogDisplayName -eq $config.EventLog}) -eq $null)
+if ($null -eq (Get-EventLog -List | Where-Object {$_.LogDisplayName -eq $config.EventLog}))
 {
     New-EventLog -LogName $config.EventLog -Source $config.EventSource
     Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1 -Message "JIT configuration created"
