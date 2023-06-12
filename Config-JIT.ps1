@@ -47,33 +47,47 @@ possibility of such damages
     Version 0.1.2021294
         - Default installation directory changed from c:\Program Files\windowsPowershell\script to %working directory%
         - New parameter ServerEnumerationTime added. Time for scheduled task to evaluate the existing servers
+    Version 0.1.20230612
+        - Source code documentation
 #>
 <#
     script parameters
 #>
 param (
+    #The groupname prefix for local administrators group 
     [Parameter (mandatory=$false)]
     $AdminPreFix,
+    #The name of the domain 
     [Parameter (Mandatory=$false)]
     $Domain, 
+    #The distinguished name of the organizaztional Unit to store the privileged groups
     [Parameter (mandatory=$false)]
     $OU,
+    #the maximum amount of minutes to elevate a user
     [Parameter (Mandatory=$false)]
     $MaxMinutes,
+    #Is the name of the Tier 0 computer group. Those computers will be excluded for this PAM solution
     [Parameter (Mandatory=$false)]
     $Tier0ServerGroupName,
+    #Is the default time for elevated users
     [Parameter (Mandatory=$false)]
     $DefaultElevatedTime,
+    #The installation directory to find the JIT.config file
     [Parameter (Mandatory=$false)]
     $InstallationDirectory,
     [Parameter (Mandatory=$false)]
+    #The in minutes to run the computer enumeration script 
     [INT] $GroupManagementTaskRerun,
+    #If this paramter is $True the required group management account will be created by this script
     [Parameter (Mandatory=$false)]
     [bool] $InstallGroupManagedServiceAccount = $true,
+    #The name of the group managed service account
     [Parameter (Mandatory=$false)]
     $GroupManagedServiceAccountName,
+    #Enable the debug option for additional information
     [Parameter (Mandatory=$false)]
     [bool] $DebugOutput = $false,
+    #Install the schedule task on the local server, running in the context of the GMSA
     [Parameter (Mandatory=$false)]
     [bool] $CreateScheduledTaskADGroupManagement= $true,
     [Parameter (Mandatory=$false)]
@@ -156,7 +170,7 @@ function Add-LogonAsABatchJobPrivilege
 }
 
 #Constant section
-$_scriptVersion = "0.1.2021294"
+$_scriptVersion = "0.1.20230612"
 $configFileName = "JIT.config"
 $MaximumElevatedTime = 1440
 $DefaultElevatedTime = 60
@@ -170,7 +184,7 @@ $EventLogName = "Tier 1 Management"
 $STGroupManagementTaskName = "Tier 1 Local Group Management"
 $StGroupManagementTaskPath = "\Just-In-Time-Privilege"
 
-$STAdminGroupManagement = "Administrator Group Management"
+#$STAdminGroupManagement = "Administrator Group Management"
 $STAdminGroupManagementRerunMinutes = 5
 $STElevateUser = "Elevate User"
 $ADDomainDNS = (Get-ADDomain).DNSRoot
@@ -241,7 +255,7 @@ if ($null -eq (Get-ADServiceAccount -Filter {Name -eq $gmsaName} -Server $($conf
     else
     {
         Write-Output "Missing GMSA $($config.GroupManagedServiceAccountName)"
-        return
+        #return
     }
 }
 Write-Debug "allow the current computer to retrive the password"
@@ -272,7 +286,7 @@ $OU = $config.OU
 if ($null -eq (Get-ADOrganizationalUnit -Filter {DistinguishedName -eq $OU} -Server $config.Domain))
 {
     Write-Output "The Ou $($config.ou) is not available"
-    return
+    #return
 }
 Write-Debug  "OU $($config.OU) is accessible updating ACL"
 $aclGroupOU = Get-ACL -Path "AD:\$($config.OU)"
@@ -280,7 +294,7 @@ if (!($aclGroupOU.Sddl.Contains($GMSaccount.SID)))
 {
     Write-Debug "Adding ACE to OU"
     $GuidMap = New-ADDGuidMap
-    $objGMSASID = $GroupSID = New-Object System.Security.Principal.SecurityIdentifier $GMSaccount.SID
+    $objGMSASID = New-Object System.Security.Principal.SecurityIdentifier $GMSaccount.SID
     $ace = New-Object System.DirectoryServices.ActiveDirectoryAccessRule $objGMSASID, "GenericAll", "Allow", "Descendents", $GuidMap["Group"]
     #$ace = New-Object System.DirectoryServices.ActiveDirectoryAccessRule $objGMSASID, "GenericAll", "Allow", "All", $GuidMap["Group"]
     $aclGroupOu.AddAccessRule($ace)
@@ -341,7 +355,7 @@ if ($null -eq $Tier0ServerGroupName )
 if ($null -eq (Get-ADGroup $config.Tier0ServerGroupName))
 {
     Write-Output "$($config.Tier0ServerGroupName) is not a valid AD group"
-    Return
+    #Return
 }
 $T0ServerGroup = Get-ADGroup $config.Tier0ServerGroupName
 $config.LDAPT0Computers = $config.LDAPT0Computers -replace "\[DNTier0serverGroup\]", $T0ServerGroup.DistinguishedName
@@ -369,8 +383,8 @@ if ($CreateScheduledTaskADGroupManagement -eq $true)
     {
 
         $STaction = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $InstallationDirectory + '\Tier1LocalAdminGroup.ps1"') -WorkingDirectory $InstallationDirectory
-        $DurationTimeSpan = New-TimeSpan -Minutes $config.GroupManagementTaskRerun
-        $DurationTimeSpanIndefinite = ([TimeSpan]::MaxValue) 
+        #$DurationTimeSpan = New-TimeSpan -Minutes $config.GroupManagementTaskRerun
+        #$DurationTimeSpanIndefinite = ([TimeSpan]::MaxValue) 
         $STtrigger = New-ScheduledTaskTrigger -Once -RepetitionInterval (New-TimeSpan -Minutes $ServerEnumerationTime) -At (Get-Date)
         Register-ScheduledTask -Principal $STprincipal -TaskName $STGroupManagementTaskName -TaskPath $StGroupManagementTaskPath -Action $STaction -Trigger $STtrigger
         Start-ScheduledTask -TaskPath "$StGroupManagementTaskPath\" -TaskName $STGroupManagementTaskName
