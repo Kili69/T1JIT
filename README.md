@@ -13,10 +13,11 @@ The project is based on:
 # Getting Started
 Before you start with this solutions, take care the Active Directory Forest functional levle is Windows Server 2016 or higher.
 Provide a AD joined server with privileged access to T0 users or local user accounts. Take care Tier 1 users have only user privileg.
+
 Pre-Reqs:
 - AD Optional feature "Privileged Access Management Feature" needs to be installed
 	  Enable-ADOptionalFeature "Privileged Access Management Feature" –Scope ForestOrConfigurationSet -Target <domainFQDN>
-- 	RSAT-AD-Powershell feature needs to be installed on T1 JiT mgmt server
+- RSAT-AD-Powershell feature needs to be installed on T1 JiT mgmt server
 
 
 1.	Installation process
