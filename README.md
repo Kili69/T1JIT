@@ -13,6 +13,12 @@ The project is based on:
 # Getting Started
 Before you start with this solutions, take care the Active Directory Forest functional levle is Windows Server 2016 or higher.
 Provide a AD joined server with privileged access to T0 users or local user accounts. Take care Tier 1 users have only user privileg.
+Pre-Reqs:
+- AD Optional feature "Privileged Access Management Feature" needs to be installed
+	  Enable-ADOptionalFeature "Privileged Access Management Feature" –Scope ForestOrConfigurationSet -Target <domainFQDN>
+- 	RSAT-AD-Powershell feature needs to be installed on T1 JiT mgmt server
+
+
 1.	Installation process
 1.1. Tier 1 local user management server
 Provide a Windows Server 2012 or higher for the Tier 1 local administrator management
@@ -32,6 +38,17 @@ run the configuration config-jit.ps1. the configuration script asks for:
 - Name of the group managed service acocunt: This account maintains the groups in the organizational units
 3.	Create a group policy for local administrators
 Create a group policy with a group policy preferences who adds the <Admin-Prefix>%COMPUTERNAME% to the local administrators. Assing this group policy to the Tier 1 server OU
+- take care on localization OS languages (e.g.: on french systems, local administrators group is named "Administrateurs")
+- you might need to use WMI filter for different server OS', e.g.:
+			german:
+			select * FROM Win32_OperatingSystem WHERE OSLanguage=1031
+			english:
+			select * FROM Win32_OperatingSystem WHERE OSLanguage=1033
+			french:
+			select * FROM Win32_OperatingSystem WHERE OSLanguage=1036
+			
+    [MS-OE376]: Part 4 Section 7.6.2.39, LCID (Locale ID) | Microsoft Learn
+    https://learn.microsoft.com/en-us/openspecs/office_standards/ms-oe376/6c085406-a698-4e12-9d4d-c3b0ee3dbc4a
 
 # Build and Test
 1. Validate the schedule task who creates the groups in the active directory
