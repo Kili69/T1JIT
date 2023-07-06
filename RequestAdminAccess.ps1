@@ -62,7 +62,9 @@ $ServerDomain,
 [Parameter(Mandatory=$false)]
 [INT]$ElevatedMinutes,
 [Parameter(Mandatory=$false)]
-$configurationFile
+$configurationFile,
+[Parameter(Mandatory=$false)]
+[Switch]$UIused
 )
 #constantes
 $_scriptVersion = "0.1.2021299"
@@ -80,7 +82,11 @@ if (!(Test-Path $configurationFile))
 $config = Get-Content $configurationFile | ConvertFrom-Json
 if ($config.ConfigScriptVersion -ne $_configfileVersion)
 {
-    Write-Output "Invalid configuration file version. Script aborted"
+    if ($UIused) {
+        Write-output "Invalid configuration file version. Script aborted"
+    } else {
+        Write-Output "Invalid configuration file version. Script aborted"
+    }
     return
 }
 #if the user parameter is not set used the current user
@@ -109,7 +115,11 @@ if ($null -eq $ServerDomain)
 $ServerGroupName = $config.AdminPreFix + $ServerName
 if (!(Get-ADGroup -Filter {SamAccountName -eq $ServerGroupName} -Server $config.Domain))
 {
-    Write-Host "Can not find group $ServerGroupName"
+    if ($UIused) {
+        Write-output "Can not find group $ServerGroupName"
+    } else {
+        Write-Host "Can not find group $ServerGroupName"
+    }
     return
 }
 #read the elevated minutes
@@ -134,4 +144,8 @@ $ElevateUser | Add-Member -MemberType NoteProperty -Name "ServerDomain" -Value $
 $ElevateUser | Add-Member -MemberType NoteProperty -Name "ElevationTime" -Value $ElevatedMinutes
 $EventMessage = ConvertTo-Json $ElevateUser
 Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId $config.ElevateEventID -Message $EventMessage
-Read-Host "Request send. The account will be elevated soon"
+if ($UIused) {
+    Write-output "Request send. The account will be elevated soon"
+} else {
+    Read-Host "Request send. The account will be elevated soon"
+}
