@@ -348,7 +348,7 @@ if ($null -eq $Tier0ServerGroupName )
     $DefaultT0ComputerGroup = $config.Tier0ServerGroupName
     $T0computergroup = Read-Host -Prompt "Tier 0 computers group default[$($DefaultT0computerGroup)]"
     if ($T0computergroup -ne "")
-        {$config.Tier0ServerGroupName = $DefaultT0ComputerGroup}
+        {$config.Tier0ServerGroupName = $T0computergroup}
     else
         {$config.Tier0ServerGroupName = $DefaultT0ComputerGroup}
 }
