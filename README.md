@@ -16,6 +16,7 @@ Provide a AD joined server with privileged access to T0 users or local user acco
 
 Pre-Reqs:
 - AD Optional feature "Privileged Access Management Feature" needs to be installed
+  
 	  Enable-ADOptionalFeature "Privileged Access Management Feature" –Scope ForestOrConfigurationSet -Target <domainFQDN>
 - RSAT-AD-Powershell feature needs to be installed on T1 JiT mgmt server
 
