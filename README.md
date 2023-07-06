@@ -42,8 +42,9 @@ run the configuration config-jit.ps1. the configuration script asks for:
 Create a group policy with a group policy preferences who adds the <Admin-Prefix>%COMPUTERNAME% to the local administrators. Assing this group policy to the Tier 1 server OU
 - take care on localization OS languages (e.g.: on french systems, local administrators group is named "Administrateurs")
 - you might need to use WMI filter for different server OS', e.g.:
+  
 			german:
-			select * FROM Win32_OperatingSystem WHERE OSLanguage=1031
+  			select * FROM Win32_OperatingSystem WHERE OSLanguage=1031
 			english:
 			select * FROM Win32_OperatingSystem WHERE OSLanguage=1033
 			french:
