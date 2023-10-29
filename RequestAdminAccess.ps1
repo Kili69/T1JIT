@@ -68,7 +68,7 @@ $configurationFile,
 )
 #constantes
 $_scriptVersion = "0.1.2021299"
-$_configfileVersion = "0.1.2021294"
+$_configfileVersion = "0.1.20230612"
 #Reading and validating configuration file
 if ($null -eq $configurationFile )
 {
