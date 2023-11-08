@@ -49,6 +49,11 @@ possibility of such damages
         - New parameter ServerEnumerationTime added. Time for scheduled task to evaluate the existing servers
     Version 0.1.20230612
         - Source code documentation
+    Version 0.1.20231029
+        - Add a the new parameter DelegationConfigFilePath to the configuration file
+        - Existing configuration files will be updated the latest version
+    Version 0.1.20231109
+        - New parameter to enable of disable the delegation model
 #>
 <#
     script parameters
@@ -91,7 +96,13 @@ param (
     [Parameter (Mandatory=$false)]
     [bool] $CreateScheduledTaskADGroupManagement= $true,
     [Parameter (Mandatory=$false)]
-    [INT] $ServerEnumerationTime = 10
+    [INT] $ServerEnumerationTime = 10,
+    [Parameter (Mandatory=$false)]
+    #Enable the delegation Model
+    [bool] $EnableDelegationMode = $false,
+    [Parameter (Mandatory = $false)]
+    #The delegation file path
+    [string] $DelegationFilePath
 )
 
 function New-ADDGuidMap
@@ -148,6 +159,10 @@ function Add-LogonAsABatchJobPrivilege
     if(Test-Path $secedt) { Remove-Item -Path $secedt -Force }
     #Export the current configuration
     secedit /export /cfg $export
+    if ($false -eq  (Test-Path $export)){
+        Write-Host 'Administrator privileges required to set "Logon AS Batch job permission" please add the privilege manually'
+        Return
+    }
     #search for the current SID assigned to the SeBatchJob privilege
     $SIDs = (Select-String $export -Pattern "SeBatchLogonRight").Line
     if (!($SIDs.Contains($Sid)))
@@ -170,19 +185,19 @@ function Add-LogonAsABatchJobPrivilege
 }
 
 #Constant section
-$_scriptVersion = "0.1.20230612"
+$_scriptVersion = "0.1.20231108"
 $configFileName = "JIT.config"
 $MaximumElevatedTime = 1440
-$DefaultElevatedTime = 60
+#$DefaultElevatedTime = 60
 $DefaultAdminPrefix = "Admin_"
-$DefaultLdapQuery = "(&(Operatingsystem=*Windows Server*)(!(PrimaryGroupID=516))(!(memberof=[DNTier0serverGroup])))"
-$DefaultOU = "OU=Tier 1 - Management Groups,OU=Admin, $(Get-ADDomain)"
+$DefaultLdapQuery = "(&(Operatingsystem=*Windows Server*)(!(PrimaryGroupID=516))(!(memberof=[DNTier0serverGroup])))" 
 $DefaultServerGroupName = "Tier 0 Computers"
 $DefaultGroupManagementServiceAccountName = "T1GroupMgmt"
 $EventSource = "T1Mgmt"
 $EventLogName = "Tier 1 Management"
 $STGroupManagementTaskName = "Tier 1 Local Group Management"
 $StGroupManagementTaskPath = "\Just-In-Time-Privilege"
+
 
 #$STAdminGroupManagement = "Administrator Group Management"
 $STAdminGroupManagementRerunMinutes = 5
@@ -200,33 +215,35 @@ if (!(Test-Path $InstallationDirectory))
     Write-Output "Installation directory missing"
     return
 }
+$config = New-Object PSObject
+$config | Add-Member -MemberType NoteProperty -Name "ConfigScriptVersion"            -Value $_scriptVersion
+$config | Add-Member -MemberType NoteProperty -Name "AdminPreFix"                    -Value $DefaultAdminPrefix
+$config | Add-Member -MemberType NoteProperty -Name "OU"                             -Value "OU=Tier 1 - Management Groups,OU=Admin, $(Get-ADDomain)"
+$config | Add-Member -MemberType NoteProperty -Name "MaxElevatedTime"                -Value $MaximumElevatedTime
+$config | Add-Member -MemberType NoteProperty -Name "DefaultElevatedTime"            -Value 60
+$config | Add-Member -MemberType NoteProperty -Name "ElevateEventID"                 -Value 100
+$config | Add-Member -MemberType NoteProperty -Name "Tier0ServerGroupName"           -Value $DefaultServerGroupName
+$config | Add-Member -MemberType NoteProperty -Name "LDAPT0Computers"                -Value $DefaultLdapQuery
+$config | Add-Member -MemberType NoteProperty -Name "EventSource"                    -Value $EventSource
+$config | Add-Member -MemberType NoteProperty -Name "EventLog"                       -Value $EventLogName
+$config | Add-Member -MemberType NoteProperty -Name "GroupManagementTaskRerun"       -Value $STAdminGroupManagementRerunMinutes
+$config | Add-Member -MemberType NoteProperty -Name "GroupManagedServiceAccountName" -Value $DefaultGroupManagementServiceAccountName
+$config | Add-Member -MemberType NoteProperty -Name "Domain"                         -Value $ADDomainDNS
+$config | Add-Member -MemberType NoteProperty -Name "DelegationConfigPath"           -Value "$InstallationDirectory\delegation.config" #Parameter added is the path to the delegation config file
+$config | Add-Member -MemberType NoteProperty -Name "EnableDelegation"               -Value $EnableDelegationMode
+
 #check for an existing configuration file and read the configuration
 if (Test-Path "$InstallationDirectory\$configFileName")
 {
-    $config = Get-Content "$InstallationDirectory\$configFileName" | ConvertFrom-Json
-    if ($config.ConfigScriptVersion -ne $_scriptVersion)
+    $existingconfig = Get-Content "$InstallationDirectory\$configFileName" | ConvertFrom-Json
+    if ($existingconfig.ConfigScriptVersion -ne $_scriptVersion)
     {
         #There is a config file version conflict
-        Write-Output "invalid version of the configuration file. Delete the configuration to create a new configuration"
-        Return
+        foreach ($setting in ($existingconfig | Get-Member -MemberType NoteProperty)){
+            $config.$($setting.Name) = $existingconfig.$($setting.Name)
+        }
+        $config.ConfigScriptVersion = $_scriptVersion
     }
-}
-else
-{
-    $config = New-Object PSObject
-    $config | Add-Member -MemberType NoteProperty -Name "ConfigScriptVersion"            -Value $_scriptVersion
-    $config | Add-Member -MemberType NoteProperty -Name "AdminPreFix"                    -Value $DefaultAdminPrefix
-    $config | Add-Member -MemberType NoteProperty -Name "OU"                             -Value $DefaultOU
-    $config | Add-Member -MemberType NoteProperty -Name "MaxElevatedTime"                -Value $MaximumElevatedTime
-    $config | Add-Member -MemberType NoteProperty -Name "DefaultElevatedTime"            -Value $DefaultElevatedTime
-    $config | Add-Member -MemberType NoteProperty -Name "ElevateEventID"                 -Value 100
-    $config | Add-Member -MemberType NoteProperty -Name "Tier0ServerGroupName"           -Value $DefaultServerGroupName
-    $config | Add-Member -MemberType NoteProperty -Name "LDAPT0Computers"                -Value $DefaultLdapQuery
-    $config | Add-Member -MemberType NoteProperty -Name "EventSource"                    -Value $EventSource
-    $config | Add-Member -MemberType NoteProperty -Name "EventLog"                       -Value $EventLogName
-    $config | Add-Member -MemberType NoteProperty -Name "GroupManagementTaskRerun"       -Value $STAdminGroupManagementRerunMinutes
-    $config | Add-Member -MemberType NoteProperty -Name "GroupManagedServiceAccountName" -Value $DefaultGroupManagementServiceAccountName
-    $config | Add-Member -MemberType NoteProperty -Name "Domain"                         -Value $ADDomainDNS
 }
 
 #Definition of the AD group prefix. Use the default value if the question is not answerd
@@ -243,7 +260,20 @@ if ($null -eq $GroupManagedServiceAccountName )
    if ($gmsaName -ne "")
     { $config.GroupManagedServiceAccountName = $gmsaName}
 }
-$gmsaName = $config.GroupManagedServiceAccountName #$config.groupManagedServiceAccountName wird nicht akzeptiert was mach ich falsch?
+$ReadEnableDelegationMode = Read-Host -Prompt "Enable the delegation mode? (Y/N)[Y]"
+if (($ReadEnableDelegationMode -eq "n") -or ($ReadEnableDelegationMode -eq "N")){
+    $config.EnableDelegation = $false
+} else {
+    $config.EnableDelegation = $true
+    if ($DelegationFilePath -eq ""){
+        $DelegationFilePath = Read-Host -Prompt "File location of the delegation control file [$($config.DelegationConfigPath)]"
+        if ($DelegationFilePath -ne ""){
+            $config.DelegationFilePath = $DelegationFilePath
+        }
+    }
+}
+
+$gmsaName = $config.GroupManagedServiceAccountName 
 #if ((Get-ADServiceAccount -Filter {Name -eq "$($config.GroupManagedServiceAccountName)"}) -eq $null)
 if ($null -eq (Get-ADServiceAccount -Filter {Name -eq $gmsaName} -Server $($config.Domain)))
 {
@@ -258,7 +288,6 @@ if ($null -eq (Get-ADServiceAccount -Filter {Name -eq $gmsaName} -Server $($conf
         #return
     }
 }
-Write-Debug "allow the current computer to retrive the password"
 $principalsAllowToRetrivePassword = (Get-ADServiceAccount -Identity $config.GroupManagedServiceAccountName -Properties PrincipalsAllowedToRetrieveManagedPassword).PrincipalsAllowedToRetrieveManagedPassword
 if (($principalsAllowToRetrivePassword.Count -eq 0) -or ($principalsAllowToRetrivePassword.Value -notcontains (Get-ADComputer -Identity $env:COMPUTERNAME).DistinguishedName))
 {
@@ -271,7 +300,9 @@ else
     Write-Debug "is already in the list of computer who can retrieve the password"
 }
 $GMSaccount = Get-ADServiceAccount -Identity $config.GroupManagedServiceAccountName -Server $config.Domain
-Install-ADServiceAccount -Identity $GMSaccount
+if ($false -eq (Test-ADServiceAccount -Identity $config.GroupManagedServiceAccountName )){
+    Install-ADServiceAccount -Identity $GMSaccount
+}
 Write-Debug "Test $GMSAName $(Test-ADServiceAccount -Identity $($config.GroupManagedServiceAccountName))"
 Add-LogonAsABatchJobPrivilege -Sid ($GmSaccount.SID).Value
 
@@ -283,10 +314,10 @@ if ($null -eq $ou)
         {$config.OU = $OU}
 }
 $OU = $config.OU
-if ($null -eq (Get-ADOrganizationalUnit -Filter {DistinguishedName -eq $OU} -Server $config.Domain))
+if ($null -eq (Get-ADObject -Filter {DistinguishedName -eq $OU} -Server $config.Domain))
 {
     Write-Output "The Ou $($config.ou) is not available"
-    #return
+    return
 }
 Write-Debug  "OU $($config.OU) is accessible updating ACL"
 $aclGroupOU = Get-ACL -Path "AD:\$($config.OU)"
@@ -333,7 +364,7 @@ else
 if ($DefaultElevatedTime -eq $null)
 {
     [INT]$DefaultElevatedTime = Read-Host -Prompt "Default elevated time [$($config.DefaultElevatedTime)]"
-    if (($DefaultElevatedTime -gt 0  ) -and ($DefaultElevatedTime -lt ($config.MaxElevatedTime +1)))
+    if (($DefaultElevatedTime -gt -1  ) -and ($DefaultElevatedTime -lt ($config.MaxElevatedTime +1)))
     {
         $config.DefaultElevatedTime = $DefaultElevatedTime
     }
@@ -369,39 +400,47 @@ if ($GroupManagementTaskRerun -eq $null)
 ConvertTo-Json $config | Out-File "$InstallationDirectory\$configFileName" -Confirm:$false
 
 #create eventlog and register EventSource id required
+Write-Host "Reading Windows eventlogs please wait" 
 if ($null -eq (Get-EventLog -List | Where-Object {$_.LogDisplayName -eq $config.EventLog}))
 {
     New-EventLog -LogName $config.EventLog -Source $config.EventSource
     Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1 -Message "JIT configuration created"
 }
-
 #createing Scheduled Task Section
 if ($CreateScheduledTaskADGroupManagement -eq $true) 
 {
     $STprincipal = New-ScheduledTaskPrincipal -UserId "$((Get-ADDomain).NetbiosName)\$((Get-ADServiceAccount $config.GroupManagedServiceAccountName).SamAccountName)" -LogonType Password
     If (!((Get-ScheduledTask).URI -contains "$StGroupManagementTaskPath\$STGroupManagementTaskName"))
     {
-
-        $STaction = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $InstallationDirectory + '\Tier1LocalAdminGroup.ps1"') -WorkingDirectory $InstallationDirectory
-        #$DurationTimeSpan = New-TimeSpan -Minutes $config.GroupManagementTaskRerun
-        #$DurationTimeSpanIndefinite = ([TimeSpan]::MaxValue) 
-        $STtrigger = New-ScheduledTaskTrigger -Once -RepetitionInterval (New-TimeSpan -Minutes $ServerEnumerationTime) -At (Get-Date)
-        Register-ScheduledTask -Principal $STprincipal -TaskName $STGroupManagementTaskName -TaskPath $StGroupManagementTaskPath -Action $STaction -Trigger $STtrigger
-        Start-ScheduledTask -TaskPath "$StGroupManagementTaskPath\" -TaskName $STGroupManagementTaskName
-    }
-    If (!((Get-ScheduledTask).URI -contains "$StGroupManagementTaskPath\$STElevateUser"))
-    {
-        <#
-        create s schedule task who is triggered by eventlog entry in the event Log Tier 1 Management
-        #>
-        $STaction = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $InstallationDirectory + '\ElevateUser.ps1" -eventRecordID $(eventRecordID)') -WorkingDirectory $InstallationDirectory
-        $CIMTriggerClass = Get-CimClass -ClassName MSFT_TaskEventTrigger -Namespace Root/Microsoft/Windows/TaskScheduler:MSFT_TaskEventTrigger
-        $Trigger = New-CimInstance -CimClass $CIMTriggerClass -ClientOnly
-        $Trigger.Subscription = "<QueryList><Query Id=""0"" Path=""$($config.EventLog)""><Select Path=""$($config.EventLog)"">*[System[Provider[@Name='$($config.EventSource)'] and EventID=$($config.ElevateEventID)]]</Select></Query></QueryList>"
-        $Trigger.Enabled = $true
-        $Trigger.ValueQueries = [CimInstance[]]$(Get-CimClass -ClassName MSFT_TaskNamedValue -Namespace Root/Microsoft/Windows/TaskScheduler:MSFT_TaskNamedValue)
-        $Trigger.ValueQueries[0].Name = "eventRecordID"
-        $Trigger.ValueQueries[0].Value = "Event/System/EventRecordID"
-        Register-ScheduledTask -Principal $STprincipal -TaskName $STElevateUser -TaskPath $StGroupManagementTaskPath -Action $STaction -Trigger $Trigger
+        try {
+            $STaction = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $InstallationDirectory + '\Tier1LocalAdminGroup.ps1"') -WorkingDirectory $InstallationDirectory
+            #$DurationTimeSpan = New-TimeSpan -Minutes $config.GroupManagementTaskRerun
+            #$DurationTimeSpanIndefinite = ([TimeSpan]::MaxValue) 
+            $STtrigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes $ServerEnumerationTime) 
+            Register-ScheduledTask -Principal $STprincipal -TaskName $STGroupManagementTaskName -TaskPath $StGroupManagementTaskPath -Action $STaction -Trigger $STtrigger
+            Start-ScheduledTask -TaskPath "$StGroupManagementTaskPath\" -TaskName $STGroupManagementTaskName
+            If (!((Get-ScheduledTask).URI -contains "$StGroupManagementTaskPath\$STElevateUser"))
+            {
+                <#
+                create s schedule task who is triggered by eventlog entry in the event Log Tier 1 Management
+                #>
+                $STaction = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $InstallationDirectory + '\ElevateUser.ps1" -eventRecordID $(eventRecordID)') -WorkingDirectory $InstallationDirectory
+                $CIMTriggerClass = Get-CimClass -ClassName MSFT_TaskEventTrigger -Namespace Root/Microsoft/Windows/TaskScheduler:MSFT_TaskEventTrigger
+                $Trigger = New-CimInstance -CimClass $CIMTriggerClass -ClientOnly
+                $Trigger.Subscription = "<QueryList><Query Id=""0"" Path=""$($config.EventLog)""><Select Path=""$($config.EventLog)"">*[System[Provider[@Name='$($config.EventSource)'] and EventID=$($config.ElevateEventID)]]</Select></Query></QueryList>"
+                $Trigger.Enabled = $true
+                $Trigger.ValueQueries = [CimInstance[]]$(Get-CimClass -ClassName MSFT_TaskNamedValue -Namespace Root/Microsoft/Windows/TaskScheduler:MSFT_TaskNamedValue)
+                $Trigger.ValueQueries[0].Name = "eventRecordID"
+                $Trigger.ValueQueries[0].Value = "Event/System/EventRecordID"
+                Register-ScheduledTask -Principal $STprincipal -TaskName $STElevateUser -TaskPath $StGroupManagementTaskPath -Action $STaction -Trigger $Trigger
+            }                        
+        }
+        catch [System.UnauthorizedAccessException] {
+            Write-Host "Schedule task cannot registered." -ForegroundColor Red
+        }
+        catch {
+            Write-Host "An error occurred:"
+            Write-Host $_
+        }
     }
 }

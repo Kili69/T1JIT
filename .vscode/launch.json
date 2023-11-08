@@ -1,0 +1,57 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "PowerShell Delegation script New OU",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceRoot}\\DelegationConfig.ps1",
+            "cwd": "${cwd}",
+            "args": ["-adddelegation -computerOU \"OU=BG-Computer,DC=bloedgelaber,DC=de\"-ADUserOrGroup \"Tier-1-BG-Server-Admins\" -Domain \"bloedgelaber.de\"" ]
+        },
+        {
+            "name": "PowerShell Delegation script Add Tier-1-BG-Server-Admins",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceRoot}\\DelegationConfig.ps1",
+            "cwd": "${cwd}",
+            "args": ["-adddelegation -computerOU \"OU=BG-Servers,DC=bloedgelaber,DC=de\"-ADUserOrGroup \"Tier-1-BG-Server-Admins\" -Domain \"bloedgelaber.de\"" ]
+        },
+        {
+            "name": "PowerShell Delegation script Add AA",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceRoot}\\DelegationConfig.ps1",
+            "cwd": "${cwd}",
+            "args": ["-adddelegation -computerOU \"OU=BG-Servers,DC=bloedgelaber,DC=de\"-ADUserOrGroup \"Kili\" -Domain \"bloedgelaber.de\"" ]
+        },
+        {
+            "name": "PowerShell: DelegationConfig.ps1 ShowDelegation",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceRoot}\\DelegationConfig.ps1",
+            "cwd": "${workspaceRoot}",
+            "args": ["-ShowCurrentDelegation"]
+        },
+        {
+            "name": "PowerShell: ElevateUser.ps1 RecordId 17 withou delegation Model",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceRoot}\\elevateuser.ps1",
+            "cwd": "${workspaceRoot}",
+            "args": ["-eventRecordID 17"]
+        },
+        {
+            "name": "PowerShell: config-jit.ps1 interactive",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceRoot}\\config-jit.ps1",
+            "cwd": "${workspaceRoot}",
+            "args": []
+        }
+    ]
+}
