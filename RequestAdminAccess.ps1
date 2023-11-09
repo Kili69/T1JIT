@@ -41,6 +41,8 @@ possibility of such damages
         Elevation time for the account
     -DebugOutput [$true|$false]
         For test purposes only, print out debug info.
+    -UIused
+        In dicated the script is used from the UI or from the command prompt
 
 .OUTPUTS
    By default, it generates only an HTML report. If the -XmlExport is set to $true, it will generate an XML output.
@@ -49,26 +51,36 @@ possibility of such damages
     2021-10-12 
     Version 0.1
         - First internal release
+    Version 0.1.20231109
+        the config file Version checking validates the build version. Newer config.jit version will be accepted
+        Code documentation updated
 #>
 param (
 [Parameter(Mandatory=$false)]
+#Is the SAMaccount name of the user who need to be elevated
 $User,
 [Parameter(Mandatory=$false)]
+#Is the user domain
 $Domain,
 [Parameter(Mandatory=$false)]
+#The requested server name
 $Servername,
 [Parameter(Mandatory=$false)]
+#The domain DNS name where the server is installed
 $ServerDomain,
 [Parameter(Mandatory=$false)]
+#is the amount of minutes for the elevation 
 [INT]$ElevatedMinutes,
 [Parameter(Mandatory=$false)]
+#File path to the JIT.config configuration file
 $configurationFile,
 [Parameter(Mandatory=$false)]
+#this parameter is used if the script is called by the UI version
 [Switch]$UIused
 )
 #constantes
-$_scriptVersion = "0.1.2021299"
-$_configfileVersion = "0.1.20230612"
+$_scriptVersion = "0.1.20231109"
+[int]$_configBuildVersion = "20231108"
 #Reading and validating configuration file
 if ($null -eq $configurationFile )
 {
@@ -80,12 +92,15 @@ if (!(Test-Path $configurationFile))
     Return
 }
 $config = Get-Content $configurationFile | ConvertFrom-Json
-if ($config.ConfigScriptVersion -ne $_configfileVersion)
+#extracting and converting the build version of the script and the configuration file
+$configFileBuildVersion = [int]([regex]::Matches($config.ConfigScriptVersion,"[^\.]*$")).Groups[0].Value 
+#Validate the build version of the jit.config file is equal or higher then the tested jit.config file version
+if ($_configBuildVersion -lt $configFileBuildVersion)
 {
     if ($UIused) {
         Write-output "Invalid configuration file version. Script aborted"
     } else {
-        Write-Output "Invalid configuration file version. Script aborted"
+        Write-host "Invalid configuration file version. Script aborted"
     }
     return
 }
@@ -94,7 +109,11 @@ if ($null -eq $User){$User = $env:USERNAME}
 if ($null -eq $Domain){$Domain = $env:USERDNSDOMAIN}
 if (!(Get-ADUser -Identity $User -Server $Domain)) #validate the user name exists in the active directory
 {
-    Write-Host "User not found $User"
+    if($UIused){
+        Write-Output "User not found $User"
+    } else{
+        Write-Host "User not found $User"
+    }
     Return
 }
 #read and validate the server name where the user will be elevated
@@ -123,18 +142,17 @@ if (!(Get-ADGroup -Filter {SamAccountName -eq $ServerGroupName} -Server $config.
     return
 }
 #read the elevated minutes
-if ($ElevatedMinutes -eq 0) 
-{
+while (($ElevatedMinutes -lt 10) -or ($ElevatedMinutes -gt $config.MaxElevatedTime)) {
     [INT]$ElevatedMinutes = Read-Host "Elevated time [$($config.DefaultElevatedTime) minutes]"
-    if ($ElevatedMinutes -eq 0)
-    {
-        $ElevatedMinutes = $config.DefaultElevatedTime
+    if (($ElevatedMinutes -lt 10) -or ($ElevatedMinutes -gt $config.MaxElevatedTime)) {
+        if ($UIused){
+            Write-Output "Invalid elevation time"
+            Return
+        } else {
+            Write-Host "Invalid elevation time. The requested time must be higher 10 minutes and lower then $($config.MaxElevatedTime)"
+        }
     }
-}
-if (($ElevatedMinutes -lt 10) -or ($ElevatedMinutes -gt $config.MaxElevatedTime))
-{
-    Write-Host "invalid elevation time"
-    Return
+
 }
 
 $ElevateUser = New-Object PSObject
@@ -147,5 +165,5 @@ Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId $c
 if ($UIused) {
     Write-output "Request send. The account will be elevated soon"
 } else {
-    Read-Host "Request send. The account will be elevated soon"
+    Write-Host "Request send. The account will be elevated soon" -ForegroundColor Green
 }

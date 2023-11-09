@@ -361,7 +361,7 @@ else
     }
 }
 #Definition of the default elevation time
-if ($DefaultElevatedTime -eq $null)
+if ($null -eq $DefaultElevatedTime )
 {
     [INT]$DefaultElevatedTime = Read-Host -Prompt "Default elevated time [$($config.DefaultElevatedTime)]"
     if (($DefaultElevatedTime -gt -1  ) -and ($DefaultElevatedTime -lt ($config.MaxElevatedTime +1)))

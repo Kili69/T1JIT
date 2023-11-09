@@ -87,7 +87,6 @@ if ((Test-Path "$configFileName") -eq $true){
     if ((Test-Path $config.DelegationConfigPath) -eq $true){
         #$CurrentDelegation = Get-Content $config.DelegationConfigPath | ConvertFrom-Json
         $CurrentDelegation = Get-Content .\Delegation.config | ConvertFrom-Json
-        $CurrentDelegation
     } else {
         $CurrentDelegation = @()
     }
@@ -97,7 +96,13 @@ if ((Test-Path "$configFileName") -eq $true){
 }
 
 if ($ShowcurrentDelegation) {
-   $CurrentDelegation
+    For($iOU= 0; $iOU -lt $CurrentDelegation.Count; $iOU++){
+        Write-Host "Path: $($CurrentDelegation[$iOU].ComputerOU)" -ForegroundColor Green
+        For($iSID = 0; $iSID -lt $CurrentDelegation[$iOU].ADObject.count;$iSID++){
+            $SID = New-Object System.Security.Principal.SecurityIdentifier($CurrentDelegation[$iOU].ADObject[$iSID])
+            Write-Host "    $($SID.Translate([System.Security.Principal.NTAccount]))" -ForegroundColor Yellow
+        }
+    }
    Return
 }
 if ($ComputerOU -eq ""){
