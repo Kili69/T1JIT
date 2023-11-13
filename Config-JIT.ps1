@@ -231,6 +231,7 @@ $config | Add-Member -MemberType NoteProperty -Name "GroupManagedServiceAccountN
 $config | Add-Member -MemberType NoteProperty -Name "Domain"                         -Value $ADDomainDNS
 $config | Add-Member -MemberType NoteProperty -Name "DelegationConfigPath"           -Value "$InstallationDirectory\delegation.config" #Parameter added is the path to the delegation config file
 $config | Add-Member -MemberType NoteProperty -Name "EnableDelegation"               -Value $EnableDelegationMode
+$config | Add-Member -MemberType NoteProperty -Name "EnableMultiDomainSupport"       -Value $null
 
 #check for an existing configuration file and read the configuration
 if (Test-Path "$InstallationDirectory\$configFileName")
@@ -374,6 +375,7 @@ if ($null -eq $DefaultElevatedTime )
     }
 }
 
+
 if ($null -eq $Tier0ServerGroupName )
 {
     $DefaultT0ComputerGroup = $config.Tier0ServerGroupName
@@ -396,6 +398,14 @@ if ($GroupManagementTaskRerun -eq $null)
     $Stgrouprerun = Read-Host "Minutes to evaluate Tier 1 Admin groups[$($config.GroupManagementTaskRerun)]" 
     $config.GroupManagementTaskRerun = $Stgrouprerun
 }
+$ReadHost = $null
+while ($null -eq $ReadHost ){
+    $ReadHost = Read-Host "Enable Mulitdomain support[y/n] ($($config.EnableMultiDomainSupport)):"
+    switch ($ReadHost) {
+        condition {  }
+        Default {}
+    }
+
 #Writing configuration file
 ConvertTo-Json $config | Out-File "$InstallationDirectory\$configFileName" -Confirm:$false
 

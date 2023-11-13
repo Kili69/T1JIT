@@ -44,21 +44,30 @@ possibility of such damages
     Version 0.1.2021294
         - Default installation directory changed from c:\Program Files\windowsPowershell\script to %working directory%
         - Added Event logging
+    Version 0.1.20231113
+        -exit code on error
+        -mulit domain-forest support 
+        -Domain DNS name on groups replaced with Domain NetBiosName
+
+    Event ID
+    1000 Information LocalAdmin Group created
+    1001 Error Group not created
+    1002 Information permanent user removed
+    1003 Error removing permanent user
+    1100 Error configuration file missing 
+    
+    exit code 
+    0x3E8 configuratin file missing
+    0x3E9 invalid configuration file version
 #>
-<#
-Event ID
-1000 Information LocalAdmin Group created
-1001 Error Group not created
-1002 Information permanent user removed
-1003 Error removing permanent user
-1100 Error configuration file missing
-#>
-#Parameter Section
 Param(
-    [Parameter (Mandatory=$false)]
+    [Parameter (Mandatory=$false, Position=0)]
     $configurationFile
 )
-$_scriptVersion = "0.1.2021294"
+#Script Version
+$_scriptVersion = "0.1.20231113"
+$MinConfigVersionBuild = 20231113
+
 
 #Read configuration
 if ($null -eq $configurationFile)
@@ -72,39 +81,57 @@ if (Test-Path $configurationFile)
 else
 {
     Write-Error -Message "configuration file $configurationFile missing"
-    return
+    exit 0x3E8
+}
+[int]$configBuildVersion = [regex]::Match($config.ConfigScriptVersion,"[^\.]+$").Value
+if ($configBuildVersion -lt $MinconfigVersionBuild){
+    Write-Output "invalid config version $($config.ConfigScriptVersion)). Configuration build $MinConfigVersionBuild or higher required"
+    exit 0x3E9
 }
 #Getting all Servers operatingsystems except domain controllers"
-$serverList = Get-ADComputer -LDAPFilter $config.LDAPT0Computers
-Foreach ($Server in $serverList)
-{
-    $GroupName = $config.AdminPreFix + $Server.Name
-    if ($null -eq (Get-ADGroup -LDAPFilter "(SAMAccountName=$GroupName)" -Server $config.Domain))
+$aryDomainList = @()
+if ($config.MulitDomainSupport){
+    $aryDomainList += (Get.AD-Forest).Domains
+} else {
+    $aryDomainList += (Get-ADdomain).DNSRoot
+}
+
+Foreach ($Domain in $aryDomainList){
+    $serverList = Get-ADComputer -LDAPFilter $config.LDAPT0Computers -Server $Domain
+    $NBDomain = (Get-ADDomain -Server $Domain).NetbiosName
+    Foreach ($Server in $serverList)
     {
-        try {
-            New-ADGroup -GroupCategory Security -GroupScope DomainLocal -SamAccountName $GroupName -Name $GroupName -Description ("Administrators on " + $Server.Name) -Path $config.OU -Server $config.Domain
-            Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1000 -Message "New Local admin group $GroupName created" -EntryType Information
-            }
-        catch{
-            Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1001 -Message "Error creating Local Admin group $groupname : $Error"  -EntryType Error
+        if ($MulitDomainSupport){
+            $GroupName = "$($config.AdminPrefix)$NBDomain/$($server.DistinguishedName))"
+        }else {
+            $GroupName = "$($config.AdminPreFix)$($Server.DistinguishedName)"
         }
-    }
-    else
-    {
-        #remove any not timebombed user
-        Foreach ($Member in (Get-ADGroup $GroupName -Property member -ShowMemberTimeToLive -Server $config.Domain).member)
-        {
-            $Regex = [RegEx]::new("<TTL=\d*>,CN=.")
-            $Match = $Regex.Match($Member)
-            if (!$Match.Success)
+        if ($null -eq (Get-ADGroup -LDAPFilter "(SAMAccountName=$GroupName)"))
+        {   
+            #create the Tier 1 computer group objects if they don't exists
+        try {
+                New-ADGroup -GroupCategory Security -GroupScope DomainLocal -SamAccountName $GroupName -Name $GroupName -Description ("Administrators on " + $Server.Name) -Path $config.OU -Server $config.Domain
+                Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1000 -Message "New Local admin group $GroupName created" -EntryType Information
+            }
+            catch{
+                Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1001 -Message "Error creating Local Admin group $groupname : $Error"  -EntryType Error
+            }
+        }else{
+            #remove any not timebombed user
+            Foreach ($Member in (Get-ADGroup $GroupName -Property member -ShowMemberTimeToLive -Server $config.Domain).member)
             {
-                try {
-                    Get-ADGroup $GroupName -Server $config.Domain | Remove-ADGroupMember -Members (Get-ADObject -Identity $Member -Server $config.Domain) -Confirm:$false
-                    Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1002 -Message "Removing permanent user $Member from group $GroupName" -EntryType Warning
-                }
-                catch
+                $Regex = [RegEx]::new("<TTL=\d*>,CN=.")
+                $Match = $Regex.Match($Member)
+                if (!$Match.Success)
                 {
-                    Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1003 -Message "Can not remove permanent user from $GroupName $Error" -EntryType Error
+                    try {
+                        Get-ADGroup $GroupName -Server $config.Domain | Remove-ADGroupMember -Members (Get-ADObject -Identity $Member -Server $config.Domain) -Confirm:$false
+                        Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1002 -Message "Removing permanent user $Member from group $GroupName" -EntryType Warning
+                    }
+                    catch
+                    {
+                        Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1003 -Message "Can not remove permanent user from $GroupName $Error" -EntryType Error
+                    }
                 }
             }
         }
