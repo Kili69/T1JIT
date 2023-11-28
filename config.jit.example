@@ -1,0 +1,15 @@
+﻿{
+    "ConfigScriptVersion":  "0.1.20230612",
+    "AdminPreFix":  "Admin_",
+    "OU":  "OU=Tier1 Local Administrators,OU=Admin,DC=contoso,DC=com",
+    "MaxElevatedTime":  1440,
+    "DefaultElevatedTime":  60,
+    "ElevateEventID":  100,
+    "Tier0ServerGroupName":  "Tier 0 Computers",
+    "LDAPT0Computers":  "(\u0026(Operatingsystem=*Windows Server*)(!(PrimaryGroupID=516))(!(memberof=CN=Tier 0 Computers,OU=Tier 0 - Groups,OU=Admin,DC=Contoso,DC=COM)))",
+    "EventSource":  "T1Mgmt",
+    "EventLog":  "Tier 1 Management",
+    "GroupManagementTaskRerun":  5,
+    "GroupManagedServiceAccountName":  "T1GroupMgmt",
+    "Domain":  "contoso.com"
+}
