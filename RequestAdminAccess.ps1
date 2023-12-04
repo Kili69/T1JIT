@@ -25,24 +25,21 @@ possibility of such damages
 
 .EXAMPLE
     .\requestAdminAccess.ps1
-
+.PARAMETER User
+    Active Directory User Identity
+.PARAMETER Domain
+    User Domain DNS name
+.PARAMETER Servername
+    server host name to elevate user
+.PARAMETER ServerDomain
+    NetBIOS Name of the Domain
+.PARAMETER ElevatedMinutes
+    User elevation time
+.PARAMETER configurationFile
+    JIT configuration file
+.PARAMETER UIused
+    set this parameter to true if the GUI script is used
 .INPUTS
-    -configuraitonfile
-        Specify a configuration file. By default the script reads the configuration file from the working directory
-    -User
-        Active Directory Name
-    -Domain
-        User Domain name
-    -Server name
-        server name
-    -ServerDomain
-        dns name of the server
-    -ElevatedMinutes
-        Elevation time for the account
-    -DebugOutput [$true|$false]
-        For test purposes only, print out debug info.
-    -UIused
-        In dicated the script is used from the UI or from the command prompt
 
 .OUTPUTS
    By default, it generates only an HTML report. If the -XmlExport is set to $true, it will generate an XML output.
@@ -54,6 +51,8 @@ possibility of such damages
     Version 0.1.20231109
         the config file Version checking validates the build version. Newer config.jit version will be accepted
         Code documentation updated
+    Version 0.1.20231204
+        -On Mulit-Domain mode build the right group while using the Domain separator option in
 #>
 param (
 [Parameter(Mandatory=$false)]
@@ -79,7 +78,7 @@ $configurationFile,
 [Switch]$UIused
 )
 #constantes
-$_scriptVersion = "0.1.20231109"
+#$_scriptVersion = "0.1.20231204"
 [int]$_configBuildVersion = "20231108"
 #Reading and validating configuration file
 if ($null -eq $configurationFile )
@@ -95,7 +94,7 @@ $config = Get-Content $configurationFile | ConvertFrom-Json
 #extracting and converting the build version of the script and the configuration file
 $configFileBuildVersion = [int]([regex]::Matches($config.ConfigScriptVersion,"[^\.]*$")).Groups[0].Value 
 #Validate the build version of the jit.config file is equal or higher then the tested jit.config file version
-if ($_configBuildVersion -lt $configFileBuildVersion)
+if ($_configBuildVersion -ge $configFileBuildVersion)
 {
     if ($UIused) {
         Write-output "Invalid configuration file version. Script aborted"
@@ -129,9 +128,13 @@ if ($null -eq $Servername)
 if ($null -eq $ServerDomain)
 {
     $ServerDomain = Read-Host "Server DNS domain [$((Get-ADDomain).DNSroot)]" 
-    if ($ServerDomain -eq ""){ $ServerDomain = (Get-ADDomain).DNSroot}
+    if ($ServerDomain -eq ""){ $ServerDomain = (Get-ADDomain).NetBiosName}
 }
-$ServerGroupName = $config.AdminPreFix + $ServerName
+if ($config.EnableMultiDomainSupport){
+    $ServerGroupName = "$($config.AdminPreFix)$($ServerDomain)$($config.DomainSeparator)$($ServerName)"
+} else {
+    $ServerGroupName = $config.AdminPreFix + $Servername
+}
 if (!(Get-ADGroup -Filter {SamAccountName -eq $ServerGroupName} -Server $config.Domain))
 {
     if ($UIused) {
@@ -144,6 +147,9 @@ if (!(Get-ADGroup -Filter {SamAccountName -eq $ServerGroupName} -Server $config.
 #read the elevated minutes
 while (($ElevatedMinutes -lt 10) -or ($ElevatedMinutes -gt $config.MaxElevatedTime)) {
     [INT]$ElevatedMinutes = Read-Host "Elevated time [$($config.DefaultElevatedTime) minutes]"
+    if ($ElevatedMinutes -eq 0){
+        $ElevatedMinutes = $config.DefaultElevatedTime
+    }
     if (($ElevatedMinutes -lt 10) -or ($ElevatedMinutes -gt $config.MaxElevatedTime)) {
         if ($UIused){
             Write-Output "Invalid elevation time"

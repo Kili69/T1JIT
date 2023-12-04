@@ -28,14 +28,12 @@ possibility of such damages
     .\ElevateUser.ps1   1000, xxx, .\jit.config
 
 .INPUTS
-    -TargetDirectory
-        Install the solution into another directory then the Windows Powershell script directory 
-    -CreateGMSA [$true|$false]
-        Create a new GMSA and install the GMSA on this computer
-    -ServerEnumerationTime
-        Rerun time for scheduled task
-    -DebugOutput [$true|$false]
-        For test purposes only, print out debug info.
+.PARAMETER eventRecordID
+    is the Event record ID 
+.PARAMETER ConfigurationFile
+    full qualified path to the configuration file
+.EXAMPLE
+    ElevateUser.ps1 -EventRecordID 1000 -Configurationfile \\contoso.com\SysVol\contoso.com\JIT\config.JIT
 
 .OUTPUTS
    none
@@ -45,6 +43,8 @@ possibility of such damages
         Support of delegation mode
     Version 01.20231109
         Delegation mode activation
+    Version 0.1.20231204
+        Updated documentation
 #>
 <#
 Event ID's
@@ -70,30 +70,22 @@ param(
     #$eventChannel,
     [Parameter (Mandatory = $false, Position = 2)]
     #The path to the configuration file
-    [string]$ConfigurationFile,
-    [Parameter (Mandatory = $false, Position = 3)]
-    #If the script should use the Delegation Model this parameter must be set to true. The delegation model requires the delegation.config file
-    [bool] $useDelegationModel = $false
+    [string]$ConfigurationFile
     )
 <#
-.SYNOPSIS
-    Evalutation of group membership of a user
+.SYNOPSIS 
+    Get-MemberofSID is a function to enumerate all SIDs of the group membership of a user 
 .DESCRIPTION
-    Evaluates recursive the group membership of a user and return a arry all SID where the user / group is member of
-.INPUTS
-    -DistinguishedName of the user / group
-    -DomainDNS is the domain name where the user / group is located
+    Get-MemberofSID is a function to enumerate all SIDs of the group membership of a user 
+.PARAMETER DistinguishedName 
+    DistinguisheName of the AD user 
+.PARAMETER DomainDNS
+    DNS Name of the users AD-Domain
 .OUTPUTS
-    - returns a string array of all SIDs
-.NOTES
-    This function uses the Active-Directory Powershell module
-    The function depends on the memberof Backlink. While this attribute is calculated by the DC, it may take a while until 
-    the group appears if the memberof attribute
-
-    Version 20231108
-        this version do not support mulit domain group memberships
+    A arry of SIDs where the user is memberof
 #>
 function Get-MemberofSID{
+
     param (
         [Parameter (Mandatory,Position= 0)]
         #Distinguishedname of the user / group
@@ -102,6 +94,7 @@ function Get-MemberofSID{
         #DNS of the user /group domain
         [string]$DomainDNS
     )
+
     $oADobject = Get-ADObject -filter {DistinguishedName -eq $DistinguishedName} -Properties ObjectSid, memberof
     $oSId = [System.Collections.ArrayList]::new()
     $oSid += $oADobject.ObjectSID.Value

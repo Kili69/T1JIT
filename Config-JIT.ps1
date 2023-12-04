@@ -54,10 +54,24 @@ possibility of such damages
         - Existing configuration files will be updated the latest version
     Version 0.1.20231109
         - New parameter to enable of disable the delegation model
+    Version 0.1.20231130
+        - better validation of input paramters
+        - Support of spaces in Tier 0 computer OU
+        - Terminate script if the current configuration file is created with a newe config-jit.ps1 script
+        - Set full control to the Tier 1 computer Group OU
+    Version 0.1.20231201
+        - New parameter in config file LDAPT1computers
+            This parameter contains the LDAP query to select Tier 1 computers
+            This parameter is required in Tier1LocalAdminGroup.ps1
+        - Support of WhatIf and Confirm parameters
+    Version 0.1.20231204
+        - Bug Fix in LDAP query to evaluate the T0 Computer OU
+        - The domain separator can be configured in the JIT.config
 #>
 <#
     script parameters
 #>
+[CmdletBinding(SupportsShouldProcess)]
 param (
     #The groupname prefix for local administrators group 
     [Parameter (mandatory=$false)]
@@ -185,12 +199,12 @@ function Add-LogonAsABatchJobPrivilege
 }
 
 #Constant section
-$_scriptVersion = "0.1.20231108"
+$_scriptVersion = "0.1.20231203"
 $configFileName = "JIT.config"
 $MaximumElevatedTime = 1440
 #$DefaultElevatedTime = 60
 $DefaultAdminPrefix = "Admin_"
-$DefaultLdapQuery = "(&(Operatingsystem=*Windows Server*)(!(PrimaryGroupID=516))(!(memberof=[DNTier0serverGroup])))" 
+$DefaultLdapQuery = "(&(ObjectClass=Computer)(!(ObjectClass=msDS-GroupManagedServiceAccount))(!(PrimaryGroupID=516))(!(PrimaryGroupID=521)))" #deprecated will be removed
 $DefaultServerGroupName = "Tier 0 Computers"
 $DefaultGroupManagementServiceAccountName = "T1GroupMgmt"
 $EventSource = "T1Mgmt"
@@ -218,12 +232,14 @@ if (!(Test-Path $InstallationDirectory))
 $config = New-Object PSObject
 $config | Add-Member -MemberType NoteProperty -Name "ConfigScriptVersion"            -Value $_scriptVersion
 $config | Add-Member -MemberType NoteProperty -Name "AdminPreFix"                    -Value $DefaultAdminPrefix
-$config | Add-Member -MemberType NoteProperty -Name "OU"                             -Value "OU=Tier 1 - Management Groups,OU=Admin, $(Get-ADDomain)"
+$config | Add-Member -MemberType NoteProperty -Name "OU"                             -Value "OU=JIT-Administrator Groups,OU=Tier 1,OU=Admin"
 $config | Add-Member -MemberType NoteProperty -Name "MaxElevatedTime"                -Value $MaximumElevatedTime
 $config | Add-Member -MemberType NoteProperty -Name "DefaultElevatedTime"            -Value 60
 $config | Add-Member -MemberType NoteProperty -Name "ElevateEventID"                 -Value 100
 $config | Add-Member -MemberType NoteProperty -Name "Tier0ServerGroupName"           -Value $DefaultServerGroupName
-$config | Add-Member -MemberType NoteProperty -Name "LDAPT0Computers"                -Value $DefaultLdapQuery
+$config | Add-Member -MemberType NoteProperty -Name "LDAPT0Computers"                -Value $DefaultLdapQuery #Deprecated Tier 0 computer identified by Tier 0 group membership
+$config | Add-Member -MemberType NoteProperty -Name "LDAPT0ComputerPath"             -Value "OU=Tier 0,OU=Admin"
+$config | Add-Member -MemberType NoteProperty -Name "LDAPT1Computers"                -Value "(&(OperatingSystem=*Windows*)(ObjectClass=Computer)(!(ObjectClass=msDS-GroupManagedServiceAccount))(!(PrimaryGroupID=516))(!(PrimaryGroupID=521)))" #added 20231201 LDAP query to search for Tier 1 computers
 $config | Add-Member -MemberType NoteProperty -Name "EventSource"                    -Value $EventSource
 $config | Add-Member -MemberType NoteProperty -Name "EventLog"                       -Value $EventLogName
 $config | Add-Member -MemberType NoteProperty -Name "GroupManagementTaskRerun"       -Value $STAdminGroupManagementRerunMinutes
@@ -231,20 +247,22 @@ $config | Add-Member -MemberType NoteProperty -Name "GroupManagedServiceAccountN
 $config | Add-Member -MemberType NoteProperty -Name "Domain"                         -Value $ADDomainDNS
 $config | Add-Member -MemberType NoteProperty -Name "DelegationConfigPath"           -Value "$InstallationDirectory\delegation.config" #Parameter added is the path to the delegation config file
 $config | Add-Member -MemberType NoteProperty -Name "EnableDelegation"               -Value $EnableDelegationMode
-$config | Add-Member -MemberType NoteProperty -Name "EnableMultiDomainSupport"       -Value $null
+$config | Add-Member -MemberType NoteProperty -Name "EnableMultiDomainSupport"       -Value $true
+$config | Add-Member -MemberType NoteProperty -Name "T1Searchbase"                   -Value @("<DomainRoot>")
+$config | Add-Member -MemberType NoteProperty -Name "DomainSeparator"                -Value "#"
 
 #check for an existing configuration file and read the configuration
 if (Test-Path "$InstallationDirectory\$configFileName")
 {
     $existingconfig = Get-Content "$InstallationDirectory\$configFileName" | ConvertFrom-Json
-    if ($existingconfig.ConfigScriptVersion -ne $_scriptVersion)
-    {
-        #There is a config file version conflict
-        foreach ($setting in ($existingconfig | Get-Member -MemberType NoteProperty)){
-            $config.$($setting.Name) = $existingconfig.$($setting.Name)
-        }
-        $config.ConfigScriptVersion = $_scriptVersion
+    if ((([regex]::Match($existingconfig.ConfigScriptVersion,"\d+$")).Value) -gt (([regex]::Match($_scriptVersion,"\d+$")).Value)){
+        Write-Host "The configuration file is created with a newer configuration script. Please use the latest configuration file" -ForegroundColor Red
     }
+    foreach ($setting in ($existingconfig | Get-Member -MemberType NoteProperty)){
+            $config.$($setting.Name) = $existingconfig.$($setting.Name)
+    }
+    $config.ConfigScriptVersion = $_scriptVersion
+
 }
 
 #Definition of the AD group prefix. Use the default value if the question is not answerd
@@ -308,104 +326,196 @@ Write-Debug "Test $GMSAName $(Test-ADServiceAccount -Identity $($config.GroupMan
 Add-LogonAsABatchJobPrivilege -Sid ($GmSaccount.SID).Value
 
 #Definition of the AD OU where the AD groups are stored
-if ($null -eq $ou)
-{
+do{
     $OU = Read-Host -Prompt "OU for the local administrator groups Default[$($config.OU)]"
-    if ($OU -ne "")
-        {$config.OU = $OU}
-}
-$OU = $config.OU
-if ($null -eq (Get-ADObject -Filter {DistinguishedName -eq $OU} -Server $config.Domain))
-{
-    Write-Output "The Ou $($config.ou) is not available"
-    return
-}
+    if ($OU -eq ""){
+        $OU = $config.OU
+    }
+    try{
+        #if ([ADSI]::Exists("LDAP://$OU,$((Get-ADDomain).DistinguishedName)")){
+            if ([ADSI]::Exists("LDAP://$OU")){
+            $config.OU = $OU
+        } else {
+            Write-Host "The Ou $OU doesn't exist" -ForegroundColor Yellow
+            $OU = $null
+        }
+    } 
+    catch {
+        Write-Host "invalid DistinguishedName" -ForegroundColor Red
+        $OU = $null
+    }
+
+}while ($null -eq $OU)
 Write-Debug  "OU $($config.OU) is accessible updating ACL"
 $aclGroupOU = Get-ACL -Path "AD:\$($config.OU)"
 if (!($aclGroupOU.Sddl.Contains($GMSaccount.SID)))
 {
     Write-Debug "Adding ACE to OU"
-    $GuidMap = New-ADDGuidMap
+    #this section needs to be updated. Currently the GMSA get full control on the Tier 1 computer group OU. This should be fixed in
+    # Full control to any group object in this OU and createChild, deleteChild for group object in this OU
+    #$GuidMap = New-ADDGuidMap
     $objGMSASID = New-Object System.Security.Principal.SecurityIdentifier $GMSaccount.SID
-    $ace = New-Object System.DirectoryServices.ActiveDirectoryAccessRule $objGMSASID, "GenericAll", "Allow", "Descendents", $GuidMap["Group"]
-    #$ace = New-Object System.DirectoryServices.ActiveDirectoryAccessRule $objGMSASID, "GenericAll", "Allow", "All", $GuidMap["Group"]
+    #$ace = New-Object System.DirectoryServices.ActiveDirectoryAccessRule $objGMSASID, "GenericAll", "Allow", "Descendents", $GuidMap["Group"] #Give Full control on group objects
+    $ace = New-Object System.DirectoryServices.ActiveDirectoryAccessRule $objGMSASID, "GenericAll", "Allow" #Give Full control on the OU
     $aclGroupOu.AddAccessRule($ace)
     Set-Acl "AD:\$($config.OU)" -AclObject $aclGroupOU
-    Write-Output "check ACL!!!!"
 }
 #Definition of the maximum time for elevated administrators
-if ($null -eq $MaxMinutes ) 
-{
-
+do {
     [UINT16]$MaxMinutes = Read-Host "Maximum elevated time [$($config.MaxElevatedTime)]"
-    if (($MaxMinutes -gt 0) -and ($MaxMinutes -lt 1441))
-    {
-        $config.MaxElevatedTime = $MaxMinutes
-        Write-Debug "Maximum elevated time is $($config.MaxElevatedTime)"
+    switch ($MaxMinutes) {
+        0 {
+            $MaxMinutes = 1
+        }
+        {($_ -gt 0) -and ($_ -lt 15)} {
+            Write-Host "Minimum elevation time is 15 minutes" -ForegroundColor Yellow
+            $MaxMinutes = 0
+          }
+        {$_ -gt 1440}{
+            Write-Host "Maximum elevation time 1441 minutes" -ForegroundColor Yellow
+            $MaxMinutes = 0
+        }
+        Default{
+            $config.MaxElevatedTime = $MaxMinutes
+        }
     }
-    else
-    {
-        $config.MaxElevatedTime = 1440
-        Write-Debug "Maximum elevated time is set to 24h"
-    }
-}
-else
-{
-    if ($MaxMinutes -gt $config.MaxElevatedTime)
-    {
-        Write-Debug "$MaxMinutes exceed the Maximum elevated time"
-        $config.DefaultElevatedTime = $config.MaxElevatedTime
-    }
-    else
-    {
-        $config.MaxElevatedTime = $MaxMinutes
-    }
-}
+} while ($MaxMinutes -eq 0) 
 #Definition of the default elevation time
-if ($null -eq $DefaultElevatedTime )
-{
+DO {
     [INT]$DefaultElevatedTime = Read-Host -Prompt "Default elevated time [$($config.DefaultElevatedTime)]"
-    if (($DefaultElevatedTime -gt -1  ) -and ($DefaultElevatedTime -lt ($config.MaxElevatedTime +1)))
-    {
-        $config.DefaultElevatedTime = $DefaultElevatedTime
+    switch ($DefaultElevatedTime) {
+        0 {
+            if ($config.DefaultElevatedTime -gt $config.MaxElevatedTime){
+                Write-Host "The default elevation time could not exceed the maximum elevation time"
+            } else {
+                $DefaultElevatedTime = 1
+            }
+        }
+        {($_ -gt 0) -and ($_ -lt 15)} {
+            Write-Host "The default elevation time could not be lower then 15 minutes" -ForegroundColor Yellow
+            $DefaultElevatedTime = 0
+        }
+        {$_ -gt 1440} {
+            Write-Host "The default elevation time cannot exceed 1440 minutes" -ForegroundColor Yellow
+            $DefaultElevatedTime = 0
+        }  
+        Default{
+            $config.MaxElevatedTime = $DefaultElevatedTime
+        }      
     }
-    else
-    {
-        $config.DefaultElevatedTime = $config.MaxElevatedTime
+} while($DefaultElevatedTime -eq 0)
+
+
+do{
+    $T0computergroup = Read-Host -Prompt "Tier 0 computers group default[$($config.Tier0ServerGroupName)]"
+    if ($T0computergroup -eq ""){
+        $T0ComputerGroup = $config.Tier0ServerGroupName 
+    }
+    Try {
+        $Group = Get-ADGroup -Identity $T0computergroup
+        $config.Tier0ServerGroupName = $Group.Name
+    } catch [Microsoft.ActiveDirectory.Management.ADIdentityNotFoundException]{
+        Write-Host "$($T0computergroup) is not a valid AD group" -ForegroundColor Yellow 
+        $T0computergroup = ""
+    } 
+    catch {
+        Write-Host "unexpected occured script terminated" -ForegroundColor Red
+        Write-Host $Error[0]
+        return
+    }
+
+} while ($T0computergroup -eq "")
+
+$LDAPT1Computers = Read-Host "LDAP query for Tier 1 computers [$($config.LDAPT1Computers)]"
+if ($LDAPT1Computers -ne ""){
+    $config.LDAPT1Computers = $LDAPT1Computers
+}
+
+do{
+    $Tier0OUDN = Read-Host "Tier 0 OU realtive distinguished name [$($config.LDAPT0ComputerPath)]"
+    if ($Tier0OUDN  -eq ""){
+        $Tier0OUDN = $config.LDAPT0ComputerPath
+    }
+    try{
+        if ([ADSI]::Exists("LDAP://$Tier0OUDN,$((Get-ADDomain).DistinguishedName)")){
+            $config.LDAPT0ComputerPath = $Tier0OUDN
+        } else {
+            Write-Host "Invalid DistinguishedName LDAP://$Tier0OUDN,$((Get-ADDomain).Distinguishedname)."
+            $Tier0OUDN = ""
+        }
+    } catch{
+        Write-Host "Invalid DN path $($Error[0].CategoryInfo.GetType().Name)"
+        $Tier0OUDN = ""
+    }
+} while ($Tier0OUDN -eq "")
+
+while ($GroupManagementTaskRerun -in (0..4))
+{
+    [int]$GroupManagementTaskRerun = Read-Host "Minutes to evaluate Tier 1 Admin groups[$($config.GroupManagementTaskRerun)]" 
+    switch ($GroupManagementTaskRerun) {
+        {$_ -lt 5} { 
+            $GroupManagementTaskRerun = [int]$config.GroupManagementTaskRerun
+            }
+        {$_ -gt 1440} {
+            Write-Host "The enumeration of Tier 1 computer must run at least once a day" -ForegroundColor Yellow
+            $GroupManagementTaskRerun = 0
+        }
+        Default{
+            $config.GroupManagementTaskRerun = $Stgrouprerun
+        }
     }
 }
 
-
-if ($null -eq $Tier0ServerGroupName )
-{
-    $DefaultT0ComputerGroup = $config.Tier0ServerGroupName
-    $T0computergroup = Read-Host -Prompt "Tier 0 computers group default[$($DefaultT0computerGroup)]"
-    if ($T0computergroup -ne "")
-        {$config.Tier0ServerGroupName = $T0computergroup}
-    else
-        {$config.Tier0ServerGroupName = $DefaultT0ComputerGroup}
-}
-if ($null -eq (Get-ADGroup $config.Tier0ServerGroupName))
-{
-    Write-Output "$($config.Tier0ServerGroupName) is not a valid AD group"
-    #Return
-}
-$T0ServerGroup = Get-ADGroup $config.Tier0ServerGroupName
-$config.LDAPT0Computers = $config.LDAPT0Computers -replace "\[DNTier0serverGroup\]", $T0ServerGroup.DistinguishedName
-if ($GroupManagementTaskRerun -eq $null)
-{
-    $Stgrouprerun = $config.GroupManagementTaskRerun
-    $Stgrouprerun = Read-Host "Minutes to evaluate Tier 1 Admin groups[$($config.GroupManagementTaskRerun)]" 
-    $config.GroupManagementTaskRerun = $Stgrouprerun
-}
-$ReadHost = $null
-while ($null -eq $ReadHost ){
-    $ReadHost = Read-Host "Enable Mulitdomain support[y/n] ($($config.EnableMultiDomainSupport)):"
+do {
+    $ReadHost = Read-Host "Enable Mulitdomain support (y/n) [$($config.EnableMultiDomainSupport)]"
     switch ($ReadHost) {
-        condition {  }
-        Default {}
+        "y" { 
+            $config.EnableMultiDomainSupport = $true 
+        }
+        "n" { 
+            $config.EnableMultiDomainSupport = $false
+        }
+        ""  { $ReadHost = "DefaultValue"}
+        Default {
+            $ReadHost = ""
+            Write-Host "Invalid entry" -ForegroundColor Yellow
+        }
     }
+} while ($ReadHost -eq "")
+#region T1 searchbase
+If ((Read-Host "Do you want to enable Just-In-Time for the entire Domain?(y/n)[N]") -eq "y"){
+    $config.T1Searchbase = @("<DomainRoot>")
+} else {
+    $arySearchBase = @()
+    foreach ($SearchBase in $config.T1Searchbase){
+        if ($SearchBase -ne "<DomainRoot>"){
+            $arySearchbase += $SearchBase
+        }
+    }
+    $config.T1SearchBase = $arySearchBase
+    do{
+        Write-Host "Current searchbase "
+        Write-Host $config.T1Searchbase -Separator "`n"
+        if ((Read-Host "Add search base? [N]") -eq "y"){
+            $arySearchBase = @()
+            $arySearchBase += $config.T1Seachbase
+            $SearchBase = Read-Host "Search base"
+            if ([RegEx]::Match($Searchbase,"^(OU|CN)=.+").Success){
+                if ($arySearchBase -contains $SearchBase){
+                    Write-Host "$SearchBase is already available"
+                } else {
+                    $config.T1Searchbase += $SearchBase
+                }
+            } else {
+                Write-Host "Invalid DN Retry" -ForegroundColor Yellow
+            }
+        } else {
+            $SearchBase = "N"
+        }
+    } while ($SearchBase -ne "N") 
+}
 
+#endregion
 #Writing configuration file
 ConvertTo-Json $config | Out-File "$InstallationDirectory\$configFileName" -Confirm:$false
 
@@ -423,9 +533,7 @@ if ($CreateScheduledTaskADGroupManagement -eq $true)
     If (!((Get-ScheduledTask).URI -contains "$StGroupManagementTaskPath\$STGroupManagementTaskName"))
     {
         try {
-            $STaction = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $InstallationDirectory + '\Tier1LocalAdminGroup.ps1"') -WorkingDirectory $InstallationDirectory
-            #$DurationTimeSpan = New-TimeSpan -Minutes $config.GroupManagementTaskRerun
-            #$DurationTimeSpanIndefinite = ([TimeSpan]::MaxValue) 
+            $STaction  = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $InstallationDirectory + '\Tier1LocalAdminGroup.ps1"') -WorkingDirectory $InstallationDirectory
             $STtrigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes $ServerEnumerationTime) 
             Register-ScheduledTask -Principal $STprincipal -TaskName $STGroupManagementTaskName -TaskPath $StGroupManagementTaskPath -Action $STaction -Trigger $STtrigger
             Start-ScheduledTask -TaskPath "$StGroupManagementTaskPath\" -TaskName $STGroupManagementTaskName
