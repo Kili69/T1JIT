@@ -67,6 +67,9 @@ possibility of such damages
     Version 0.1.20231204
         - Bug Fix in LDAP query to evaluate the T0 Computer OU
         - The domain separator can be configured in the JIT.config
+    Version 0.1.20240116
+        - Bug fix creating OU structure
+        - Bug fix creating schedule task
 #>
 <#
     script parameters
@@ -197,7 +200,79 @@ function Add-LogonAsABatchJobPrivilege
     Remove-Item -Path $export -Force
     
 }
-
+<# Function create the entire OU path of the relative distinuished name without the domain component. This function
+is required to provide the same OU structure in the entrie forest
+.SYNOPSIS 
+    Create OU path in the current $DomainDNS
+.DESCRIPTION
+    create OU and sub OU to build the entire OU path. As an example on a DN like OU=Computers,OU=Tier 0,OU=Admin in
+    contoso. The funtion create in the 1st round the OU=Admin if requried, in the 2nd round the OU=Tier 0,OU=Admin
+    and so on till the entrie path is created
+.PARAMETER OUPath 
+    the relative OU path withou domain component
+.PARAMETER DomainDNS
+    Domain DNS Name
+.EXAMPLE
+    CreateOU -OUPath "OU=Test,OU=Demo" -DomainDNS "contoso.com"
+.OUTPUTS
+    $True
+        if the OUs are sucessfully create
+    $False
+        If at least one OU cannot created. It the user has not the required rights, the function will also return $false 
+        #>
+        function CreateOU {
+            [CmdletBinding ( SupportsShouldProcess)]
+            param (
+                [Parameter(Mandatory)]
+                [string]$OUPath,
+                [Parameter (Mandatory)]
+                [string]$DomainDNS
+            )
+            try{
+                #load the OU path into array to create the entire path step by step
+                $DomainDN = (Get-ADDomain -Server $DomainDNS).DistinguishedName
+                $aryOU=$OUPath.Split(",")
+                $BuildOUPath = ""
+                #walk through the entire domain 
+                For ($i= $aryOU.Count; $i -ne 0; $i--){
+                    #ignore DC components
+                    if ($aryOU[$i -1] -like "OU=*"){
+                        #to create the Organizational unit the string OU= must be removed to the native name
+                        $OUName = $aryOU[$i-1].Replace("OU=","")
+                        #if this is the first run of the for loop the OU must in the root. The searbase paramenter is not required 
+                        if ($i -eq $aryOU.Count){
+                            #create the OU if it doesn|t exists in the domain root. 
+                            if([bool](Get-ADOrganizationalUnit -Filter "Name -eq '$OUName'" -SearchScope OneLevel -server $DomainDNS)){
+                                Write-Debug "OU=$OUName,$DomainDN already exists no actions needed"
+                            } else {
+                                Write-Host "$OUName doesn't exist in $OUPath. Creating OU" -ForegroundColor Green
+                                New-ADOrganizationalUnit -Name $OUName -Server $DomainDNS                        
+                            }
+                        } else {
+                            #create the sub ou if required
+                            if([bool](Get-ADOrganizationalUnit -Filter "Name -eq '$OUName'" -SearchBase "$BuildOUPath$DomainDN" -Server $DomainDNS)){
+                                Write-Debug "$OUName,$OUPath already exists no action needed" 
+                            } else {
+                                Write-Host "$OUPath,$DomainDN doesn't exist. Creating" -ForegroundColor Green
+                                New-ADOrganizationalUnit -Name $OUName -Path "$BuildOUPath$DomainDN" -Server $DomainDNS
+                            }
+                        }
+                        #extend the OU searchbase with the current OU
+                        $BuildOUPath  ="$($aryOU[$i-1]),$BuildOUPath"
+                }
+                }
+            } 
+            catch [System.UnauthorizedAccessException]{
+                Write-Host "Access denied to create $OUPath in $domainDNS"
+                Return $false
+            } 
+            catch{
+                Write-Host "A error occured while create OU Structure"
+                Write-Host $Error[0].CategoryInfo.GetType()
+                Return $false
+            }
+            Return $true
+        }
 #Constant section
 $_scriptVersion = "0.1.20231203"
 $configFileName = "JIT.config"
@@ -219,8 +294,6 @@ $STElevateUser = "Elevate User"
 $ADDomainDNS = (Get-ADDomain).DNSRoot
 #End constant section
 
-#Setting Debugging option
-if ($DebugOutput -eq $true) {$DebugPreference = "Continue"} else {$DebugPreference = "SilentlyContinue"}
 #Validate the installation directory and stop execution if installation directory doesn't exists
 if ($null -eq $InstallationDirectory )
     {$InstallationDirectory = (Get-Location).Path}
@@ -287,7 +360,7 @@ if (($ReadEnableDelegationMode -eq "n") -or ($ReadEnableDelegationMode -eq "N"))
     if ($DelegationFilePath -eq ""){
         $DelegationFilePath = Read-Host -Prompt "File location of the delegation control file [$($config.DelegationConfigPath)]"
         if ($DelegationFilePath -ne ""){
-            $config.DelegationFilePath = $DelegationFilePath
+            $config.DelegationConfigPath = $DelegationFilePath
         }
     }
 }
@@ -337,6 +410,7 @@ do{
             $config.OU = $OU
         } else {
             Write-Host "The Ou $OU doesn't exist" -ForegroundColor Yellow
+            CreateOU -OUPath $OU -DomainDNS (Get-ADDomain).DNSRoot
             $OU = $null
         }
     } 
@@ -523,19 +597,22 @@ ConvertTo-Json $config | Out-File "$InstallationDirectory\$configFileName" -Conf
 Write-Host "Reading Windows eventlogs please wait" 
 if ($null -eq (Get-EventLog -List | Where-Object {$_.LogDisplayName -eq $config.EventLog}))
 {
+    Write-Host "Creating new Event log $($config.EventLog)"
     New-EventLog -LogName $config.EventLog -Source $config.EventSource
     Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1 -Message "JIT configuration created"
 }
 #createing Scheduled Task Section
 if ($CreateScheduledTaskADGroupManagement -eq $true) 
 {
+    Write-Host "creating schedule task to evaluate required Administrator groups"
     $STprincipal = New-ScheduledTaskPrincipal -UserId "$((Get-ADDomain).NetbiosName)\$((Get-ADServiceAccount $config.GroupManagedServiceAccountName).SamAccountName)" -LogonType Password
     If (!((Get-ScheduledTask).URI -contains "$StGroupManagementTaskPath\$STGroupManagementTaskName"))
     {
         try {
-            $STaction  = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $InstallationDirectory + '\Tier1LocalAdminGroup.ps1"') -WorkingDirectory $InstallationDirectory
-            $STtrigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes $ServerEnumerationTime) 
-            Register-ScheduledTask -Principal $STprincipal -TaskName $STGroupManagementTaskName -TaskPath $StGroupManagementTaskPath -Action $STaction -Trigger $STtrigger
+            $STaction  = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $InstallationDirectory + '\Tier1LocalAdminGroup.ps1" "' + $InstallationDirectory + '\jit.config"') 
+            $STTrigger = New-ScheduledTaskTrigger -AtStartup 
+            $STTrigger.Repetition = $(New-ScheduledTaskTrigger -Once -at 7am -RepetitionInterval (New-TimeSpan -Minutes $($config.GroupManagementTaskRerun))).Repetition                      
+            Register-ScheduledTask -Principal $STprincipal -TaskName $STGroupManagementTaskName -TaskPath $StGroupManagementTaskPath -Action $STaction -Trigger $STTrigger
             Start-ScheduledTask -TaskPath "$StGroupManagementTaskPath\" -TaskName $STGroupManagementTaskName
             If (!((Get-ScheduledTask).URI -contains "$StGroupManagementTaskPath\$STElevateUser"))
             {
