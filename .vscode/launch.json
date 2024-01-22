@@ -1,0 +1,79 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "PowerShell Launch Current File",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${file}",
+            "cwd": "${cwd}"
+        },
+        {
+            "name": "PowerShell Delegation script New OU",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceRoot}\\DelegationConfig.ps1",
+            "cwd": "${cwd}",
+            "args": ["-action AddDelegation -OU \"OU=Uni-x,OU=BG-Servers,DC=Bloedgelaber,dc=de\" -ADUserOrGroup \"pp@bloedgelaber.de\"" ]
+        },
+        {
+            "name": "PowerShell Delegation script Remove OU",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceRoot}\\DelegationConfig.ps1",
+            "cwd": "${cwd}",
+            "args": ["-action RemoveDelegation -OU \"OU=BG-Servers,DC=bloedgelaber,DC=de\"" ]
+        },
+        {
+            "name": "PowerShell Delegation script Add AA",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceRoot}\\DelegationConfig.ps1",
+            "cwd": "${cwd}",
+            "args": ["-action adddelegation -OU \"OU=File,OU=BG-Servers,DC=bloedgelaber,DC=de\"-ADUserOrGroup \"pp@bloedgelaber.de\"" ]
+        },
+        {
+            "name": "PowerShell Delegation remove pp from OU=BG-Servers,DC=Bloedgelaber,dc=de",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceRoot}\\DelegationConfig.ps1",
+            "cwd": "${cwd}",
+            "args": ["-action RemoveUserOrGroup -OU \"OU=BG-Servers,DC=Bloedgelaber,dc=de\" -ADUserOrGroup \"Bloedgelaber\\pp\""]
+        },
+        {
+            "name": "PowerShell: DelegationConfig.ps1 ShowDelegation",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceRoot}\\DelegationConfig.ps1",
+            "cwd": "${workspaceRoot}",
+            "args": ["-ShowCurrentDelegation"]
+        },
+        {
+            "name": "PowerShell: ElevateUser.ps1 RecordId 17 withou delegation Model",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceRoot}\\elevateuser.ps1",
+            "cwd": "${workspaceRoot}",
+            "args": ["-eventRecordID 17"]
+        },
+        {
+            "name": "PowerShell: config-jit.ps1 interactive",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceRoot}\\config-jit.ps1",
+            "cwd": "${workspaceRoot}",
+            "args": []
+        },
+        {
+            "name": "PowerShell: request access",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceRoot}\\RequestAdminAccess.ps1",
+            "cwd": "${workspaceRoot}",
+            "args": []
+        }
+    ]
+}
