@@ -27,23 +27,51 @@ possibility of such damages
     .\DelegationConfig.ps1
 
 .INPUTS
-    -Showconfig
-        shows the current delegation
-    -Add delegation
-        add a new delegation to the configuration
-    -Remove 
-        removes a delegation from a OU
-    -OU
-        the delegated OU
-    -Group
-        The group of the delegation
+.PARAMETER action
+    ShowCurrentDelegation
+        Displays the current delegation file
+    AddDelegation
+        Adds a new OU delegation configuration. This parameter requres the OU path and the user/group name
+    RemoveDelegation
+        Removes a OU path from the delegation configuration
+    RemoveUserOrGroup
+        Remove a existing user / group from a OU delegation. This paramter support 
+            UPN (myuser@contoso.com)
+            SAM account names (contoso\mygroup)
+            CommonName (mygroup)
+.PARAMETER OU
+    Is the distinguised name of the JIT delegation OU. this parameter is used on the actions:
+        AddDelegation
+        RemoveDelegation
+        RemoveUserOrGroup
+.PARAMETER ADUserOrGroup
+    is the user / group name which should be added / remvoed from the delegation configuration. This parameter is used on the actions:
+        AddDelegation
+        RemoveUserOrGroup
+.PARAMETER configFileName
+    is the path to the delegation.config file. If this parameter should be used if the jit.config file is not located in the current directory
+
 .OUTPUTS
-   none
+   delegation.config
+.EXAMPLE
+    delegationconfig.ps1
+        shows the current delegation configuration
+    delegationconfig.ps1 -action showCurrentDelegation
+        shows the current delegation configuration
+    delegationconfig.ps1 -action AddDelegation -OU "OU=Servers,DC=contoso,DC=com" -ADUserOrGroup "contoso\mygroup"
+        add the mygroup to OU=Servers,DC=contoso,DC=com delegation. mygroup can now get access to any computer in this OU
+    delegationconfig.ps1 -action RemoveDelegation .OU "OU=Servers,DC=contoso,DC=com"
+        removes the entire OU from the configuration
+    delegationconfig.ps1 -action RemoveUserOrGroup -OU "OU=Servers,DC=contoso,DC=com" -ADUserOrGroup "myuser@contoso.com"
+        removes the access for myuser@contoso.com from O=Servers,DC=contoso,DC=com
 .NOTES
     Version Tracking
     20231029 
     Version 0.1
         - First internal release
+    20240122
+        - Bug fix
+        -interactive support
     
 #>
 <#
@@ -51,42 +79,92 @@ possibility of such damages
 #>
 [CmdletBinding(DefaultParameterSetName = 'ShowCurrentDelegation')]
 param (
-    [Parameter(Mandatory, ParameterSetName = 'ShowCurrentDelegation'   , Position = 0)]
-    [switch]$ShowcurrentDelegation,
-    [Parameter(Mandatory, ParameterSetName = 'AddDelegation'   , Position = 0)]
-    [switch]$AddDelegation,
-    [Parameter(Mandatory, ParameterSetName = 'RemoveDelegationFromOU', Position = 0)]
-    [switch]$RemoveDelegation,
-    [Parameter(Mandatory, ParameterSetName = 'RemoveOU', Position = 0)]
-    [switch]$RemoveOU,
-    [Parameter(Mandatory = $false, ParameterSetName = 'AddDelegation'  , Position = 1)]
-    [Parameter(Mandatory = $false, ParameterSetName = 'RemoveDelegationFromOU', Position = 1)]
-    [string]$Domain = $env:USERDNSDOMAIN,
-    [Parameter(Mandatory, ParameterSetName = 'AddDelegation'   , Position = 2)]
-    [Parameter(Mandatory, ParameterSetName = 'RemoveDelegationFromOU', Position = 2)]
+    [Parameter(Position = 1)]
+    [ValidateSet('ShowCurrentDelegation', 'AddDelegation', 'RemoveDelegation', 'RemoveUserOrGroup')]
+    [string]$action,
+    [Parameter(Position = 2)]
+    [string]$OU = "",
+    [Parameter(Position = 2)]
     [string]$ADUserOrGroup,
-    [Parameter(Mandatory, ParameterSetName = 'AddDelegation'   , Position = 3)]
-    [Parameter(Mandatory, ParameterSetName = 'RemoveDelegationFromOU', Position = 3)]
-    [Parameter(Mandatory, ParameterSetName = 'RemoveOU', Position = 1)]
-    [String]$ComputerOU,
-    [Parameter(Mandatory = $false, ParameterSetName = 'AddDelegation'   , Position = 4)]
-    [Parameter(Mandatory = $false, ParameterSetName = 'RemoveDelegationFromOU', Position = 4)]
-    [Parameter(Mandatory = $false, ParameterSetName = 'ShowCurrentDeletation'   , Position = 1)]
-    [string]$configFileName = "$((Get-Location).Path)\JIT.config",
-    [Parameter(Mandatory = $false, ParameterSetName = 'AddDelegation'   , Position = 5)]
-    [Parameter(Mandatory = $false, ParameterSetName = 'RemoveDelegationFromOU', Position = 5)]
-    [Parameter(Mandatory = $false, ParameterSetName = 'ShowCurrentDeletation'   , Position = 2)]
-    [string[]]$InstallationDirectory = (Get-Location).Path
+    [Parameter (Position = 3)]
+    [string]$configFileName = "$((Get-Location).Path)\JIT.config"    
 )
 
+function ValidateOU {
+    param(
+        [Parameter (Position = 1)]
+        [String]$OU
+    )  
+    $DomainDNS = ""    
+    Do {
+        if ($OU -eq ""){
+            $OU=Read-Host "OU path"
+        }
+        if (!($OU -match "^(OU=[^,]+,)+(DC=[^,]+,)+DC=.+")){
+            Write-Host "Invalid OU path" -ForegroundColor Red
+            $OU= ""
+        } else {
+            $DomainDN = $OU -replace "^(OU=[^,]+,)+"
+            Foreach ($ForestDomain in (Get-ADForest).Domains){
+                if ((Get-ADDomain -Server $ForestDomain).DistinguishedName -eq $domainDN){
+                    $DomainDNS = $ForestDomain
+                    break
+                }
+            }
+            #$ComputerDomainDNS = (Get-ADForest).domains | Where-Object {(Get-ADDomain -Server $_).DistinguishedName -like "$domainDN"}    
+            if ($DomainDNS -eq ""){
+                Write-Host "Invalid domain" -ForegroundColor Red
+                $OU=""
+            } else {
+                If ($Null -eq (Get-ADObject -Filter 'DistinguishedName -eq $OU' -Server $DomainDNS)){
+                    Write-Host "Invalid OU path" -ForegroundColor Red
+                    $OU=""
+                }
+            }
+        }
+    } while ($OU -eq "")
+    return $OU
+}
+function Get-Sid{
+    param (
+        [Parameter ()]
+        [string] $Name
+    )
+    $OSID = ""
+    $GC = (Get-ADDomainController -Discover -Service GlobalCatalog)
+    do{
+        if ($Name -eq ""){
+            $Name = Read-Host "Domain user or Group"
+        }
+        switch -Wildcard ($Name){
+            "*@*" { 
+                $OSID= (Get-ADObject -Filter{UserprincipalName -eq $Name} -Server $GC -Properties ObjectSID).ObjectSid.Value
+            }
+            "*\*" {
+                $UserNetBiosName = $Name.Split("\")
+                $UserName = $UserNetBiosName[1]
+                $DomainDNS = (Get-ADForest).Domains | Where-Object {(Get-ADDomain -Server $_).NetBiosName -eq $userNetBiosName[0]}
+                $OSID= (Get-ADObject -Filter{SamAccountName -like $UserName} -Server $DomainDNS -Properties ObjectSId).ObjectSID.Value
+            }
+            Default {
+                $OSID = (Get-ADObject -Filter {cn -eq $Name} -Properties ObjectSID).ObjectSid.Value
+            }
+        }
+        if ($Null -eq $OSID ){
+            $Name = ""
+        }
+    } while ($Name -eq "")
+    return $OSID
+}
 
 $Script_Version = "0.1.20231029"
+$DelegationFileName ="Delegation.config"
 Write-Host "Configure JIT delegation (script version $Script_Version)"
+#validate the jit.cofig exists. Load the delelgation.config is the file exists
 if ((Test-Path "$configFileName") -eq $true){
     $config = Get-Content "$configFileName" | ConvertFrom-Json
-    if ((Test-Path $config.DelegationConfigPath) -eq $true){
-        #$CurrentDelegation = Get-Content $config.DelegationConfigPath | ConvertFrom-Json
-        $CurrentDelegation = Get-Content .\Delegation.config | ConvertFrom-Json
+    if ((Test-Path "$($config.DelegationConfigPath)\$DelegationFileName") -eq $true){
+        $CurrentDelegation = Get-Content "$($config.DelegationConfigPath)\$DelegationFileName" | ConvertFrom-Json
     } else {
         $CurrentDelegation = @()
     }
@@ -94,58 +172,80 @@ if ((Test-Path "$configFileName") -eq $true){
     Write-Host "Missing JIT configurtion file"
     Return
 }
-
-if ($ShowcurrentDelegation) {
-    For($iOU= 0; $iOU -lt $CurrentDelegation.Count; $iOU++){
-        Write-Host "Path: $($CurrentDelegation[$iOU].ComputerOU)" -ForegroundColor Green
-        For($iSID = 0; $iSID -lt $CurrentDelegation[$iOU].ADObject.count;$iSID++){
-            $SID = New-Object System.Security.Principal.SecurityIdentifier($CurrentDelegation[$iOU].ADObject[$iSID])
-            Write-Host "    $($SID.Translate([System.Security.Principal.NTAccount]))" -ForegroundColor Yellow
-        }
-    }
-   Return
-}
-if ($ComputerOU -eq ""){
-    Write-Host "Missing orgnizational unit"
-    Return
-}
-if ($ADUserOrGroup -eq ""){
-    Write-Host "Missing Active Directory object"
-    Return
-}
-#Seaching the AD object SID
-$oSID = (Get-ADObject -Filter {SamAccountName -eq $ADUserOrGroup} -Properties ObjectSID -Server $Domain).ObjectSID.Value
-if ($null -eq $oSID){
-    Write-Host "Can't find $AduserOrGroup in $domain"
-    Return
-}
-if (!(Get-ADObject -Filter {(DistinguishedName -eq $ComputerOU) -and (ObjectClass -eq "organizationalUnit")} -Server $Domain)){
-    Write-Host "Can't find $computerOU in $Domain"
-    Return
-}
-if ($AddDelegation) {
-    $NewEntry = $true
-    if ($CurrentDelegation.Count -gt 0){
-        for ($i = 0; $i -lt $CurrentDelegation.Count; $i++){
-            if ($CurrentDelegation[$i].ComputerOU -eq $ComputerOU){
-                $NewEntry = $false 
-                if (!($CurrentDelegation[$i].ADObject -contains $oSID)){
-                    $CurrentDelegation[$i].ADObject += $oSID
-                        #Writing configuration file
-                        ConvertTo-Json $CurrentDelegation -AsArray -Depth 3 | Out-File $config.DelegationConfigPath -Confirm:$false
+switch ($action) {
+    'AddDelegation' {
+        $OU= ValidateOU -OU $OU
+        $ObjectSId = Get-Sid $ADUserOrGroup
+        $NewEntry = $true
+        if ($CurrentDelegation.Count -gt 0){
+            for ($i = 0; $i -lt $CurrentDelegation.Count; $i++){
+                if ($CurrentDelegation[$i].ComputerOU -eq $OU){
+                    $NewEntry = $false 
+                    if (!($CurrentDelegation[$i].ADObject -contains $objectSId)){
+                        $CurrentDelegation[$i].ADObject += $objectSId
+                    }
+                    break
                 }
-                break
+            }
+        }
+        if ($NewEntry){
+            $Delegation = New-Object psobject
+            $Delegation | Add-Member NoteProperty "ComputerOU" -Value $OU 
+            $Delegation | Add-Member NoteProperty "ADObject" -Value @($ObjectSID)
+            $CurrentDelegation += $Delegation
+        }
+        #Writing configuration file
+        ConvertTo-Json $CurrentDelegation -AsArray -Depth 3 | Out-File "$($config.DelegationConfigPath)\$DelegationFilename" -Confirm:$false
+        Write-Host "configuration updated"
+    }
+    'RemoveDelegation'{
+        $tempDelegation = @()
+        for ($i = 0; $i -lt $CurrentDelegation.count; $i++){
+            if ($CurrentDelegation[$i].ComputerOU -ne $OU){
+                $tempDelegation += $CurrentDelegation[$i]
+            }
+        }
+            #Writing configuration file
+            ConvertTo-Json $tempDelegation -AsArray -Depth 3 | Out-File "$($config.DelegationConfigPath)\$DelegationFilename" -Confirm:$false
+            Write-Host "configuration updated"
+      }
+    'RemoveUserOrGroup'{
+        $ObjectSID = Get-Sid $ADUserOrGroup
+        $tempDelegation = @()
+        for ($i = 0; $i -lt $CurrentDelegation.count;$i++){
+            if ($CurrentDelegation[$i].ComputerOU -eq $OU){
+
+        }    else {
+                $tempDelegation += $CurrentDelegation[$i]
             }
         }
     }
-    if ($NewEntry){
-        $Delegation = New-Object psobject
-        $Delegation | Add-Member NoteProperty "ComputerOU" -Value $ComputerOU 
-        $Delegation | Add-Member NoteProperty "ADObject" -Value @($oSID)
-        $CurrentDelegation += $Delegation
-        #Writing configuration file
-        ConvertTo-Json $CurrentDelegation -AsArray -Depth 3 | Out-File $config.DelegationConfigPath -Confirm:$false
-        Return
+    Default {
+        For($iOU= 0; $iOU -lt $CurrentDelegation.Count; $iOU++){
+            Write-Host "Path: $($CurrentDelegation[$iOU].ComputerOU)" -ForegroundColor Green
+            For($iSID = 0; $iSID -lt $CurrentDelegation[$iOU].ADObject.count;$iSID++){
+                $SID = New-Object System.Security.Principal.SecurityIdentifier($CurrentDelegation[$iOU].ADObject[$iSID])
+                Write-Host "    $($SID.Translate([System.Security.Principal.NTAccount]))" -ForegroundColor Yellow
+            }
+        }
+    }
+}
+
+<#
+#Seaching the AD to find the computer OU
+if (!(Get-ADObject -Filter {(DistinguishedName -eq $ComputerOU) -and (ObjectClass -eq "organizationalUnit")} -Server $ComputerDomain)){
+    Write-Host "Can't find $computerOU in $Domain"
+    Return
+}
+
+
+if ($null -eq $oSID){
+    Write-Host "Can't find $AduserOrGroup"
+    Return
+}
+
+
+if ($AddDelegation) {
     }
 }
 if ($RemoveDelegation){
@@ -164,14 +264,4 @@ if ($RemoveDelegation){
         }
     }
 }
-if ($RemoveOU){
-    $tempOU = @()
-    for ($i = 0; $i -lt $cursorColumn.count; $i++){
-        if ($CurrentDelegation[$i].ComputerOU -ne $ComputerOU){
-            $tempOU += $CurrentDelegation[$i]
-        }
-        #Writing configuration file
-        ConvertTo-Json $CurrentDelegation -AsArray -Depth 3 | Out-File $config.DelegationConfigPath -Confirm:$false
-        Return
-    }
-}
+#>

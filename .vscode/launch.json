@@ -17,15 +17,15 @@
             "request": "launch",
             "script": "${workspaceRoot}\\DelegationConfig.ps1",
             "cwd": "${cwd}",
-            "args": ["-adddelegation -computerOU \"OU=BG-Computer,DC=bloedgelaber,DC=de\"-ADUserOrGroup \"Tier-1-BG-Server-Admins\" -Domain \"bloedgelaber.de\"" ]
+            "args": ["-action AddDelegation -OU \"OU=Uni-x,OU=BG-Servers,DC=Bloedgelaber,dc=de\" -ADUserOrGroup \"pp@bloedgelaber.de\"" ]
         },
         {
-            "name": "PowerShell Delegation script Add Tier-1-BG-Server-Admins",
+            "name": "PowerShell Delegation script Remove OU",
             "type": "PowerShell",
             "request": "launch",
             "script": "${workspaceRoot}\\DelegationConfig.ps1",
             "cwd": "${cwd}",
-            "args": ["-adddelegation -computerOU \"OU=BG-Servers,DC=bloedgelaber,DC=de\"-ADUserOrGroup \"Tier-1-BG-Server-Admins\" -Domain \"bloedgelaber.de\"" ]
+            "args": ["-action RemoveDelegation -OU \"OU=BG-Servers,DC=bloedgelaber,DC=de\"" ]
         },
         {
             "name": "PowerShell Delegation script Add AA",
@@ -33,7 +33,15 @@
             "request": "launch",
             "script": "${workspaceRoot}\\DelegationConfig.ps1",
             "cwd": "${cwd}",
-            "args": ["-adddelegation -computerOU \"OU=BG-Servers,DC=bloedgelaber,DC=de\"-ADUserOrGroup \"Kili\" -Domain \"bloedgelaber.de\"" ]
+            "args": ["-action adddelegation -OU \"OU=File,OU=BG-Servers,DC=bloedgelaber,DC=de\"-ADUserOrGroup \"pp@bloedgelaber.de\"" ]
+        },
+        {
+            "name": "PowerShell Delegation remove pp from OU=BG-Servers,DC=Bloedgelaber,dc=de",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceRoot}\\DelegationConfig.ps1",
+            "cwd": "${cwd}",
+            "args": ["-action RemoveUserOrGroup -OU \"OU=BG-Servers,DC=Bloedgelaber,dc=de\" -ADUserOrGroup \"Bloedgelaber\\pp\""]
         },
         {
             "name": "PowerShell: DelegationConfig.ps1 ShowDelegation",
