@@ -54,6 +54,8 @@ possibility of such damages
     Version 0.1.20231204
         - New Event 1004 if a OU doesn't exists
         - Code documentation
+    Version 0.1.20240124
+        - Bug fix on searchbase
 
     Event ID
     1000 Information LocalAdmin Group created
@@ -75,7 +77,7 @@ Param(
 )
 #Script Version
 #$_scriptVersion = "0.1.20231204"
-$MinConfigVersionBuild = 20231203
+$MinConfigVersionBuild = 20240123
 
 
 #Read configuration
@@ -125,13 +127,15 @@ $Statuscounter = 0 #Initialize the counter a executed groups activites. THis cou
 Foreach ($Domain in $aryDomainList) {
     #Woring on every domain in the Forest
     Write-Debug "Working on Domain $Domain"
-    #The searchbase parameter defines the OU where the script is looking for computer objects. if the value is <DomainRoot> the script searches in teh entrie domain from computer objects
+    #The searchbase parameter defines the OU where the script is looking for computer objects. if the value is <DomainRoot> the script searches in the entrie domain from computer objects
     Foreach ($SearchBase in $config.T1Searchbase) {
-        if ($SearchBase -eq "<DomainRoot>") {
-            $SearchBase = (Get-ADDomain -Server $Domain).DistinguishedName
-        }
-        else {
-            $SearchBase += ",$((Get-ADDomain -Server $Domain).DistinguishedName)"
+        if ($SearchBase -notlike "*DC=*"){
+            if ($SearchBase -eq "<DomainRoot>") {
+                $SearchBase = (Get-ADDomain -Server $Domain).DistinguishedName
+            }
+            else {
+                $SearchBase += ",$((Get-ADDomain -Server $Domain).DistinguishedName)"
+            }
         }
         #Validate the OU exists. It is not mandatory to have the same Tier 1 OU structure in all domains
         if ([ADSI]::Exists("LDAP://$domain/$SearchBase")) {

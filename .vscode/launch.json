@@ -33,7 +33,7 @@
             "request": "launch",
             "script": "${workspaceRoot}\\DelegationConfig.ps1",
             "cwd": "${cwd}",
-            "args": ["-action adddelegation -OU \"OU=File,OU=BG-Servers,DC=bloedgelaber,DC=de\"-ADUserOrGroup \"pp@bloedgelaber.de\"" ]
+            "args": ["-action adddelegation -OU \"OU=File,OU=BG-Temp,DC=bloedgelaber,DC=de\"-ADUserOrGroup \"pp@bloedgelaber.de\"" ]
         },
         {
             "name": "PowerShell Delegation remove pp from OU=BG-Servers,DC=Bloedgelaber,dc=de",

@@ -69,9 +69,11 @@ possibility of such damages
     20231029 
     Version 0.1
         - First internal release
-    20240122
+    0.1.20240122
         - Bug fix
         -interactive support
+    0.1.20240126
+        - Bug fix on JSON writing
     
 #>
 <#
@@ -157,16 +159,14 @@ function Get-Sid{
     return $OSID
 }
 
-$Script_Version = "0.1.20231029"
-$DelegationFileName ="Delegation.config"
+$Script_Version = "0.1.20240126"
+$CurrentDelegation = @()
 Write-Host "Configure JIT delegation (script version $Script_Version)"
 #validate the jit.cofig exists. Load the delelgation.config is the file exists
 if ((Test-Path "$configFileName") -eq $true){
     $config = Get-Content "$configFileName" | ConvertFrom-Json
-    if ((Test-Path "$($config.DelegationConfigPath)\$DelegationFileName") -eq $true){
-        $CurrentDelegation = Get-Content "$($config.DelegationConfigPath)\$DelegationFileName" | ConvertFrom-Json
-    } else {
-        $CurrentDelegation = @()
+    if ((Test-Path $config.DelegationConfigPath)){
+        $CurrentDelegation += Get-Content "$($config.DelegationConfigPath)" | ConvertFrom-Json 
     }
 } else {
     Write-Host "Missing JIT configurtion file"
@@ -195,7 +195,8 @@ switch ($action) {
             $CurrentDelegation += $Delegation
         }
         #Writing configuration file
-        ConvertTo-Json $CurrentDelegation -AsArray -Depth 3 | Out-File "$($config.DelegationConfigPath)\$DelegationFilename" -Confirm:$false
+        #ConvertTo-Json $CurrentDelegation -AsArray -Depth 3 | Out-File "$($config.DelegationConfigPath)\$DelegationFilename" -Confirm:$false
+        ConvertTo-Json $CurrentDelegation  | Out-File $config.DelegationConfigPath -Confirm:$false
         Write-Host "configuration updated"
     }
     'RemoveDelegation'{
@@ -205,18 +206,25 @@ switch ($action) {
                 $tempDelegation += $CurrentDelegation[$i]
             }
         }
-            #Writing configuration file
-            ConvertTo-Json $tempDelegation -AsArray -Depth 3 | Out-File "$($config.DelegationConfigPath)\$DelegationFilename" -Confirm:$false
-            Write-Host "configuration updated"
+        #Writing configuration file
+        ConvertTo-Json $tempDelegation | Out-File $config.DelegationConfigPath -Confirm:$false
+        Write-Host "configuration updated"
       }
     'RemoveUserOrGroup'{
         $ObjectSID = Get-Sid $ADUserOrGroup
-        $tempDelegation = @()
         for ($i = 0; $i -lt $CurrentDelegation.count;$i++){
             if ($CurrentDelegation[$i].ComputerOU -eq $OU){
-
-        }    else {
-                $tempDelegation += $CurrentDelegation[$i]
+                $tempSIDList = @()
+                Foreach ($SID in $CurrentDelegation[$i].ADObject){
+                    if ($SID -ne $ObjectSId){
+                        $tempSIDList +=  $SID
+                    }
+                }
+                $CurrentDelegation[$i].ADObject = $tempSIDList
+                #Writing configuration file
+                ConvertTo-Json $CurrentDelegation | Out-File $config.DelegationConfigPath -Confirm:$false
+                Write-Host "configuration updated"
+                break    
             }
         }
     }
@@ -231,37 +239,3 @@ switch ($action) {
     }
 }
 
-<#
-#Seaching the AD to find the computer OU
-if (!(Get-ADObject -Filter {(DistinguishedName -eq $ComputerOU) -and (ObjectClass -eq "organizationalUnit")} -Server $ComputerDomain)){
-    Write-Host "Can't find $computerOU in $Domain"
-    Return
-}
-
-
-if ($null -eq $oSID){
-    Write-Host "Can't find $AduserOrGroup"
-    Return
-}
-
-
-if ($AddDelegation) {
-    }
-}
-if ($RemoveDelegation){
-    for ($i = 0; $i -lt $CurrentDelegation.Count; $i++){
-        if ($CurrentDelegation[$i].ComputerOU -eq $ComputerOU){
-            $tempSid = @()
-            for ($iSID = 0; $iSID -lt $CurrentDelegation.Count; $i++){
-                if ($CurrentDelegation[$i].ADObject[$iSID] -ne $oSID){
-                    $tempSid += $CurrentDelegation[$i].ADObject[$iSID]
-                }
-            }
-            $CurrentDelegation[$i].ADObject = $tempSid
-            #Writing configuration file
-            ConvertTo-Json $CurrentDelegation -AsArray -Depth 3 | Out-File $config.DelegationConfigPath -Confirm:$false
-            Return
-        }
-    }
-}
-#>

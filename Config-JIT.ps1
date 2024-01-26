@@ -274,7 +274,7 @@ is required to provide the same OU structure in the entrie forest
             Return $true
         }
 #Constant section
-$_scriptVersion = "0.1.20231203"
+$_scriptVersion = "0.1.20240123"
 $configFileName = "JIT.config"
 $MaximumElevatedTime = 1440
 #$DefaultElevatedTime = 60
@@ -294,6 +294,9 @@ $STElevateUser = "Elevate User"
 $ADDomainDNS = (Get-ADDomain).DNSRoot
 #End constant section
 
+#Check minimum PS Version 
+if ($PSVersionTable.)
+
 #Validate the installation directory and stop execution if installation directory doesn't exists
 if ($null -eq $InstallationDirectory )
     {$InstallationDirectory = (Get-Location).Path}
@@ -305,7 +308,7 @@ if (!(Test-Path $InstallationDirectory))
 $config = New-Object PSObject
 $config | Add-Member -MemberType NoteProperty -Name "ConfigScriptVersion"            -Value $_scriptVersion
 $config | Add-Member -MemberType NoteProperty -Name "AdminPreFix"                    -Value $DefaultAdminPrefix
-$config | Add-Member -MemberType NoteProperty -Name "OU"                             -Value "OU=JIT-Administrator Groups,OU=Tier 1,OU=Admin"
+$config | Add-Member -MemberType NoteProperty -Name "OU"                             -Value "OU=JIT-Administrator Groups,OU=Tier 1,OU=Admin,$((Get-ADDomain).DistinguishedName)"
 $config | Add-Member -MemberType NoteProperty -Name "MaxElevatedTime"                -Value $MaximumElevatedTime
 $config | Add-Member -MemberType NoteProperty -Name "DefaultElevatedTime"            -Value 60
 $config | Add-Member -MemberType NoteProperty -Name "ElevateEventID"                 -Value 100
@@ -366,30 +369,39 @@ if (($ReadEnableDelegationMode -eq "n") -or ($ReadEnableDelegationMode -eq "N"))
 }
 
 $gmsaName = $config.GroupManagedServiceAccountName 
-#if ((Get-ADServiceAccount -Filter {Name -eq "$($config.GroupManagedServiceAccountName)"}) -eq $null)
-if ($null -eq (Get-ADServiceAccount -Filter {Name -eq $gmsaName} -Server $($config.Domain)))
-{
-    if ($InstallGroupManagedServiceAccount)
+try {
+    if ($null -eq (Get-ADServiceAccount -Filter {Name -eq $gmsaName} -Server $($config.Domain)))
     {
-        Write-Debug "Create GMSA $($config.GroupManagedServiceAccountName) "
-        New-ADServiceAccount -Name $config.GroupManagedServiceAccountName -DisplayName $config.GroupManagedServiceAccountName -DNSHostName "$($config.GroupManagedServiceAccountName).$((Get-ADDomain).DomainDNSroot)" -Server $config.Domain
+        if ($InstallGroupManagedServiceAccount)
+        {
+            Write-Debug "Create GMSA $($config.GroupManagedServiceAccountName) "
+            New-ADServiceAccount -Name $config.GroupManagedServiceAccountName -DisplayName $config.GroupManagedServiceAccountName -DNSHostName "$($config.GroupManagedServiceAccountName).$((Get-ADDomain).DomainDNSroot)" -Server $config.Domain
+        }
+        else
+        {
+            Write-Output "Missing GMSA $($config.GroupManagedServiceAccountName)"
+            #return
+        }
+    }
+    $principalsAllowToRetrivePassword = (Get-ADServiceAccount -Identity $config.GroupManagedServiceAccountName -Properties PrincipalsAllowedToRetrieveManagedPassword).PrincipalsAllowedToRetrieveManagedPassword
+    if (($principalsAllowToRetrivePassword.Count -eq 0) -or ($principalsAllowToRetrivePassword.Value -notcontains (Get-ADComputer -Identity $env:COMPUTERNAME).DistinguishedName))
+    {
+        Write-Debug "Adding current computer to the list of computer who an retrive the password"
+        $principalsAllowToretrivePassword.Add((Get-ADComputer -Identity $env:COMPUTERNAME))
+        Set-ADServiceAccount -Identity $GMSAName -PrincipalsAllowedToRetrieveManagedPassword $principalsAllowToRetrivePassword -Server $config.Domain
     }
     else
     {
-        Write-Output "Missing GMSA $($config.GroupManagedServiceAccountName)"
-        #return
+        Write-Debug "is already in the list of computer who can retrieve the password"
+}
+} catch {
+    if ( $Error[0].CategoryInfo.Activity -eq "New-ADServiceAccount"){
+        Write-Host "A GMSA coult not be created.Validate you have the correct privileges and the KDS rootkey exists" -ForegroundColor Red
+        return
     }
-}
-$principalsAllowToRetrivePassword = (Get-ADServiceAccount -Identity $config.GroupManagedServiceAccountName -Properties PrincipalsAllowedToRetrieveManagedPassword).PrincipalsAllowedToRetrieveManagedPassword
-if (($principalsAllowToRetrivePassword.Count -eq 0) -or ($principalsAllowToRetrivePassword.Value -notcontains (Get-ADComputer -Identity $env:COMPUTERNAME).DistinguishedName))
-{
-    Write-Debug "Adding current computer to the list of computer who an retrive the password"
-    $principalsAllowToretrivePassword.Add((Get-ADComputer -Identity $env:COMPUTERNAME))
-    Set-ADServiceAccount -Identity $GMSAName -PrincipalsAllowedToRetrieveManagedPassword $principalsAllowToRetrivePassword -Server $config.Domain
-}
-else
-{
-    Write-Debug "is already in the list of computer who can retrieve the password"
+    Write-Host "A error occured while configureing GMSA"
+    $Error[0]
+    return
 }
 $GMSaccount = Get-ADServiceAccount -Identity $config.GroupManagedServiceAccountName -Server $config.Domain
 if ($false -eq (Test-ADServiceAccount -Identity $config.GroupManagedServiceAccountName )){
@@ -573,7 +585,7 @@ If ((Read-Host "Do you want to enable Just-In-Time for the entire Domain?(y/n)[N
         if ((Read-Host "Add search base? [N]") -eq "y"){
             $arySearchBase = @()
             $arySearchBase += $config.T1Seachbase
-            $SearchBase = Read-Host "Search base"
+            $SearchBase = Read-Host "Search base for JIT computers"
             if ([RegEx]::Match($Searchbase,"^(OU|CN)=.+").Success){
                 if ($arySearchBase -contains $SearchBase){
                     Write-Host "$SearchBase is already available"
