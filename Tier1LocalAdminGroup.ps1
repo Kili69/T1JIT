@@ -56,6 +56,9 @@ possibility of such damages
         - Code documentation
     Version 0.1.20240124
         - Bug fix on searchbase
+    Version 0.1.20240202
+        - Avoid error messages while search for computers in a different OU
+        - Addtional Debug messages
 
     Event ID
     1000 Information LocalAdmin Group created
@@ -76,9 +79,9 @@ Param(
     $configurationFile
 )
 #Script Version
-#$_scriptVersion = "0.1.20231204"
+$_scriptVersion = "0.1.20240202"
 $MinConfigVersionBuild = 20240123
-
+Write-Debug "Script Version $_scriptVersion"
 
 #Read configuration
 #If the parameter $configuration file is empty use the current working directory to locate the configruation file
@@ -138,7 +141,7 @@ Foreach ($Domain in $aryDomainList) {
             }
         }
         #Validate the OU exists. It is not mandatory to have the same Tier 1 OU structure in all domains
-        if ([ADSI]::Exists("LDAP://$domain/$SearchBase")) {
+        if ($SearchBase -like "*$((Get-ADDomain -Server $Domain).DistinguishedName)") {
             #Search for computer object in the OU and based on the LDAP filter. While the LDAP filter doesn't support DistinguishedNames the query must work again s the $searchbase
             $serverList = Get-ADComputer -LDAPFilter $config.LDAPT1Computers -Properties memberof -SearchBase $Searchbase -Server $Domain | Where-Object { $_.DistinguishedName -notlike "*$($config.LDAPT0ComputerPath)*" }
             $GroupCount += $serverList.count #Display parameter to show the amount of computer object currently working on.

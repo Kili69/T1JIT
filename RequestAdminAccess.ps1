@@ -52,42 +52,72 @@ possibility of such damages
         the config file Version checking validates the build version. Newer config.jit version will be accepted
         Code documentation updated
     Version 0.1.20231204
-        -On Mulit-Domain mode build the right group while using the Domain separator option in
+        -On Mulit-Domain mode build the right group while using the Domain separator option
+    Version 0.1.20240129
+        Parameter type definition
+        Username can now added a Name, UserPrincipalName or SamAccountName
+        If the parameter serverName is empty interactive mode to add the server name
+    Version 0.1.20240202
+        Error handling added
+    Version 0.1.20240206
+        Users from child domain can enmumerate SID of allowed groups if the group is universal
 #>
 param (
 [Parameter(Mandatory=$false)]
 #Is the SAMaccount name of the user who need to be elevated
-$User,
+[string]$User,
 [Parameter(Mandatory=$false)]
 #Is the user domain
-$Domain,
+[string]$Domain,
 [Parameter(Mandatory=$false)]
 #The requested server name
-$Servername,
+[string]$Servername,
 [Parameter(Mandatory=$false)]
 #The domain DNS name where the server is installed
-$ServerDomain,
+[string]$ServerDomain,
 [Parameter(Mandatory=$false)]
 #is the amount of minutes for the elevation 
 [INT]$ElevatedMinutes,
 [Parameter(Mandatory=$false)]
 #File path to the JIT.config configuration file
-$configurationFile,
+[string]$configurationFile,
 [Parameter(Mandatory=$false)]
 #this parameter is used if the script is called by the UI version
 [Switch]$UIused
 )
+
+function Write-ScriptMessage {
+    param (
+        [Parameter (Mandatory, Position=0)]
+        [string] $Message,
+        [Parameter (Mandatory=$false, Position=1)]
+        [ValidateSet('Information','Warning','Error')]
+        [string] $Severity = 'Information'
+    )
+    If ($UIused){
+        Write-Output $Message
+    } else {
+        switch ($Severity) {
+            'Warning' { $ForegroundColor = 'Yellow'}
+            'Error'   { $ForegroundColor = 'Red'}
+            Default   { $ForegroundColor = 'Gray'}
+        }
+        Write-Host $Message -ForegroundColor $ForegroundColor
+    }
+}
+
 #constantes
-#$_scriptVersion = "0.1.20231204"
+Write-Debug "Script version 0.1.20240201"
+
 [int]$_configBuildVersion = "20231108"
 #Reading and validating configuration file
-if ($null -eq $configurationFile )
+if ($configurationFile -eq "" )
 {
     $configurationFile = (Get-Location).Path + '\JIT.config'
 }
 if (!(Test-Path $configurationFile))
 {
-    Write-Host "Missing configuration file"
+    Write-ScriptMessage "Missing configuration file $configurationFile" -severity Warning
     Return
 }
 $config = Get-Content $configurationFile | ConvertFrom-Json
@@ -96,69 +126,157 @@ $configFileBuildVersion = [int]([regex]::Matches($config.ConfigScriptVersion,"[^
 #Validate the build version of the jit.config file is equal or higher then the tested jit.config file version
 if ($_configBuildVersion -ge $configFileBuildVersion)
 {
-    if ($UIused) {
-        Write-output "Invalid configuration file version. Script aborted"
-    } else {
-        Write-host "Invalid configuration file version. Script aborted"
-    }
+    Write-ScriptMessage "Invalid configuration file version. Script aborted" -Severity Error
     return
 }
+$GlobalCatalogServer = "$((Get-ADDomainController -Discover -Service GlobalCatalog).HostName):3268"
 #if the user parameter is not set used the current user
-if ($null -eq $User){$User = $env:USERNAME}
-if ($null -eq $Domain){$Domain = $env:USERDNSDOMAIN}
-if (!(Get-ADUser -Identity $User -Server $Domain)) #validate the user name exists in the active directory
-{
-    if($UIused){
-        Write-Output "User not found $User"
-    } else{
-        Write-Host "User not found $User"
+try {
+switch -Wildcard ($User) {
+    "*\*" {  
+        $strSplitUserName = $User.Split("\")
+        $User = $strSplitUserName[1]
+        Foreach($DomainDNS in ((Get-ADForest).Domains)){
+            if ((Get-ADDomain -Server $DomainDNS).NetBiosName -eq $strSplitUserName[0]){
+                $Domain = $DomainDNS
+                break
+            }
+        }
+        if ([string]::IsNullOrEmpty($Domain)){
+            Write-ScriptMessage -Severity Warning "Invalid domain name: $($strSplitUserName[0]) "
+            return
+        }
     }
+    "*@*"{
+        $oUser = (Get-ADUser -Filter "UserPrincipalName -eq '$user'" -Server $GlobalCatalogServer -Properties CanonicalName)
+        if ($null -eq $oUser){
+            Write-ScriptMessage -Severity Warning -Message "Can't find user $user"
+            return
+        }
+        $user = $oUser.SamAccountName
+        $Domain = $oUser.canonicalName.Split("/")[0]
+    }
+    Default {
+        if ($User -eq ""){$User = $env:USERNAME}
+        if ($Domain -eq ""){$Domain = $env:USERDNSDOMAIN}
+    }
+}
+$oUser = Get-ADUser -Filter "SamAccountName -eq '$User'" -Server $Domain
+} 
+catch [Microsoft.ActiveDirectory.Management.ADServerDownException]{
+    Write-ScriptMessage -Severity Error -Message "Cannot conntect to Active Directory"
+    return
+}
+catch {
+    Write-ScriptMessage -Severity Error -Message $Error[0]
+}
+if ($null -eq $oUser) #validate the user name exists in the active directory
+{
+    Write-ScriptMessage "User not found $user in $domain" -Severity Warning
     Return
+} else {
+    #If the user object exists, search for all recursive group membership
+    $oUserSID = @()
+    Foreach ($UserSID in (Get-ADUser -LDAPFilter '(ObjectClass=User)' -SearchBase $oUser.DistinguishedName -SearchScope Base -Server $domain -Properties "TokenGroups").TokenGroups){
+        $oUserSID += $UserSID.Value
+        $oSID = New-Object System.Security.Principal.SecurityIdentifier($UserSID.Value)
+    }
+    $oUserSID += $oUser.SID.Value
+    Write-Debug "User Token SID $oUserSID"
 }
 #read and validate the server name where the user will be elevated
-if ($null -eq $Servername)
+if ($Servername -eq "")
 {
     do
     {
         $Servername = Read-Host -Prompt "ServerName"
     } while ($Servername -eq "")
 }
-
-#read the domain name if the user press return the current domain will be used
-if ($null -eq $ServerDomain)
-{
-    $ServerDomain = Read-Host "Server DNS domain [$((Get-ADDomain).DNSroot)]" 
-    if ($ServerDomain -eq ""){ $ServerDomain = (Get-ADDomain).NetBiosName}
+#Validate the server Name is FQDN
+if ($Servername.Contains(".")){
+    #The Server name is FQDN. It is required to split the name into Hostname and domain name
+    $ServerDomain = [regex]::Match($ServerName,"[^.]+\.(.+)").Groups[1].value
+    $ServerName =  [regex]::Match($ServerName,"([^.]+)\.").Groups[1].value
+} else {
+    #If only the hostname is added the current domain will be used as the domain 
+    $ServerDomain = (Get-ADDomain).DNSRoot
 }
+#read the domain name if the user press return the current domain will be used
 if ($config.EnableMultiDomainSupport){
-    $ServerGroupName = "$($config.AdminPreFix)$($ServerDomain)$($config.DomainSeparator)$($ServerName)"
+    while ($ServerDomain -eq "") {
+        $ServerDomain = Read-Host "Server DNS domain [$((Get-ADDomain).DNSroot)]"
+        if ($ServerDomain -eq ""){
+            $ServerDomain = (Get-ADDomain).DNSroot
+        } else {
+          if ((Get-ADForest).Domains -notlike $ServerDomain){
+            $ServerDomain = ""
+          }  
+        }
+    }
+    try {
+        $ServerDomainNetBiosName = (Get-ADDomain -Server $ServerDomain).NetBIOSName
+        $ServerGroupName = "$($config.AdminPreFix)$($ServerDomainNetBiosName)$($config.DomainSeparator)$($ServerName)"        
+    }
+    catch {
+        Write-ScriptMessage "Error $($Error[0].Exception.GetType().Name) occured while searching for server $ServerName in $ServerDomain" -Severity Error
+        return
+    }
+
 } else {
     $ServerGroupName = $config.AdminPreFix + $Servername
 }
 if (!(Get-ADGroup -Filter {SamAccountName -eq $ServerGroupName} -Server $config.Domain))
 {
-    if ($UIused) {
-        Write-output "Can not find group $ServerGroupName"
-    } else {
-        Write-Host "Can not find group $ServerGroupName"
-    }
+    Write-ScriptMessage "Can not find group $ServerGroupName" -Severity Warning
     return
 }
+if ($config.EnableDelegation){
+    $Delegation =@()
+    $Delegation += Get-Content $config.DelegationConfigPath | ConvertFrom-Json
+    $oServer = Get-ADComputer -Filter "Name -like '$ServerName'" -Server $ServerDomain
+    if ($null -eq $oServer){
+        Write-ScriptMessage "can't find $ServerName in $serverDomain" -Severity Warning
+        return
+    } else {
+        $ServerOU= [regex]::Match($oServer.DistinguishedName,"CN=[^,]+,(.+)").Groups[1].value
+        $oDelegationOU = $Delegation | Where-Object {$serverOU -like "*$($_.ComputerOU)"}
+        #validate the server OU exists in the delegation.config file
+        if ($null -eq $oDelegationOU ){
+            Write-ScriptMessage "The Server $serverName is outside of the JIT defined OUs" -Severity Warning
+            return
+        } else {
+            #validate the user SID is a assigned to this OU
+            #compare all SID defined in the delegation.config for this ou with the pac of the user
+            $bSidFound = $false
+            foreach ($DelegationSID in $oDelegationOU.ADObject){
+                foreach ($UserSID in $oUserSID){
+                    if ($DelegationSID -eq $UserSID){
+                        $bSidFound = $true
+                        break
+                    }
+                }
+                if ($bSidFound){
+                    break
+                }
+            }
+            if (!$bSidFound){
+                #Get all recurvise groups of the user
+                Write-ScriptMessage "user is not allowed to request privileged access on this computer $ServerName" -Severity Warning
+                return
+            }
+        }
+    }
+}
+
 #read the elevated minutes
 while (($ElevatedMinutes -lt 10) -or ($ElevatedMinutes -gt $config.MaxElevatedTime)) {
-    [INT]$ElevatedMinutes = Read-Host "Elevated time [$($config.DefaultElevatedTime) minutes]"
+    [INT]$ElevatedMinutes = Read-Host "Elevated time  [$($config.DefaultElevatedTime) minutes]"
     if ($ElevatedMinutes -eq 0){
         $ElevatedMinutes = $config.DefaultElevatedTime
     }
     if (($ElevatedMinutes -lt 10) -or ($ElevatedMinutes -gt $config.MaxElevatedTime)) {
-        if ($UIused){
-            Write-Output "Invalid elevation time"
-            Return
-        } else {
-            Write-Host "Invalid elevation time. The requested time must be higher 10 minutes and lower then $($config.MaxElevatedTime)"
-        }
+        Write-ScriptMessage "Invalid elevation time. The requested time must be higher 10 minutes and lower then $($config.MaxElevatedTime)" -Severity Warning
     }
-
 }
 
 $ElevateUser = New-Object PSObject
@@ -168,8 +286,4 @@ $ElevateUser | Add-Member -MemberType NoteProperty -Name "ServerDomain" -Value $
 $ElevateUser | Add-Member -MemberType NoteProperty -Name "ElevationTime" -Value $ElevatedMinutes
 $EventMessage = ConvertTo-Json $ElevateUser
 Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId $config.ElevateEventID -Message $EventMessage
-if ($UIused) {
-    Write-output "Request send. The account will be elevated soon"
-} else {
-    Write-Host "Request send. The account will be elevated soon" -ForegroundColor Green
-}
+Write-ScriptMessage "Request send. The account will be elevated soon" Information

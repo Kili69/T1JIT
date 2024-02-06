@@ -52,12 +52,20 @@
             "args": ["-ShowCurrentDelegation"]
         },
         {
-            "name": "PowerShell: ElevateUser.ps1 RecordId 17 withou delegation Model",
+            "name": "Powershell RequestAdminAccess for Server DUMMY20231116",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceRoot}\\RequestAdminAccess.ps1",
+            "cwd": "${workspaceFolder}",
+            "args": ["-servername \"DUMMY20231116.bloedgelaber.de\""]
+        },
+        {
+            "name": "PowerShell: ElevateUser.ps1 RecordId 208525 withou delegation Model",
             "type": "PowerShell",
             "request": "launch",
             "script": "${workspaceRoot}\\elevateuser.ps1",
             "cwd": "${workspaceRoot}",
-            "args": ["-eventRecordID 17"]
+            "args": ["-eventRecordID 208525"]
         },
         {
             "name": "PowerShell: config-jit.ps1 interactive",

@@ -70,6 +70,10 @@ possibility of such damages
     Version 0.1.20240116
         - Bug fix creating OU structure
         - Bug fix creating schedule task
+    Version 0.1.20240202
+        - Bug fix ACL for GMSA
+    Version 0.1.20240205
+        - Terminal the configuration script, if the AD PAM feature is not enabled
 #>
 <#
     script parameters
@@ -294,15 +298,19 @@ $STElevateUser = "Elevate User"
 $ADDomainDNS = (Get-ADDomain).DNSRoot
 #End constant section
 
-#Check minimum PS Version 
-if ($PSVersionTable.)
-
 #Validate the installation directory and stop execution if installation directory doesn't exists
 if ($null -eq $InstallationDirectory )
     {$InstallationDirectory = (Get-Location).Path}
 if (!(Test-Path $InstallationDirectory))
 {
     Write-Output "Installation directory missing"
+    return
+}
+if ($null -eq ((Get-ADOptionalFeature -Filter "name -eq 'Privileged Access Management Feature'").EnabledScopes)){
+    Write-Host "Active Directory PAM feature is not enables" -ForegroundColor Yellow
+    Write-Host "Run:"
+    Write-Host "Enable-ADOptionalFeature ""Privileged Access Management Feature"" -Scope ForestOrConfigurationSet -Target $((Get-ADForest).Name)"
+    Write-Host "Before continuing with JIT"
     return
 }
 $config = New-Object PSObject
@@ -370,7 +378,7 @@ if (($ReadEnableDelegationMode -eq "n") -or ($ReadEnableDelegationMode -eq "N"))
 
 $gmsaName = $config.GroupManagedServiceAccountName 
 try {
-    if ($null -eq (Get-ADServiceAccount -Filter {Name -eq $gmsaName} -Server $($config.Domain)))
+    if ($null -eq (Get-ADServiceAccount -Filter "Name -eq '$($config.GroupManagedServiceAccountName)'" -Server $($config.Domain)))
     {
         if ($InstallGroupManagedServiceAccount)
         {
@@ -393,7 +401,7 @@ try {
     else
     {
         Write-Debug "is already in the list of computer who can retrieve the password"
-}
+    }
 } catch {
     if ( $Error[0].CategoryInfo.Activity -eq "New-ADServiceAccount"){
         Write-Host "A GMSA coult not be created.Validate you have the correct privileges and the KDS rootkey exists" -ForegroundColor Red
@@ -403,12 +411,12 @@ try {
     $Error[0]
     return
 }
-$GMSaccount = Get-ADServiceAccount -Identity $config.GroupManagedServiceAccountName -Server $config.Domain
+$oGmsa = Get-ADServiceAccount -Identity $config.GroupManagedServiceAccountName -Server $config.Domain
 if ($false -eq (Test-ADServiceAccount -Identity $config.GroupManagedServiceAccountName )){
-    Install-ADServiceAccount -Identity $GMSaccount
+    Install-ADServiceAccount -Identity $oGmsa
 }
 Write-Debug "Test $GMSAName $(Test-ADServiceAccount -Identity $($config.GroupManagedServiceAccountName))"
-Add-LogonAsABatchJobPrivilege -Sid ($GmSaccount.SID).Value
+Add-LogonAsABatchJobPrivilege -Sid ($oGmsa.SID).Value
 
 #Definition of the AD OU where the AD groups are stored
 do{
@@ -434,17 +442,18 @@ do{
 }while ($null -eq $OU)
 Write-Debug  "OU $($config.OU) is accessible updating ACL"
 $aclGroupOU = Get-ACL -Path "AD:\$($config.OU)"
-if (!($aclGroupOU.Sddl.Contains($GMSaccount.SID)))
+if (!($aclGroupOU.Sddl.Contains($oGmsa.SID)))
 {
     Write-Debug "Adding ACE to OU"
     #this section needs to be updated. Currently the GMSA get full control on the Tier 1 computer group OU. This should be fixed in
     # Full control to any group object in this OU and createChild, deleteChild for group object in this OU
-    #$GuidMap = New-ADDGuidMap
-    $objGMSASID = New-Object System.Security.Principal.SecurityIdentifier $GMSaccount.SID
-    #$ace = New-Object System.DirectoryServices.ActiveDirectoryAccessRule $objGMSASID, "GenericAll", "Allow", "Descendents", $GuidMap["Group"] #Give Full control on group objects
-    $ace = New-Object System.DirectoryServices.ActiveDirectoryAccessRule $objGMSASID, "GenericAll", "Allow" #Give Full control on the OU
-    $aclGroupOu.AddAccessRule($ace)
-    Set-Acl "AD:\$($config.OU)" -AclObject $aclGroupOU
+    $identity = [System.Security.Principal.IdentityReference] $oGmsa.SID
+    $adRights = [System.DirectoryServices.ActiveDirectoryRights] "GenericAll"
+    $type = [System.Security.AccessControl.AccessControlType] "Allow"
+    $inheritanceType = [System.DirectoryServices.ActiveDirectorySecurityInheritance] "All"
+    $ACE = New-Object System.DirectoryServices.ActiveDirectoryAccessRule $identity,$adRights,$type,$inheritanceType
+    $aclGroupOU.AddAccessRule($ace)
+    Set-Acl -AclObject $aclGroupOU "AD:\$($config.OU)"
 }
 #Definition of the maximum time for elevated administrators
 do {
@@ -645,9 +654,10 @@ if ($CreateScheduledTaskADGroupManagement -eq $true)
         catch [System.UnauthorizedAccessException] {
             Write-Host "Schedule task cannot registered." -ForegroundColor Red
         }
-        catch {
-            Write-Host "An error occurred:"
-            Write-Host $_
-        }
     }
+}
+if ($config.EnableDelegation){
+    Write-Host "do not forget to configure your OU delegation"
+    Write-Host "to allow the group Server-Admins on OU=Server,OU=contoso,OU=com use the command"
+    Write-Host ".\DelegationConfig.ps1 -action AddDelegation -OU ""OU=Server,DC=contoso,DC=com"" -AdUserOrGroup ""contoso\Server-Admins"" "
 }

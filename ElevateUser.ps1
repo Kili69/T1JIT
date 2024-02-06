@@ -45,67 +45,102 @@ possibility of such damages
         Delegation mode activation
     Version 0.1.20231204
         Updated documentation
-#>
-<#
-Event ID's
-2000 Error Configuration file missing
-2001 The required group in AD is missing
-2002 The user cannot be found in the active directory 
-2003 The requested time exceed the max elevation time. The value is set to maximum elevation time
-2004 Information The user is already user of this group. TTL will be updated
+    Version 0.1.20240202
+        Error handling
+    Version 0.1.20240205
+        Code documentation
+    Version 0.1.20240206
+        Users from child domain can enmumerate SID of allowed groups if the group is universal
+        The request ID added to the error message
 
-2100 Error can find the server object in AD
-2101 Error The delegation JSON file is not available
-2102 Error The Server OU path is not defined in the Delegation.config file
-2103 Warning No SId mataches to the delegated OU
-2104 Information the user is added to the local administrators group
+    Event ID's
+    1    Error  Unhandled Error has occured
+    
+    2000 Error  Configuration file missing
+                Validate the configuration file jit.config is available on the current directory or the parameter configurationFile is correct
+    2001 Error  The required group in AD is missing
+                 The AD group assinged to this server is missing. Validate the server is in the configured OU and the Tier1LocalAdminGroup.ps1 does not report any error
+    2002 Warning The user cannot be found in the active directory
+                The user in the Event-ID could not be found in the active directory forest 
+    2003 Warning The requested time exceed the max elevation time. The value is set to maximum elevation time
+                The requested time excced the maximum time configured in the jit.config file. The requested time will be update to the maximum allowed time
+    2004 Information The user is already user of this group. 
+                The requested user is already elevated to on this group. The time-to-live paramter will be updated
+    2005 Error  Invalid configuration file version. 
+                The configuration file is available but the build version is older the expected. run the jit-config.ps1
+    2006 Warning The request ID is not available
+                The event log entry with the requested ID is not available
+    2007 Error  Issuficient access rights
+                The current user cannot update the AD groups or has no access to the active dirctorx
+
+
+    2100 Error  The requested server is not available in the Active Directory
+                Validate the requested computer object exists in the active directory. Disconnected DNS namespaces are not supported 
+    2101 Error  The delegation JSON file is not available
+                The delegation.config file configured in the jit.config is not accessible. Validate the user can access the delegation.config file
+    2102 Error  The Server OU path is not defined in the Delegation.config file
+                The requested server object distinguishedname is not configured in the delegation.config
+    2103 Warning No SId mataches to the delegated OU
+                The requested user is not member of any configured delegation in the delegation.config
+    2104 Information The user is added to the local administrators group
+                The requested user is successfully added to the requested AD group
+
 #>
 [CmdletBinding(DefaultParameterSetName = 'DelegationModel')]
 param(
     [Parameter (Mandatory, Position = 0)]
     #Record ID to identify the event
     [int]$eventRecordID,
-    #[Parameter (Mandatory, Position = 1)]
-    #The Windows Event Channel
-    #$eventChannel,
     [Parameter (Mandatory = $false, Position = 2)]
     #The path to the configuration file
     [string]$ConfigurationFile
     )
 <#
 .SYNOPSIS 
-    Get-MemberofSID is a function to enumerate all SIDs of the group membership of a user 
-.DESCRIPTION
-    Get-MemberofSID is a function to enumerate all SIDs of the group membership of a user 
-.PARAMETER DistinguishedName 
-    DistinguisheName of the AD user 
-.PARAMETER DomainDNS
-    DNS Name of the users AD-Domain
-.OUTPUTS
-    A arry of SIDs where the user is memberof
+    Writes the script output to the console and the Windows eventlog
+.PARAMETER EventID
+    Is the JIT event ID
+.PARAMETER Severity
+    Is the severity level of the message. 
+    Error will be displayed with red foreground color and wrnings as yellow
+.PARAMETER Message
+    Is the event message test
+.EXAMPLE
+    Write-ScriptMessage 1 Warning "Test"
+    Write the Message "test" with a yellow foreground color to the terminal and a Windows event with ID 1 to the Tier 1 Management eventlog 
 #>
-function Get-MemberofSID{
-
-    param (
-        [Parameter (Mandatory,Position= 0)]
-        #Distinguishedname of the user / group
-        [string]$DistinguishedName,
+    function Write-ScriptMessage{
+    param(
+        [Parameter (Mandatory, Position=0)]
+        [int] $EventID,
         [Parameter (Mandatory, Position=1)]
-        #DNS of the user /group domain
-        [string]$DomainDNS
+        [ValidateSet ('Information','Warning','Error')]
+        $Severity,
+        [Parameter (Mandatory, Position=2)]
+        [string] $Message
     )
-
-    $oADobject = Get-ADObject -filter {DistinguishedName -eq $DistinguishedName} -Properties ObjectSid, memberof
-    $oSId = [System.Collections.ArrayList]::new()
-    $oSid += $oADobject.ObjectSID.Value
-    foreach ($membership in $oAdobject.MemberOf){
-        $oSId += Get-MemberofSID $membership -DomainDNS $DomainDNS
+    $WindowsEventLog = 'Tier 1 Management'
+    switch ($Severity) {
+        'Warning'{
+            Write-Host $Message -ForegroundColor Yellow
+            Write-EventLog -LogName $WindowsEventLog -EventId $EventID -EntryType $Severity -Message $Message -Source 'T1Mgmt'
+        }
+        'Error'{
+            Write-Host $Message -ForegroundColor Red
+            Write-EventLog -LogName $WindowsEventLog -EventId $EventID -EntryType $Severity -Message $Message -Source 'T1Mgmt'
+        }
+        Default{
+            Write-Host $Message -ForegroundColor Green
+            Write-EventLog -LogName $WindowsEventLog -EventId $EventID -EntryType $Severity -Message $Message -Source 'T1Mgmt'
+        }
     }
-    $oSid = $oSId | Select-Object -Unique
-    Return $oSId
 }
-
-#Main Programm starts here
+##############################################################################################################################
+# Main Programm starts here                                                                                                  #
+##############################################################################################################################
+[int]$_ScriptVersion = "20240205"
+[int]$_configBuildVersion = "20231108"
+Write-Debug -Message "Script Version $_ScriptVersion. Minimum required config Version $_configBuildVersion"
 #validate the configuration file is available and accessible
 if ($ConfigurationFile -eq "")
 {
@@ -116,90 +151,138 @@ if ($ConfigurationFile -eq "")
 if (!(Test-Path $ConfigurationFile))
 {
     #Return a error if the JIT.config is not available
-    Write-EventLog -LogName 'JIT Management' -Source 'T1Mgmt' -EventId 2000 -EntryType Error -Message "Configuration file missing $configurationFile"
-    Write-Host "Missing configuration file $configurationFile. Script aborted" -ForegroundColor Red
+    Write-ScriptMessage -EventID 2000 -Severity Error -Message "RequestID $RequestID : Configuration file missing $configurationFile Elevation aborted"
     return
+} else {
+    Write-Debug -Message "sucessfully read $configurationFile"
 }
+Write-Debug -Message "sucessfully read the $ConfigurationFile"
 #Read the configuration file from a JSON file
 $config = Get-Content $ConfigurationFile | ConvertFrom-Json
-#Search fpr the event record in the eventlog
-$RequestEvent = Get-WinEvent -FilterHashtable @{LogName = $config.EventLog; ID= $config.ElevateEventID} | Where-Object -Property RecordId -eq $eventRecordID
-$Request = ConvertFrom-Json $RequestEvent.Message
-
-$ServerGroupName = $Request.ServerGroup
-$UserDN = $Request.UserDN
-$AdminGroup = Get-ADObject -Filter {(SamAccountName -eq $ServerGroupName) -and (ObjectClass -eq "Group")}
-#check the elevation group is available. If not terminate the script
-if ($null -eq $AdminGroup )
+$configFileBuildVersion = [int]([regex]::Matches($config.ConfigScriptVersion,"[^\.]*$")).Groups[0].Value 
+Write-Debug -Message "$configurationFile has build version $configFileBuildVersion"
+#Validate the build version of the jit.config file is equal or higher then the tested jit.config file version
+if ($_configBuildVersion -ge $configFileBuildVersion)
 {
-    Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 2001 -EntryType Error -Message "Can not find $ServerGroupName"
+    Write-ScriptMessage -EventID 2005 -Severity Error -Message "RequestID $RequestID : Invalid configuration file version $configFileBuildVersion expected $_configBuildVersion or higher"
     return
 }
-$User = Get-ADObject -Filter{(DistinguishedName -eq $UserDN) -and (ObjectClass -eq "User")} -Properties MemberOf, ObjectSID, canonicalName -Server $config.Domain
-#check the user object is available, If not terminate the script
-if ($null -eq $User ) 
-{
-    Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 2002 -EntryType Error -Message "Invalid user in request $config"
-    return
-}
-#This scection check the permission for this user if the elevation version is enabled
-if ($config.EnableDelegation){
-    #continue here if the delegation model is enabled 
-    #Search and read the delegation.config file. If the file is not available terminate the script
-    if (!(Test-path $config.DelegationConfigPath)){
-        Write-EventLog -source $config.EventLog -EventId 2101 -EntryType Error -Message "Can't find delegation JSON file $($config.DelegationConfigPath)"
+Write-Debug -Message "The configuration file is valite. The configuration version is $configFileBuildVersion"
+try{
+    #Discover the next available Global catalog for queries
+    $GlobalCatalogServer = "$((Get-ADDomainController -Discover -Service GlobalCatalog).HostName):3268"
+    Write-Debug -Message "using global catalog $GlobalCatalogServer"
+    #region Search for the event record in the eventlog, read the event and convert the event message from JSON into a PSobject
+    $RequestEvent = Get-WinEvent -FilterHashtable @{LogName = $config.EventLog; ID= $config.ElevateEventID} | Where-Object -Property RecordId -eq $eventRecordID
+    if ($null -eq $RequestEvent){
+        Write-ScriptMessage -EventID 2006 -Severity Warning -Message "A event record with event ID $eventRecordID is not available in Eventlog $($config.EventLog)"
         return
     }
-    $Delegation = Get-Content $config.DelegationConfigPath | ConvertFrom-Json
-    #extract the server name from the group name
-    $oServerName = $Request.ServerGroup.replace($config.AdminPreFix,"")
-    #search for the member server object
-    $oServer = Get-ADObject -Filter {(Name -eq $oServerName) -and (ObjectClass -eq "Computer")} -Server $Request.ServerDomain
-    #if the server object cannot be found in the AD terminat the script
-    if ($null -eq $oServer){
-        Write-EventLog -source $config.EventLog -EventID 2100 -EntryType Error -Message "Can't find $oServer in AD" 
+    Write-Debug -Message "found $eventRecordID : $($RequestEvent.Message)"
+    $Request = ConvertFrom-Json $RequestEvent.Message
+    #endregion
+    #check the elevation group is available. If not terminate the script
+    $AdminGroup = Get-ADGroup -Filter "Name -eq '$($Request.ServerGroup)'"
+    if ($null -eq $AdminGroup )
+    {
+        Write-ScriptMessage -EventID 2001 -Severity Error -Message "RequestID $RequestID :Can not find $ServerGroupName" 
         return
-    } 
-    #Search the computer OU path in the delegation.config file
-    $foundOU = $false
-    $bSidFound = $false
-    for($ouCounter = 0; $ouCounter -lt $Delegation.count; $ouCounter++){
-        if ($oServer.DistinguishedName.contains($Delegation[$ouCounter].ComputerOU)){
-            $foundOU = $true
-            ForEach ($userSID in (Get-MemberofSID -DistinguishedName $User.DistinguishedName -DomainDNS $User.canonicalName.Substring(0,$User.canonicalName.IndexOf("/")))){
-                If ($Delegation[$ouCounter].Adobject -contains $userSID){
-                    $bSidFound = $true
+    }
+    #region Search for the user in the entire AD Forest
+    $oUser = Get-ADUser -Filter "DistinguishedName -eq '$($Request.UserDN)'" -Server $GlobalCatalogServer -Properties canonicalName
+    #check the user object is available, If not terminate the script
+    if ($null -eq $oUser ) 
+    {
+        Write-ScriptMessage -EventID 2002 -Severity Warning -Message "Can't find user $($Request.UserDN)"
+        return
+    }
+    $userDomain = [regex]::Match($oUser.canonicalName,"[^/]+").value
+    Write-Debug "Found user $($Request.UserDN) and $($AdminGroup.Name)"
+    #endregion
+    #region This scection check the permission for this user if the elevation version is enabled
+    if ($config.EnableDelegation){
+        #continue here if the delegation model is enabled 
+        #Search and read the delegation.config file. If the file is not available terminate the script
+        if (!(Test-path $config.DelegationConfigPath)){
+            Write-ScriptMessage -EventID 2101 -Severity Error -Message "RequestID $RequestID : Can't find delegation JSON file $($config.DelegationConfigPath)"
+            return
+        }
+        $Delegation = Get-Content $config.DelegationConfigPath | ConvertFrom-Json
+        Write-Debug -Message "Delegtion mode is enabled using $($config.DelegationConfigPath) as delegation file"
+        #extract the netbios name from the group name and convert it into the Domain DNS name
+        $oServerDomainNetBiosName = [regex]::Match($Request.ServerGroup,"$($config.AdminPreFix)(\w+)$($config.DomainSeparator)(.+)").Groups[1].Value
+        $oServerDNSDomain = (Get-ADObject -Filter "NetBiosName -eq '$oServerDomainNetBiosName'" -SearchBase "$((Get-ADRootDSE).ConfigurationNamingContext)" -Properties DNSRoot).DNSRoot
+        #extract the server name from the group name
+        $oServerName = [regex]::Match($Request.ServerGroup,"$($config.AdminPreFix)(\w+)$($config.DomainSeparator)(.+)").Groups[2].Value
+        #search for the member server object
+        $oServer = Get-ADComputer -Identity $oServerName -Server $oServerDNSDomain[0] -ErrorAction SilentlyContinue
+        #if the server object cannot be found in the AD terminat the script
+        if ($null -eq $oServer){
+            Write-ScriptMessage -EventID 2100 -Severity Error -Message "RequestID $RequestID : Can't find $oServer in AD" 
+            return
+        } 
+        Write-Debug -Message "Found $oServerName in $oServerDNSDomain"
+        $ServerOU= [regex]::Match($oServer.DistinguishedName,"CN=[^,]+,(.+)").Groups[1].value
+        $oDelegationOU = $Delegation | Where-Object {$ServerOU -like "*$($_.ComputerOU)"}
+        if ($null -eq $oDelegationOU ){
+            Write-ScriptMessage -EventID 2102 -Severity Warning -Message "We found the $($oServer.DistinguishedName) but the OU $ServerOU for Server is not defined in the $($config.DelegationConfigPath)"
+            return
+        } else {
+            #validate the user SID is a assigned to this OU
+            #compare all SID defined in the delegation.config for this ou with the pac of the user
+            $bSidFound = $false
+            #Query revursive all group memberships of the user
+            $oUserSID = @()
+            Foreach ($UserSID in (Get-ADUser -LDAPFilter '(ObjectClass=User)' -SearchBase $oUser.DistinguishedName -SearchScope Base -Server $UserDomain -Properties "TokenGroups").TokenGroups){
+                $oUserSID += $UserSID.Value
+            }
+            $oUserSID += $oUser.SID.Value
+            Write-Debug "User Token SID $oUserSID"       
+            #$oUser contains all SID for the user PAC
+            foreach ($DelegationSID in $oDelegationOU.ADObject){
+                foreach ($UserSID in $oUserSID){
+                    if ($DelegationSID -eq $UserSID){
+                        $bSidFound = $true
+                        break
+                    }
+                }
+                if ($bSidFound){
                     break
                 }
             }
-            if ($bSidFound){
-                break
+            if (!$bSidFound){
+                #Get all recurvise groups of the user
+                Write-ScriptMessage -EventID 2103 -Message "User $($oUser.DistinguishedName) is not allowed to request privileged access on $($oServer.DistinguishedName) " -Severity Warning
+                return
             }
         }
-    }
     #Terminate the script if the OU is not defined in the delegation.config file
-    if (!$foundOU){
-        Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 2102 -EntryType Error -Message "The server OU $($oServer.DistinguishedName)is not defined in the Delegation configuration"
-        Return
     }
-    #if none of the SID defined for this OU terminate the script
-    if (!$bSidfound){
-        Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 2103 -EntryType Warning -Message "The user $($User.DistinguishedName) is not assigned to server OU $($oServer.DistinguishedName)"
-        Return
+    #endregion
+    #Region Add user to the local group"
+    #if the timetolive in the request is higher then the maximum value. replace the ttl with the max evaluation time
+    if ($Request.ElevationTime -gt $config.MaxElevatedTime)
+    {
+        Write-ScriptMessage -EventID 2003 -Severity Warning -Message "The requested time ($($Request.ElevationTime)))for user $($oUser.DistinguishedName) is higher the maximum time to live ($($config.MaxElevatedTime)). The time to live is replaced with ($($config.MaxElevatedTime))"
+        $Request.ElevationTime = $config.MaxElevatedTime
     }
+    if ($oUser.MemberOf -contains $AdminGroup)
+    {
+        Write-ScriptMessage -EventID 2004 -Severity Information -Message  "$($oUser.SamAccountName) is member of $AdminGroup the TTL will be updated"
+        Remove-ADGroupMember $AdminGroup -Members $oUser.DistinguishedName -Confirm:$false
+    }
+    Add-ADGroupMember -Identity $AdminGroup.Name -Members $oUser -MemberTimeToLive (New-TimeSpan -Minutes $Request.ElevationTime)
+    Write-ScriptMessage -EventID 2104 -Severity Information -Message "RequestID $eventRecordID User $($oUser.DistinguishedName) added to group $AdminGroup"
+    #Endregion
 }
-#Region Add user to the local group"
-#if the timetolive in the request is higher then the maximum value. replace the ttl with the max evaluation time
-if ($Request.ElevationTime -gt $config.MaxElevatedTime)
-{
-    Write-EventLog -Source $config.EventSource -EventId 2003 -EntryType Warning -Message "The requested time ($($Request.ElevationTime)))for user $($User.DistinguishedName) is higher the maximum time to live ($($config.MaxElevatedTime)). The time to live is replaced with ($($config.MaxElevatedTime))"
-    $Request.ElevationTime = $config.MaxElevatedTime
+catch [Microsoft.ActiveDirectory.Management.ADServerDownException]{
+    Write-ScriptMessage -Severity Error -Message "RequestID $RequestID : A Server down exception occured. Validate the $GlobalCatalogServer is available"
+    return
 }
-if ($user.MemberOf -contains $AdminGroup)
-{
-    Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EntryType Information -EventId 2004 -Message "$($user.SamAccountName) is member of $AdminGroup the TTL will be updated"
-    Remove-ADGroupMember $AdminGroup -Members $User.DistinguishedName -Confirm:$false
+catch [Microsoft.ActiveDirectory.Management.ADException]{
+    Write-ScriptMessage -Severity Error -EventID 2007  -Message "RequestID $RequestID : A AD exception has occured. $($Error[0])"
 }
-Add-ADGroupMember -Identity $AdminGroup -Members $User -MemberTimeToLive (New-TimeSpan -Minutes $Request.ElevationTime)
-Write-EventLog -Source $config.EventSource -LogName $config.EventLog -EventId 2104 -EntryType Information -Message "User $($User.DistinguishedName) added to group $AdminGroup"
-#Endregion
+catch{
+    Write-ScriptMessage -Message "RequestID $RequestID : a unexpected Error has occured $($Error[0].Exception) in line $($Error[0].InvocationInfo.ScriptLineNumber) " -EventID 1 -Severity Error
+    return
+}

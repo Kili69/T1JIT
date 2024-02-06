@@ -1,15 +1,26 @@
 ﻿{
-    "ConfigScriptVersion":  "0.1.20230612",
+    "ConfigScriptVersion":  "0.1.20240123",
     "AdminPreFix":  "Admin_",
-    "OU":  "OU=Tier1 Local Administrators,OU=Admin,DC=contoso,DC=com",
+    "OU":  "OU=JIT-Administrator Groups,OU=Tier 1,OU=Admin,DC=contoso,DC=com",
     "MaxElevatedTime":  1440,
     "DefaultElevatedTime":  60,
     "ElevateEventID":  100,
-    "Tier0ServerGroupName":  "Tier 0 Computers",
-    "LDAPT0Computers":  "(\u0026(Operatingsystem=*Windows Server*)(!(PrimaryGroupID=516))(!(memberof=CN=Tier 0 Computers,OU=Tier 0 - Groups,OU=Admin,DC=Contoso,DC=COM)))",
+    "Tier0ServerGroupName":  "Tier 0 computers",
+    "LDAPT0Computers":  "(\u0026(ObjectClass=Computer)(!(ObjectClass=msDS-GroupManagedServiceAccount))(!(PrimaryGroupID=516))(!(PrimaryGroupID=521)))",
+    "LDAPT0ComputerPath":  "OU=Tier 0,OU=Admin",
+    "LDAPT1Computers":  "(\u0026(OperatingSystem=*Windows*)(ObjectClass=Computer)(!(ObjectClass=msDS-GroupManagedServiceAccount))(!(PrimaryGroupID=516))(!(PrimaryGroupID=521)))",
     "EventSource":  "T1Mgmt",
     "EventLog":  "Tier 1 Management",
     "GroupManagementTaskRerun":  5,
     "GroupManagedServiceAccountName":  "T1GroupMgmt",
-    "Domain":  "contoso.com"
+    "Domain":  "contoso.com",
+    "DelegationConfigPath":  "C:\\T1JIT\\delegation.config",
+    "EnableDelegation":  true,
+    "EnableMultiDomainSupport":  true,
+    "T1Searchbase":  [
+                         "OU=Servers,DC=contoso,DC=com",
+                         "OU=Servers,DC=child,DC=contoso,DC=com"
+                     ],
+    "DomainSeparator":  "#"
 }
+

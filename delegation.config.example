@@ -1,0 +1,14 @@
+[
+    {
+        "ComputerOU":  "OU=Servers,DC=contoso,DC=com",
+        "ADObject":  [
+                         "S-1-5-21-1315865709-3127365473-2507114556-3647"
+                     ]
+    },
+    {
+        "ComputerOU":  "OU=Servers,DC=child,DC=contoso,DC=com",
+        "ADObject":  [
+                         "S-1-5-21-1315865709-3127365473-2507114556-3647"
+                     ]
+    }
+]
