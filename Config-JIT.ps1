@@ -73,7 +73,14 @@ possibility of such damages
     Version 0.1.20240202
         - Bug fix ACL for GMSA
     Version 0.1.20240205
-        - Terminal the configuration script, if the AD PAM feature is not enabled
+        - Terminate the configuration script, if the AD PAM feature is not enabled
+    Version 0.1.20240213
+        - by Andreas Luy
+        - corrected several inconsistency issues with existing config file
+        - simplified/corrected OU creation function 
+        - integrated updating delegationconfig location
+        - group validation corrected
+        - ToDo: use custom form for input
 #>
 <#
     script parameters
@@ -204,79 +211,106 @@ function Add-LogonAsABatchJobPrivilege
     Remove-Item -Path $export -Force
     
 }
-<# Function create the entire OU path of the relative distinuished name without the domain component. This function
-is required to provide the same OU structure in the entrie forest
-.SYNOPSIS 
-    Create OU path in the current $DomainDNS
-.DESCRIPTION
-    create OU and sub OU to build the entire OU path. As an example on a DN like OU=Computers,OU=Tier 0,OU=Admin in
-    contoso. The funtion create in the 1st round the OU=Admin if requried, in the 2nd round the OU=Tier 0,OU=Admin
-    and so on till the entrie path is created
-.PARAMETER OUPath 
-    the relative OU path withou domain component
-.PARAMETER DomainDNS
-    Domain DNS Name
-.EXAMPLE
-    CreateOU -OUPath "OU=Test,OU=Demo" -DomainDNS "contoso.com"
-.OUTPUTS
-    $True
-        if the OUs are sucessfully create
-    $False
-        If at least one OU cannot created. It the user has not the required rights, the function will also return $false 
-        #>
-        function CreateOU {
-            [CmdletBinding ( SupportsShouldProcess)]
-            param (
-                [Parameter(Mandatory)]
-                [string]$OUPath,
-                [Parameter (Mandatory)]
-                [string]$DomainDNS
-            )
-            try{
-                #load the OU path into array to create the entire path step by step
-                $DomainDN = (Get-ADDomain -Server $DomainDNS).DistinguishedName
-                $aryOU=$OUPath.Split(",")
-                $BuildOUPath = ""
-                #walk through the entire domain 
-                For ($i= $aryOU.Count; $i -ne 0; $i--){
-                    #ignore DC components
-                    if ($aryOU[$i -1] -like "OU=*"){
-                        #to create the Organizational unit the string OU= must be removed to the native name
-                        $OUName = $aryOU[$i-1].Replace("OU=","")
-                        #if this is the first run of the for loop the OU must in the root. The searbase paramenter is not required 
-                        if ($i -eq $aryOU.Count){
-                            #create the OU if it doesn|t exists in the domain root. 
-                            if([bool](Get-ADOrganizationalUnit -Filter "Name -eq '$OUName'" -SearchScope OneLevel -server $DomainDNS)){
-                                Write-Debug "OU=$OUName,$DomainDN already exists no actions needed"
-                            } else {
-                                Write-Host "$OUName doesn't exist in $OUPath. Creating OU" -ForegroundColor Green
-                                New-ADOrganizationalUnit -Name $OUName -Server $DomainDNS                        
-                            }
-                        } else {
-                            #create the sub ou if required
-                            if([bool](Get-ADOrganizationalUnit -Filter "Name -eq '$OUName'" -SearchBase "$BuildOUPath$DomainDN" -Server $DomainDNS)){
-                                Write-Debug "$OUName,$OUPath already exists no action needed" 
-                            } else {
-                                Write-Host "$OUPath,$DomainDN doesn't exist. Creating" -ForegroundColor Green
-                                New-ADOrganizationalUnit -Name $OUName -Path "$BuildOUPath$DomainDN" -Server $DomainDNS
-                            }
-                        }
-                        #extend the OU searchbase with the current OU
-                        $BuildOUPath  ="$($aryOU[$i-1]),$BuildOUPath"
+
+function CreateOU {
+    <# Function create the entire OU path of the relative distinuished name without the domain component. This function
+    is required to provide the same OU structure in the entrie forest
+    .SYNOPSIS 
+        Create OU path in the current $DomainDNS
+    .DESCRIPTION
+        create OU and sub OU to build the entire OU path. As an example on a DN like OU=Computers,OU=Tier 0,OU=Admin in
+        contoso. The funtion create in the 1st round the OU=Admin if requried, in the 2nd round the OU=Tier 0,OU=Admin
+        and so on till the entrie path is created
+    .PARAMETER OUPath 
+        the relative OU path withou domain component
+    .PARAMETER DomainDNS
+        Domain DNS Name
+    .EXAMPLE
+        CreateOU -OUPath "OU=Test,OU=Demo" -DomainDNS "contoso.com"
+    .OUTPUTS
+        $True
+            if the OUs are sucessfully create
+        $False
+            If at least one OU cannot created. It the user has not the required rights, the function will also return $false 
+    #>
+
+    [CmdletBinding ( SupportsShouldProcess)]
+    param (
+        [Parameter(Mandatory)]
+        [string]$OUPath,
+        [Parameter (Mandatory)]
+        [string]$DomainDNS
+    )
+    try{
+        #load the OU path into array to create the entire path step by step
+        $DomainDN = (Get-ADDomain -Server $DomainDNS).DistinguishedName
+        $aryOU=$OUPath.Split(",").Trim()
+        $OUBuildPath = ","+$DomainDN
+        
+        #walk through the entire domain
+        [array]::Reverse($aryOU)
+        $aryOU|ForEach-Object {
+            #ignore 'DC=' values
+            if ($_ -like "ou=*") {
+                $OUName = $_ -ireplace [regex]::Escape("ou="), ""
+                #check if OU already exists
+                if (Get-ADOrganizationalUnit -Filter "distinguishedName -eq '$($_+$OUBuildPath)'") {
+                    Write-Debug "$($_+$OUBuildPath) already exists no actions needed"
+                } else {
+                    Write-Host "'$($_+$OUBuildPath)' doesn't exist. Creating OU" -ForegroundColor Green
+                    New-ADOrganizationalUnit -Name $OUName -Path $OUBuildPath.Substring(1) -Server $DomainDNS                        
+                    
                 }
-                }
-            } 
-            catch [System.UnauthorizedAccessException]{
-                Write-Host "Access denied to create $OUPath in $domainDNS"
-                Return $false
-            } 
-            catch{
-                Write-Host "A error occured while create OU Structure"
-                Write-Host $Error[0].CategoryInfo.GetType()
-                Return $false
+                #adding current OU to 'BuildOUPath' for next iteration
+                $OUBuildPath = ","+$_+$OUBuildPath
             }
-            Return $true
+
+
         }
+
+
+ <#
+        For ($i= $aryOU.Count; $i -ne 0; $i--){
+            #ignore DC components
+            if ($aryOU[$i -1] -like "OU=*"){
+                #to create the Organizational unit the string OU= must be removed to the native name
+                $OUName = $aryOU[$i-1].Replace("OU=","")
+                #if this is the first run of the for loop the OU must in the root. The searbase paramenter is not required 
+                if ($i -eq $aryOU.Count){
+                    #create the OU if it doesn|t exists in the domain root. 
+                    if([bool](Get-ADOrganizationalUnit -Filter "Name -eq '$OUName'" -SearchScope OneLevel -server $DomainDNS)){
+                        Write-Debug "OU=$OUName,$DomainDN already exists no actions needed"
+                    } else {
+                        Write-Host "$OUName doesn't exist in $OUPath. Creating OU" -ForegroundColor Green
+                        New-ADOrganizationalUnit -Name $OUName -Server $DomainDNS                        
+                    }
+                } else {
+                    #create the sub ou if required
+                    if([bool](Get-ADOrganizationalUnit -Filter "Name -eq '$OUName'" -SearchBase "$BuildOUPath$DomainDN" -Server $DomainDNS)){
+                        Write-Debug "$OUName,$OUPath already exists no action needed" 
+                    } else {
+                        Write-Host "$OUPath,$DomainDN doesn't exist. Creating" -ForegroundColor Green
+                        New-ADOrganizationalUnit -Name $OUName -Path "$BuildOUPath$DomainDN" -Server $DomainDNS
+                    }
+                }
+                #extend the OU searchbase with the current OU
+                $BuildOUPath  ="$($aryOU[$i-1]),$BuildOUPath"
+        }
+        }
+#>
+    } 
+    catch [System.UnauthorizedAccessException]{
+        Write-Host "Access denied to create $OUPath in $domainDNS"
+        Return $false
+    } 
+    catch{
+        Write-Host "A error occured while create OU Structure"
+        Write-Host $Error[0].CategoryInfo.GetType()
+        Return $false
+    }
+    Return $true
+}
+
 #Constant section
 $_scriptVersion = "0.1.20240123"
 $configFileName = "JIT.config"
@@ -295,22 +329,28 @@ $StGroupManagementTaskPath = "\Just-In-Time-Privilege"
 #$STAdminGroupManagement = "Administrator Group Management"
 $STAdminGroupManagementRerunMinutes = 5
 $STElevateUser = "Elevate User"
-$ADDomainDNS = (Get-ADDomain).DNSRoot
+try {
+    $ADDomainDNS = (Get-ADDomain).DNSRoot
+}
+catch {
+    Write-Output "Cannot determine AD domain - aborting!"
+    return
+}
 #End constant section
 
 #Validate the installation directory and stop execution if installation directory doesn't exists
-if ($null -eq $InstallationDirectory )
-    {$InstallationDirectory = (Get-Location).Path}
-if (!(Test-Path $InstallationDirectory))
-{
-    Write-Output "Installation directory missing"
+if (!($InstallationDirectory))
+    {$InstallationDirectory = (Get-Location).Path
+} elseif (!(Test-Path $InstallationDirectory)) {
+    Write-Output "Installation directory missing - aborting!"
     return
 }
-if ($null -eq ((Get-ADOptionalFeature -Filter "name -eq 'Privileged Access Management Feature'").EnabledScopes)){
+if (!((Get-ADOptionalFeature -Filter "name -eq 'Privileged Access Management Feature'").EnabledScopes)){
     Write-Host "Active Directory PAM feature is not enables" -ForegroundColor Yellow
     Write-Host "Run:"
     Write-Host "Enable-ADOptionalFeature ""Privileged Access Management Feature"" -Scope ForestOrConfigurationSet -Target $((Get-ADForest).Name)"
     Write-Host "Before continuing with JIT"
+    Write-Host "Aborting!"
     return
 }
 $config = New-Object PSObject
@@ -343,7 +383,40 @@ if (Test-Path "$InstallationDirectory\$configFileName")
         Write-Host "The configuration file is created with a newer configuration script. Please use the latest configuration file" -ForegroundColor Red
     }
     foreach ($setting in ($existingconfig | Get-Member -MemberType NoteProperty)){
+        # consitency check for DomainRoot and DomainDN fields
+        if ($setting.Name -eq "Domain") {
+            if ($config.$($setting.Name) -ne $existingconfig.$($setting.Name)) {
+                Write-Host "Domain DNS inconsitency in 'jit.config' file - current Domain DNS name will be used: $($config.Domain)" -ForegroundColor Red -BackgroundColor Yellow
+            }
+        } elseif ($setting.Name -eq "OU") {
+            if ($existingconfig.$($setting.Name) -notmatch (Get-ADDomain).DistinguishedName) {
+                $config.$($setting.Name) = "OU=JIT-Administrator Groups, OU=Tier 1,OU=Admin,$((Get-ADDomain).DistinguishedName)"
+                Write-Host "Domain DN inconsitency in 'jit.config' file - ignoring OU entry from 'jit.config' file ..." -ForegroundColor Red -BackgroundColor Yellow
+            }
+        } elseif ($setting.Name -eq "T1Searchbase") {
+            $config.$($setting.Name) = @()
+            $deleted = $false
+            $existingconfig.$($setting.Name)|ForEach-Object {
+                if ($_ -match (Get-ADDomain).DistinguishedName) {
+                    $config.$($setting.Name) += $_
+                } else {
+                    $deleted = $true
+                }
+            }
+            if (($config.$($setting.Name)).count -eq 0) {
+                Write-Host "Searchbase inconsitency in 'jit.config' file - applying default searchbase ..." -ForegroundColor Red -BackgroundColor Yellow
+                $config.$($setting.Name) += "OU=Tier 1 Servers,$((Get-ADDomain).DistinguishedName)"
+            } elseif ($deleted) {
+                Write-Host "Searchbase inconsitency in 'jit.config' file - some entries have been removed ..." -ForegroundColor Red -BackgroundColor Yellow
+            }
+        } elseif ($setting.Name -eq "DelegationConfigPath") {
+            if (!(Test-Path($existingconfig.$($setting.Name)))) {
+                $config.$($setting.Name) = "$InstallationDirectory\delegation.config"
+                Write-Host "'DelegationConfigPath' inconsitent in 'jit.config' file - using local 'Delegation.config' file ..." -ForegroundColor Red -BackgroundColor Yellow
+            }
+        } else {
             $config.$($setting.Name) = $existingconfig.$($setting.Name)
+        }
     }
     $config.ConfigScriptVersion = $_scriptVersion
 
@@ -426,11 +499,13 @@ do{
     }
     try{
         #if ([ADSI]::Exists("LDAP://$OU,$((Get-ADDomain).DistinguishedName)")){
-            if ([ADSI]::Exists("LDAP://$OU")){
+        if ([ADSI]::Exists("LDAP://$OU")){
             $config.OU = $OU
         } else {
-            Write-Host "The Ou $OU doesn't exist" -ForegroundColor Yellow
-            CreateOU -OUPath $OU -DomainDNS (Get-ADDomain).DNSRoot
+            Write-Host "The Ou '$OU' doesn't exist" -ForegroundColor Yellow
+            if (CreateOU -OUPath $OU -DomainDNS (Get-ADDomain).DNSRoot) {
+                Write-Host "'$OU' succesfully created" -ForegroundColor Green
+            }
             $OU = $null
         }
     } 
@@ -508,9 +583,10 @@ do{
     }
     Try {
         $Group = Get-ADGroup -Identity $T0computergroup
-        $config.Tier0ServerGroupName = $Group.Name
+        $config.Tier0ServerGroupName = $Group.DistinguishedName
     } catch [Microsoft.ActiveDirectory.Management.ADIdentityNotFoundException]{
         Write-Host "$($T0computergroup) is not a valid AD group" -ForegroundColor Yellow 
+        Write-Host "Please enter either group's SamAccountName or DistinguishedName" -ForegroundColor Yellow 
         $T0computergroup = ""
     } 
     catch {
