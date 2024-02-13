@@ -28,7 +28,7 @@
         Specify a configuration file. By default the script reads the configuration file from the working directory
     
    .Notes
-   Version 1.0
+   Version 0.1.20240213
    Autor: Andreas Luy
 
 #>
@@ -162,7 +162,7 @@ if (Test-Path $configurationFile) {
     $objComboBox.Location  = New-Object System.Drawing.Point(10,40)
     $objComboBox.size = new-object System.Drawing.Size(($Panelwidth-30),25) 
     $objComboBox.AutoCompleteSource = 'ListItems'
-    $objComboBox.AutoCompleteMode = 'Suggest'
+    $objComboBox.AutoCompleteMode = 'SuggestAppend'
     $objComboBox.DropDownStyle = 'DropDownList'
     $objInputPanel.Controls.Add($objComboBox)
 #endregion
@@ -238,6 +238,7 @@ if (Test-Path $configurationFile) {
                 Start-Sleep -Seconds 5
                 $objElevationTimeInputBox.Text = [String]$config.DefaultElevatedTime
                 $objResultTextBox.Text = ""
+                $ObjComboBox.selectedItem = $null
             }
         } else {
             $objResultTextBox.ForeColor = $FailureFontColor
