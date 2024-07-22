@@ -2,7 +2,7 @@
 Script Info
 
 Author: Andreas Lucas [MSFT]
-Download: 
+Download: https://github.com/Kili69/T1JIT
 
 Disclaimer:
 This sample script is not supported under any Microsoft standard support program or service. 
@@ -52,6 +52,10 @@ possibility of such damages
     Version 0.1.20240206
         Users from child domain can enmumerate SID of allowed groups if the group is universal
         The request ID added to the error message
+    Version 0.1.20240722
+        Log files will be created in the %programdata%\Just-in-Time folder. 
+        Bug fixing if the program is running in singedomain mode
+        New Error Event ID 2105 occurs if the Global Catalog is down
 
     Event ID's
     1    Error  Unhandled Error has occured
@@ -84,6 +88,7 @@ possibility of such damages
                 The requested user is not member of any configured delegation in the delegation.config
     2104 Information The user is added to the local administrators group
                 The requested user is successfully added to the requested AD group
+    2105 Error  Global catalog is down 
 
 #>
 [CmdletBinding(DefaultParameterSetName = 'DelegationModel')]
@@ -95,6 +100,42 @@ param(
     #The path to the configuration file
     [string]$ConfigurationFile
     )
+<#
+.SYNOPSIS
+    Write status message to the console and to the log file
+.DESCRIPTION
+    the script status messages are writte to the log file located in the app folder. the the execution date and detailed error messages
+    The log file syntax is [current data and time],[severity],[Message]
+    On error message the current stack trace will be written to the log file
+.PARAMETER Message
+    status message written to the console and to the logfile
+.PARAMETER Severity
+    is the severity of the status message. Values are Error, Warning, Information and Debug. Except Debug all messages will be written 
+    to the console
+#>
+function Write-Log {
+    param (
+        # status message
+        [Parameter(Mandatory=$true)]
+        [string]
+        $Message,
+        #Severity of the message
+        [Parameter (Mandatory = $true)]
+        [Validateset('Error', 'Warning', 'Information', 'Debug') ]
+        $Severity
+    )
+    #Format the log message and write it to the log file
+    $LogLine = "$(Get-Date -Format o), [$Severity], $Message"
+    Add-Content -Path $LogFile -Value $LogLine 
+    switch ($Severity) {
+        'Error'   { 
+            Write-Host $Message -ForegroundColor Red
+            Add-Content -Path $LogFile -Value $Error[0].ScriptStackTrace  
+        }
+        'Warning' { Write-Host $Message -ForegroundColor Yellow}
+        'Information' { Write-Host $Message }
+    }
+}
 <#
 .SYNOPSIS 
     Writes the script output to the console and the Windows eventlog
@@ -114,7 +155,7 @@ param(
         [Parameter (Mandatory, Position=0)]
         [int] $EventID,
         [Parameter (Mandatory, Position=1)]
-        [ValidateSet ('Information','Warning','Error')]
+        [ValidateSet ('Information','Warning','Error','Debug')]
         $Severity,
         [Parameter (Mandatory, Position=2)]
         [string] $Message
@@ -122,15 +163,18 @@ param(
     $WindowsEventLog = 'Tier 1 Management'
     switch ($Severity) {
         'Warning'{
-            Write-Host $Message -ForegroundColor Yellow
+            Write-Log -Message $Message -Severity Warning
             Write-EventLog -LogName $WindowsEventLog -EventId $EventID -EntryType $Severity -Message $Message -Source 'T1Mgmt'
         }
         'Error'{
-            Write-Host $Message -ForegroundColor Red
+            Write-Log -Message $Message -Severity Error
             Write-EventLog -LogName $WindowsEventLog -EventId $EventID -EntryType $Severity -Message $Message -Source 'T1Mgmt'
         }
+        'Debug'{
+            Write-Log -Message $Message -Severity Debug
+        }
         Default{
-            Write-Host $Message -ForegroundColor Green
+            Write-Log -Message $Message -Severity Information
             Write-EventLog -LogName $WindowsEventLog -EventId $EventID -EntryType $Severity -Message $Message -Source 'T1Mgmt'
         }
     }
@@ -138,9 +182,26 @@ param(
 ##############################################################################################################################
 # Main Programm starts here                                                                                                  #
 ##############################################################################################################################
-[int]$_ScriptVersion = "20240205"
+[int]$_ScriptVersion = "20240722"
 [int]$_configBuildVersion = "20231108"
-Write-Debug -Message "Script Version $_ScriptVersion. Minimum required config Version $_configBuildVersion"
+#region Manage log file
+[int]$MaxLogFileSize = 1048576 #Maximum size of the log file
+if (!(Test-Path -Path "$($env:ProgramData)\Just-In-Time")) {
+    New-Item -Path "$($env:ProgramData)\Just-In-Time" -ItemType Directory
+}
+$LogFile = "$($env:ProgramData)\Just-In-Time\$($MyInvocation.MyCommand).log" #Name and path of the log file
+#rename existing log files to *.sav if the currentlog file exceed the size of $MaxLogFileSize
+if (Test-Path $LogFile){
+    if ((Get-Item $LogFile ).Length -gt $MaxLogFileSize){
+        if (Test-Path "$LogFile.sav"){
+            Remove-Item "$LogFile.sav"
+        }
+        Rename-Item -Path $LogFile -NewName "$logFile.sav"
+    }
+}
+#endregion
+Write-Log -Message "Script Version $_ScriptVersion. Minimum required config Version $_configBuildVersion" -Severity Information
+Write-Log -Message "Windows Event ID $($eventRecordID)" -Severity Debug
 #validate the configuration file is available and accessible
 if ($ConfigurationFile -eq "")
 {
@@ -153,32 +214,30 @@ if (!(Test-Path $ConfigurationFile))
     #Return a error if the JIT.config is not available
     Write-ScriptMessage -EventID 2000 -Severity Error -Message "RequestID $RequestID : Configuration file missing $configurationFile Elevation aborted"
     return
-} else {
-    Write-Debug -Message "sucessfully read $configurationFile"
-}
-Write-Debug -Message "sucessfully read the $ConfigurationFile"
+} 
+Write-Log -Severity Debug -Message "sucessfully read the $ConfigurationFile"
 #Read the configuration file from a JSON file
 $config = Get-Content $ConfigurationFile | ConvertFrom-Json
 $configFileBuildVersion = [int]([regex]::Matches($config.ConfigScriptVersion,"[^\.]*$")).Groups[0].Value 
-Write-Debug -Message "$configurationFile has build version $configFileBuildVersion"
+Write-Log -Severity Debug -Message "$configurationFile has build version $configFileBuildVersion"
 #Validate the build version of the jit.config file is equal or higher then the tested jit.config file version
 if ($_configBuildVersion -ge $configFileBuildVersion)
 {
     Write-ScriptMessage -EventID 2005 -Severity Error -Message "RequestID $RequestID : Invalid configuration file version $configFileBuildVersion expected $_configBuildVersion or higher"
     return
 }
-Write-Debug -Message "The configuration file is valite. The configuration version is $configFileBuildVersion"
+Write-Log -Severity Debug -Message "The configuration file is valid. The configuration version is $configFileBuildVersion"
 try{
     #Discover the next available Global catalog for queries
     $GlobalCatalogServer = "$((Get-ADDomainController -Discover -Service GlobalCatalog).HostName):3268"
-    Write-Debug -Message "using global catalog $GlobalCatalogServer"
+    Write-Log -Severity Debug -Message "using global catalog $GlobalCatalogServer"
     #region Search for the event record in the eventlog, read the event and convert the event message from JSON into a PSobject
     $RequestEvent = Get-WinEvent -FilterHashtable @{LogName = $config.EventLog; ID= $config.ElevateEventID} | Where-Object -Property RecordId -eq $eventRecordID
     if ($null -eq $RequestEvent){
         Write-ScriptMessage -EventID 2006 -Severity Warning -Message "A event record with event ID $eventRecordID is not available in Eventlog $($config.EventLog)"
         return
     }
-    Write-Debug -Message "found $eventRecordID : $($RequestEvent.Message)"
+    Write-Log -Severity Debug -Message "Found eventID $eventRecordID"
     $Request = ConvertFrom-Json $RequestEvent.Message
     #endregion
     #check the elevation group is available. If not terminate the script
@@ -197,25 +256,35 @@ try{
         return
     }
     $userDomain = [regex]::Match($oUser.canonicalName,"[^/]+").value
-    Write-Debug "Found user $($Request.UserDN) and $($AdminGroup.Name)"
+    Write-Log -Severity Debug -Message "Found user $userDomain \ $($oUser.SamAccountName)"
     #endregion
     #region This scection check the permission for this user if the elevation version is enabled
     if ($config.EnableDelegation){
         #continue here if the delegation model is enabled 
         #Search and read the delegation.config file. If the file is not available terminate the script
         if (!(Test-path $config.DelegationConfigPath)){
-            Write-ScriptMessage -EventID 2101 -Severity Error -Message "RequestID $RequestID : Can't find delegation JSON file $($config.DelegationConfigPath)"
-            return
+            Write-ScriptMessage -EventID 2101 -Severity Error -Message "Can't find delegation JSON file $($config.DelegationConfigPath)"
         }
         $Delegation = Get-Content $config.DelegationConfigPath | ConvertFrom-Json
-        Write-Debug -Message "Delegtion mode is enabled using $($config.DelegationConfigPath) as delegation file"
+        Write-Log -Severity Debug -Message "Delegtion mode is enabled using $($config.DelegationConfigPath) as delegation file"
+        #extract the server name from the group name
+        if ($config.EnableMultiDomainSupport){
+            $oServerName = [regex]::Match($Request.ServerGroup,"$($config.AdminPreFix)(\w+)$($config.DomainSeparator)(.+)").Groups[2].Value
         #extract the netbios name from the group name and convert it into the Domain DNS name
         $oServerDomainNetBiosName = [regex]::Match($Request.ServerGroup,"$($config.AdminPreFix)(\w+)$($config.DomainSeparator)(.+)").Groups[1].Value
         $oServerDNSDomain = (Get-ADObject -Filter "NetBiosName -eq '$oServerDomainNetBiosName'" -SearchBase "$((Get-ADRootDSE).ConfigurationNamingContext)" -Properties DNSRoot).DNSRoot
-        #extract the server name from the group name
-        $oServerName = [regex]::Match($Request.ServerGroup,"$($config.AdminPreFix)(\w+)$($config.DomainSeparator)(.+)").Groups[2].Value
-        #search for the member server object
         $oServer = Get-ADComputer -Identity $oServerName -Server $oServerDNSDomain[0] -ErrorAction SilentlyContinue
+        Write-Log -Severity Debug -Message "Multidomain support is enabled ServerName:$oServerName" 
+        } else {
+            $oServerName = [regex]::Match($Request.ServerGroup,"$($config.AdminPreFix)(.+)").Groups[1].Value
+            Write-ScriptMessage -EventID 0 -Message "Multidomain support is disabled ServerName: $oServerName " -Severity Debug
+            #$oServerDomainNetBiosName = (Get-ADDomain).NetBiosName
+            #$oServerDNSDomain = (Get-ADDomain).DNSRoot
+            $oserver = Get-ADComputer -Identity $oServerName -ErrorAction SilentlyContinue
+        }    
+        Write-Log -Message "oServerName = $oserverName oServerDomainNameBiosName = $oServerDomainNetBiosName oServerDNSDomain = $oServerDNSDomain" -Severity Debug
+        #search for the member server object
+
         #if the server object cannot be found in the AD terminat the script
         if ($null -eq $oServer){
             Write-ScriptMessage -EventID 2100 -Severity Error -Message "RequestID $RequestID : Can't find $oServer in AD" 
@@ -276,13 +345,13 @@ try{
     #Endregion
 }
 catch [Microsoft.ActiveDirectory.Management.ADServerDownException]{
-    Write-ScriptMessage -Severity Error -Message "RequestID $RequestID : A Server down exception occured. Validate the $GlobalCatalogServer is available"
+    Write-ScriptMessage -Severity Error -EventID 2105 -Message "RequestID $eventRecordID : A Server down exception occured. Validate the $GlobalCatalogServer is available" 
     return
 }
 catch [Microsoft.ActiveDirectory.Management.ADException]{
-    Write-ScriptMessage -Severity Error -EventID 2007  -Message "RequestID $RequestID : A AD exception has occured. $($Error[0])"
+    Write-ScriptMessage -Severity Error -EventID 2007 -Message "RequestID $eventRecordID : A AD exception has occured. $($Error[0])"
 }
 catch{
-    Write-ScriptMessage -Message "RequestID $RequestID : a unexpected Error has occured $($Error[0].Exception) in line $($Error[0].InvocationInfo.ScriptLineNumber) " -EventID 1 -Severity Error
+    Write-ScriptMessage -Severity Error -EventID 1    -Message "RequestID $eventRecordID : a unexpected Error has occured $($Error[0].Exception) in line $($Error[0].InvocationInfo.ScriptLineNumber) "  
     return
 }

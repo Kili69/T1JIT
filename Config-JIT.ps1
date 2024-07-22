@@ -267,37 +267,7 @@ function CreateOU {
 
 
         }
-
-
- <#
-        For ($i= $aryOU.Count; $i -ne 0; $i--){
-            #ignore DC components
-            if ($aryOU[$i -1] -like "OU=*"){
-                #to create the Organizational unit the string OU= must be removed to the native name
-                $OUName = $aryOU[$i-1].Replace("OU=","")
-                #if this is the first run of the for loop the OU must in the root. The searbase paramenter is not required 
-                if ($i -eq $aryOU.Count){
-                    #create the OU if it doesn|t exists in the domain root. 
-                    if([bool](Get-ADOrganizationalUnit -Filter "Name -eq '$OUName'" -SearchScope OneLevel -server $DomainDNS)){
-                        Write-Debug "OU=$OUName,$DomainDN already exists no actions needed"
-                    } else {
-                        Write-Host "$OUName doesn't exist in $OUPath. Creating OU" -ForegroundColor Green
-                        New-ADOrganizationalUnit -Name $OUName -Server $DomainDNS                        
-                    }
-                } else {
-                    #create the sub ou if required
-                    if([bool](Get-ADOrganizationalUnit -Filter "Name -eq '$OUName'" -SearchBase "$BuildOUPath$DomainDN" -Server $DomainDNS)){
-                        Write-Debug "$OUName,$OUPath already exists no action needed" 
-                    } else {
-                        Write-Host "$OUPath,$DomainDN doesn't exist. Creating" -ForegroundColor Green
-                        New-ADOrganizationalUnit -Name $OUName -Path "$BuildOUPath$DomainDN" -Server $DomainDNS
-                    }
-                }
-                #extend the OU searchbase with the current OU
-                $BuildOUPath  ="$($aryOU[$i-1]),$BuildOUPath"
-        }
-        }
-#>
+ 
     } 
     catch [System.UnauthorizedAccessException]{
         Write-Host "Access denied to create $OUPath in $domainDNS"
@@ -312,10 +282,10 @@ function CreateOU {
 }
 
 #Constant section
-$_scriptVersion = "0.1.20240123"
+$_scriptVersion = "0.1.20240722"
 $configFileName = "JIT.config"
 $MaximumElevatedTime = 1440
-#$DefaultElevatedTime = 60
+
 $DefaultAdminPrefix = "Admin_"
 $DefaultLdapQuery = "(&(ObjectClass=Computer)(!(ObjectClass=msDS-GroupManagedServiceAccount))(!(PrimaryGroupID=516))(!(PrimaryGroupID=521)))" #deprecated will be removed
 $DefaultServerGroupName = "Tier 0 Computers"
@@ -326,7 +296,7 @@ $STGroupManagementTaskName = "Tier 1 Local Group Management"
 $StGroupManagementTaskPath = "\Just-In-Time-Privilege"
 
 
-#$STAdminGroupManagement = "Administrator Group Management"
+
 $STAdminGroupManagementRerunMinutes = 5
 $STElevateUser = "Elevate User"
 try {
@@ -382,41 +352,9 @@ if (Test-Path "$InstallationDirectory\$configFileName")
     if ((([regex]::Match($existingconfig.ConfigScriptVersion,"\d+$")).Value) -gt (([regex]::Match($_scriptVersion,"\d+$")).Value)){
         Write-Host "The configuration file is created with a newer configuration script. Please use the latest configuration file" -ForegroundColor Red
     }
+    #Replace the default values with the existing values
     foreach ($setting in ($existingconfig | Get-Member -MemberType NoteProperty)){
-        # consitency check for DomainRoot and DomainDN fields
-        if ($setting.Name -eq "Domain") {
-            if ($config.$($setting.Name) -ne $existingconfig.$($setting.Name)) {
-                Write-Host "Domain DNS inconsitency in 'jit.config' file - current Domain DNS name will be used: $($config.Domain)" -ForegroundColor Red -BackgroundColor Yellow
-            }
-        } elseif ($setting.Name -eq "OU") {
-            if ($existingconfig.$($setting.Name) -notmatch (Get-ADDomain).DistinguishedName) {
-                $config.$($setting.Name) = "OU=JIT-Administrator Groups, OU=Tier 1,OU=Admin,$((Get-ADDomain).DistinguishedName)"
-                Write-Host "Domain DN inconsitency in 'jit.config' file - ignoring OU entry from 'jit.config' file ..." -ForegroundColor Red -BackgroundColor Yellow
-            }
-        } elseif ($setting.Name -eq "T1Searchbase") {
-            $config.$($setting.Name) = @()
-            $deleted = $false
-            $existingconfig.$($setting.Name)|ForEach-Object {
-                if ($_ -match (Get-ADDomain).DistinguishedName) {
-                    $config.$($setting.Name) += $_
-                } else {
-                    $deleted = $true
-                }
-            }
-            if (($config.$($setting.Name)).count -eq 0) {
-                Write-Host "Searchbase inconsitency in 'jit.config' file - applying default searchbase ..." -ForegroundColor Red -BackgroundColor Yellow
-                $config.$($setting.Name) += "OU=Tier 1 Servers,$((Get-ADDomain).DistinguishedName)"
-            } elseif ($deleted) {
-                Write-Host "Searchbase inconsitency in 'jit.config' file - some entries have been removed ..." -ForegroundColor Red -BackgroundColor Yellow
-            }
-        } elseif ($setting.Name -eq "DelegationConfigPath") {
-            if (!(Test-Path($existingconfig.$($setting.Name)))) {
-                $config.$($setting.Name) = "$InstallationDirectory\delegation.config"
-                Write-Host "'DelegationConfigPath' inconsitent in 'jit.config' file - using local 'Delegation.config' file ..." -ForegroundColor Red -BackgroundColor Yellow
-            }
-        } else {
-            $config.$($setting.Name) = $existingconfig.$($setting.Name)
-        }
+        $config.$($setting.Name) = $existingconfig.$($setting.Name)
     }
     $config.ConfigScriptVersion = $_scriptVersion
 
@@ -498,7 +436,6 @@ do{
         $OU = $config.OU
     }
     try{
-        #if ([ADSI]::Exists("LDAP://$OU,$((Get-ADDomain).DistinguishedName)")){
         if ([ADSI]::Exists("LDAP://$OU")){
             $config.OU = $OU
         } else {
