@@ -61,6 +61,9 @@ possibility of such damages
         Error handling added
     Version 0.1.20240206
         Users from child domain can enmumerate SID of allowed groups if the group is universal
+    Version 0.1.20240729
+        If the paramter configuration file is not provided, the global environment variable JustInTimeConfig will be used
+        instead of the local directory
 #>
 param (
 [Parameter(Mandatory=$false)]
@@ -80,7 +83,7 @@ param (
 [INT]$ElevatedMinutes,
 [Parameter(Mandatory=$false)]
 #File path to the JIT.config configuration file
-[string]$configurationFile,
+[string]$configurationFile = $env:JustInTimeConfig,
 [Parameter(Mandatory=$false)]
 #this parameter is used if the script is called by the UI version
 [Switch]$UIused
@@ -107,20 +110,25 @@ function Write-ScriptMessage {
 }
 
 #constantes
-Write-Debug "Script version 0.1.20240201"
+Write-Host "Script version 0.1.20240729"
 
 [int]$_configBuildVersion = "20231108"
 #Reading and validating configuration file
-if ($configurationFile -eq "" )
-{
-    $configurationFile = (Get-Location).Path + '\JIT.config'
+if ($configurationFile -eq ""){
+    $configurationFile = $env:JustInTimeConfig
 }
 if (!(Test-Path $configurationFile))
 {
     Write-ScriptMessage "Missing configuration file $configurationFile" -severity Warning
     Return
 }
-$config = Get-Content $configurationFile | ConvertFrom-Json
+try{
+    $config = Get-Content $configurationFile | ConvertFrom-Json
+}
+catch{
+    Write-ScriptMessage "unexpected error while reading the configuration file $configurationFile" -Severity Error
+    return
+}
 #extracting and converting the build version of the script and the configuration file
 $configFileBuildVersion = [int]([regex]::Matches($config.ConfigScriptVersion,"[^\.]*$")).Groups[0].Value 
 #Validate the build version of the jit.config file is equal or higher then the tested jit.config file version
@@ -179,7 +187,7 @@ if ($null -eq $oUser) #validate the user name exists in the active directory
     $oUserSID = @()
     Foreach ($UserSID in (Get-ADUser -LDAPFilter '(ObjectClass=User)' -SearchBase $oUser.DistinguishedName -SearchScope Base -Server $domain -Properties "TokenGroups").TokenGroups){
         $oUserSID += $UserSID.Value
-        $oSID = New-Object System.Security.Principal.SecurityIdentifier($UserSID.Value)
+        #$oSID = New-Object System.Security.Principal.SecurityIdentifier($UserSID.Value)
     }
     $oUserSID += $oUser.SID.Value
     Write-Debug "User Token SID $oUserSID"
@@ -284,6 +292,7 @@ $ElevateUser | Add-Member -MemberType NoteProperty -Name "UserDN" -Value (Get-AD
 $ElevateUser | Add-Member -MemberType NoteProperty -Name "ServerGroup" -Value $ServerGroupName
 $ElevateUser | Add-Member -MemberType NoteProperty -Name "ServerDomain" -Value $ServerDomain
 $ElevateUser | Add-Member -MemberType NoteProperty -Name "ElevationTime" -Value $ElevatedMinutes
+$ElevateUser | Add-Member -MemberType NoteProperty -Name "CallingUser" -Value "$($env:USERNAME)@$($env:USERDNSDOMAIN)"
 $EventMessage = ConvertTo-Json $ElevateUser
 Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId $config.ElevateEventID -Message $EventMessage
 Write-ScriptMessage "Request send. The account will be elevated soon" Information

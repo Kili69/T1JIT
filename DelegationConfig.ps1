@@ -74,6 +74,8 @@ possibility of such damages
         -interactive support
     0.1.20240126
         - Bug fix on JSON writing
+    0.1.20240726
+        - Using the environment variable $end:JustIntimeConfig if the parameter configFileName is not provided
     
 #>
 <#
@@ -89,7 +91,7 @@ param (
     [Parameter(Position = 2)]
     [string]$ADUserOrGroup,
     [Parameter (Position = 3)]
-    [string]$configFileName = "$((Get-Location).Path)\JIT.config"    
+    [string]$configFileName    
 )
 
 function ValidateOU {
@@ -159,10 +161,13 @@ function Get-Sid{
     return $OSID
 }
 
-$Script_Version = "0.1.20240126"
+$Script_Version = "0.1.20240726"
 $CurrentDelegation = @()
 Write-Host "Configure JIT delegation (script version $Script_Version)"
 #validate the jit.cofig exists. Load the delelgation.config is the file exists
+if ($configFileName -eq ""){
+    $configFileName = $env:JustInTimeConfig
+}
 if ((Test-Path "$configFileName") -eq $true){
     $config = Get-Content "$configFileName" | ConvertFrom-Json
     if ((Test-Path $config.DelegationConfigPath)){

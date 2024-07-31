@@ -59,6 +59,9 @@ possibility of such damages
     Version 0.1.20240202
         - Avoid error messages while search for computers in a different OU
         - Addtional Debug messages
+    Version 0.1.20240726
+        - If the paramter configuration file is not provided, the global environment variable JustInTimeConfig will be used
+        instead of the local directory
 
     Event ID
     1000 Information LocalAdmin Group created
@@ -76,7 +79,7 @@ possibility of such damages
 [CmdletBinding ( SupportsShouldProcess)]
 Param(
     [Parameter (Mandatory = $false, Position = 0)]
-    $configurationFile
+    $configurationFile = $env:JustInTimeConfig
 )
 #Script Version
 $_scriptVersion = "0.1.20240202"
@@ -84,12 +87,7 @@ $MinConfigVersionBuild = 20240123
 Write-Debug "Script Version $_scriptVersion"
 
 #Read configuration
-#If the parameter $configuration file is empty use the current working directory to locate the configruation file
-#it is recommended to the SYSVOL as target for the configuration file
-if ($null -eq $configurationFile) {
-    $configurationFile = (Get-Location).Path + '\jit.config'
-}
-#if the file doesnt exists or is malformed terminat the script
+#if the configuration file doesnt exists or is malformed terminat the script
 try {
     if (Test-Path $configurationFile) {
         $config = Get-Content $configurationFile | ConvertFrom-Json

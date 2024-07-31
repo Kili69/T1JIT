@@ -15,6 +15,8 @@
 # the use of or inability to use the sample or documentation, even if Microsoft has been advised 
 # of the possibility of such damages.
 # ==============================================================================================
+.Notes 20240731
+    Configuration file parameter default value is $env:JustIntime
 #>
 
  <#
@@ -36,7 +38,7 @@
 
 Param(
     [Parameter (Mandatory=$false)]
-    $configurationFile
+    $configurationFile = $env:JustInTimeConfig
 )
 
 
@@ -99,10 +101,6 @@ Param(
 
 
 #Read configuration
-if ($null -eq $configurationFile)
-{
-    $configurationFile = (Get-Location).Path + '\jit.config'
-}
 if (Test-Path $configurationFile) {
     $config = Get-Content $configurationFile | ConvertFrom-Json
 } else {

@@ -56,6 +56,11 @@ possibility of such damages
         Log files will be created in the %programdata%\Just-in-Time folder. 
         Bug fixing if the program is running in singedomain mode
         New Error Event ID 2105 occurs if the Global Catalog is down
+    Version 0.1.20240731
+        If the paramter configuration file is not provided, the global environment variable JustInTimeConfig will be used
+        instead of the local directory
+        Improved Monitoring
+
 
     Event ID's
     1    Error  Unhandled Error has occured
@@ -89,6 +94,8 @@ possibility of such damages
     2104 Information The user is added to the local administrators group
                 The requested user is successfully added to the requested AD group
     2105 Error  Global catalog is down 
+    2106 Information Script logging path
+                This event provides information about the elevate user script and the debug logging path
 
 #>
 [CmdletBinding(DefaultParameterSetName = 'DelegationModel')]
@@ -98,7 +105,7 @@ param(
     [int]$eventRecordID,
     [Parameter (Mandatory = $false, Position = 2)]
     #The path to the configuration file
-    [string]$ConfigurationFile
+    [string]$ConfigurationFile = $env:JustInTimeConfig
     )
 <#
 .SYNOPSIS
@@ -125,7 +132,7 @@ function Write-Log {
         $Severity
     )
     #Format the log message and write it to the log file
-    $LogLine = "$(Get-Date -Format o), [$Severity], $Message"
+    $LogLine = "$(Get-Date -Format o), [$Severity],[$eventRecordID], $Message"
     Add-Content -Path $LogFile -Value $LogLine 
     switch ($Severity) {
         'Error'   { 
@@ -182,7 +189,7 @@ function Write-Log {
 ##############################################################################################################################
 # Main Programm starts here                                                                                                  #
 ##############################################################################################################################
-[int]$_ScriptVersion = "20240722"
+[int]$_ScriptVersion = "20240731"
 [int]$_configBuildVersion = "20231108"
 #region Manage log file
 [int]$MaxLogFileSize = 1048576 #Maximum size of the log file
@@ -200,7 +207,8 @@ if (Test-Path $LogFile){
     }
 }
 #endregion
-Write-Log -Message "Script Version $_ScriptVersion. Minimum required config Version $_configBuildVersion" -Severity Information
+Write-ScriptMessage -Message "ElevateUser process started (RequestID $eventRecordID). Detailed logging available $LogFile" -EventID 2106 -Severity Information
+Write-Log -Message "Script Version $_ScriptVersion. Minimum required config Version $_configBuildVersion" -Severity Information 
 Write-Log -Message "Windows Event ID $($eventRecordID)" -Severity Debug
 #validate the configuration file is available and accessible
 if ($ConfigurationFile -eq "")
@@ -208,11 +216,12 @@ if ($ConfigurationFile -eq "")
     #if the parameter $configurationFile is null set the JIT.config path to current directory
     $ConfigurationFile = (Get-Location).Path + '\JIT.config'
 }
+Write-Log -Message "configuration file: $ConfigurationFile " -Severity Debug
 #Validate the JIT.config file is available
 if (!(Test-Path $ConfigurationFile))
 {
     #Return a error if the JIT.config is not available
-    Write-ScriptMessage -EventID 2000 -Severity Error -Message "RequestID $RequestID : Configuration file missing $configurationFile Elevation aborted"
+    Write-ScriptMessage -EventID 2000 -Severity Error -Message "RequestID $eventRecordID : Configuration file missing $configurationFile Elevation aborted"
     return
 } 
 Write-Log -Severity Debug -Message "sucessfully read the $ConfigurationFile"
@@ -223,7 +232,7 @@ Write-Log -Severity Debug -Message "$configurationFile has build version $config
 #Validate the build version of the jit.config file is equal or higher then the tested jit.config file version
 if ($_configBuildVersion -ge $configFileBuildVersion)
 {
-    Write-ScriptMessage -EventID 2005 -Severity Error -Message "RequestID $RequestID : Invalid configuration file version $configFileBuildVersion expected $_configBuildVersion or higher"
+    Write-ScriptMessage -EventID 2005 -Severity Error -Message "RequestID $eventRecordID : Invalid configuration file version $configFileBuildVersion expected $_configBuildVersion or higher"
     return
 }
 Write-Log -Severity Debug -Message "The configuration file is valid. The configuration version is $configFileBuildVersion"
@@ -244,7 +253,7 @@ try{
     $AdminGroup = Get-ADGroup -Filter "Name -eq '$($Request.ServerGroup)'"
     if ($null -eq $AdminGroup )
     {
-        Write-ScriptMessage -EventID 2001 -Severity Error -Message "RequestID $RequestID :Can not find $ServerGroupName" 
+        Write-ScriptMessage -EventID 2001 -Severity Error -Message "RequestID $eventRecordID :Can not find $ServerGroupName" 
         return
     }
     #region Search for the user in the entire AD Forest
@@ -287,7 +296,7 @@ try{
 
         #if the server object cannot be found in the AD terminat the script
         if ($null -eq $oServer){
-            Write-ScriptMessage -EventID 2100 -Severity Error -Message "RequestID $RequestID : Can't find $oServer in AD" 
+            Write-ScriptMessage -EventID 2100 -Severity Error -Message "RequestID $eventRecordID : Can't find $oServer in AD" 
             return
         } 
         Write-Debug -Message "Found $oServerName in $oServerDNSDomain"
