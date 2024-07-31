@@ -408,21 +408,23 @@ if (!$silient){
         $DelegationFile = Read-Host -Prompt "File location of the delegation control file [$($config.DelegationConfigPath)]"
         if ($DelegationFile -eq ""){
             $DelegationFile = $config.DelegationConfigPath
+        } else {
+            $config.DelegationConfigPath = $DelegationFile
         }
         if (!(Test-Path $DelegationFile)){
             try{
-                $Null = New-Item $DelegationFile -ItemType File -ErrorAction Stop 
-                Remove-Item $DelegationFile -Force
+                if (!(Test-Path (Split-Path $DelegationFile))){
+                    Write-Host "Can't find this directory $(Split-Path $DelegationFile). Create the directory manually "
+                } else {
+                    $Null = New-Item $DelegationFile -ItemType File -ErrorAction Stop 
+                    Remove-Item $DelegationFile -Force
+                }
             }
-
             catch {
-                Write-Host "the path doesn't exists or you have no privileges to $DelegationFile create the delegatin file" -ForegroundColor Red
-                Write-Host "Validate your premissions " -ForegroundColor Red
+                Write-Host "Validate your premissions to create the $DelegationFile delegation file  " -ForegroundColor Yellow
             }
         }
     }
-
-
 }
 #region GMSA
 $gmsaName = $config.GroupManagedServiceAccountName 
@@ -667,13 +669,17 @@ if (!$silient){
     Write-Host "It is recommended to store the configuration file on a central storage like \\$ForestRootDNS\SYSVOL\$ForestRootDNS\Just-in-Time\JIT.config"
     $configSaved = $false
     do {
-        $configFileName = Read-Host "Provide a directory to store the configuration file[$($env:JustInTimeConfig)]"
+        $configFileName = Read-Host "Provide a path to store the configuration file[$($env:JustInTimeConfig)]"
         if ($configFileName -eq ""){
             $configFileName = $env:JustInTimeConfig
         } 
         try {
+            if (!(Test-Path (Split-Path -Path $configFileName ))){
+                $Null = New-Item (Split-Path $configFileName) -ItemType Directory
+            }
             if (!(Test-Path "$configFileName")){
-                New-Item -Path "$configFileName" -ItemType File
+
+                $Null = New-Item -Path "$configFileName" -ItemType File 
             }
             ConvertTo-Json $config | Out-File $env:JustInTimeConfig -Confirm:$false
             if($env:JustInTimeConfig -ne $configFileName){
