@@ -25,6 +25,8 @@ possibility of such damages
 .NOTES
     Version 0.1.20240206
     Initial version
+    Version 0.1.20240731
+        The script uses the JustIntime environment variable if the configuration parameter is not available
 #>
 
 param(
@@ -43,7 +45,7 @@ Write-Debug "Get-UserElevationStatus $_Version"
 #Reading and validating configuration file
 if ($configurationFile -eq "" )
 {
-    $configurationFile = (Get-Location).Path + '\JIT.config'
+    $configurationFile = $env:JustInTimeConfig
 }
 if (!(Test-Path $configurationFile))
 {
