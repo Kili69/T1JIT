@@ -675,7 +675,7 @@ if (!$silient){
         } 
         try {
             if (!(Test-Path (Split-Path -Path $configFileName ))){
-                $Null = New-Item (Split-Path $configFileName) -ItemType Directory
+                $Null = New-Item (Split-Path $configFileName) -ItemType Directory -ErrorAction Stop
             }
             if (!(Test-Path "$configFileName")){
 
