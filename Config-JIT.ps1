@@ -89,7 +89,8 @@ possibility of such damages
                 - local jit.config
         - Schedule task to elevate users run in paralell 
             The userelevate schedule task run in paralell if multiple request events send to the event log
-
+     Version 0.1.20240801
+        - Updated dialog messages
 
 
 .PARAMETER InstallationDirectory
@@ -261,7 +262,7 @@ function CreateOU {
 }
 #endregion
 #region global variables 
-$_scriptVersion = "0.1.20240729" #the current script version
+$_scriptVersion = "0.1.20240801" #the current script version
 #region Default values
 $configFileName = "JIT.config" #The default name of the configuration file
 $STGroupManagementTaskName = "Tier 1 Local Group Management" #Name of the Schedule tasl to enumerate servers
@@ -384,13 +385,13 @@ if (Test-Path $env:JustInTimeConfig){
 #endregion
 #Definition of the AD group prefix. Use the default value if the question is not answerd
 if (!$silient){
-    $AdminPreFix = Read-Host -Prompt "Admin Prefix for local administrators default[$($config.AdminPreFix)]"
+    $AdminPreFix = Read-Host -Prompt "Admin Prefix for local administrators [$($config.AdminPreFix)]"
     if ($AdminPreFix -ne ""){
         $config.AdminPreFix = $AdminPreFix
     }
     #Validation of the GroupManagedService Account
     do{
-        $gmsaName = Read-Host -Prompt "Group Managed account name [$($config.GroupManagedServiceAccountName)]"
+        $gmsaName = Read-Host -Prompt "Group managed service account name [$($config.GroupManagedServiceAccountName)]"
         if ($gmsaName -ne ""){ 
             $config.GroupManagedServiceAccountName = $gmsaName
         }
@@ -400,8 +401,10 @@ if (!$silient){
             $gmsaName = ""
         }
     } while ($gmsaName -ne "")
-    $ReadEnableDelegationMode = Read-Host -Prompt "Enable the delegation mode? (Y/N)[Y]"
-    if (($ReadEnableDelegationMode -eq "n") -or ($ReadEnableDelegationMode -eq "N")){
+    if ($AdvancedSetup){
+        $ReadEnableDelegationMode = Read-Host -Prompt "Enable the delegation mode? (Y/N)[Y]"
+    }
+    if ($ReadEnableDelegationMode -eq "n"){
         $config.EnableDelegation = $false
     } else {
         $config.EnableDelegation = $true
@@ -466,7 +469,7 @@ Add-LogonAsABatchJobPrivilege -Sid ($oGmsa.SID).Value
 if (!$silient){
     #Definition of the AD OU where the AD groups are stored
     do{
-        $OU = Read-Host -Prompt "OU for the local administrator groups Default[$($config.OU)]"
+        $OU = Read-Host -Prompt "OU for the local administrator groups [$($config.OU)]"
         if ($OU -eq ""){
             $OU = $config.OU
         }
@@ -546,7 +549,7 @@ if (!$silient){
     } while($DefaultElevatedTime -eq 0)
 
     do{
-        $T0computergroup = Read-Host -Prompt "Tier 0 computers group default[$($config.Tier0ServerGroupName)]"
+        $T0computergroup = Read-Host -Prompt "Tier 0 computers group [$($config.Tier0ServerGroupName)]"
         if ($T0computergroup -eq ""){
             $T0ComputerGroup = $config.Tier0ServerGroupName 
         }
@@ -614,26 +617,27 @@ if (!$silient){
             $GroupManagementTaskRerun = $Null
         }
     } while (5 -lt $GroupManagementTaskRerun -gt 1439 )
-
-    do {
-        $ReadHost = Read-Host "Enable Mulitdomain support (y/n) [$($config.EnableMultiDomainSupport)]"
-        switch ($ReadHost) {
-            "y" { 
-                $config.EnableMultiDomainSupport = $true 
+    if ($AdvancedSetup){
+        do {
+            if ($config.EnableMultiDomainSupport) {
+                $ReadHost = Read-Host "Enable Mulitdomain support (y/n) [Y]"
             }
-            "n" { 
-                $config.EnableMultiDomainSupport = $false
+            else {
+                $ReadHost = Read-Host "Enable Mulitdomain support (y/n) [N]"
             }
-            ""  { $ReadHost = "DefaultValue"}
-            Default {
-                $ReadHost = ""
-                Write-Host "Invalid entry" -ForegroundColor Yellow
+            switch ($ReadHost) {
+                "y" { $config.EnableMultiDomainSupport = $true }
+                "n" { $config.EnableMultiDomainSupport = $false }
+                "" { }
+                Default {
+                    $ReadHost = ""
+                    Write-Host "Invalid entry" -ForegroundColor Yellow
+                }
             }
+        } while ($ReadHost -eq "")
+        If ((Read-Host "Do you want to enable Just-In-Time for the entire Domain?(y/n)[N]") -eq "y"){
+            $config.T1Searchbase = @("<DomainRoot>")
         }
-    } while ($ReadHost -eq "")
-    #region T1 searchbase
-    If ((Read-Host "Do you want to enable Just-In-Time for the entire Domain?(y/n)[N]") -eq "y"){
-        $config.T1Searchbase = @("<DomainRoot>")
     } else {
         $arySearchBase = @()
         foreach ($SearchBase in $config.T1Searchbase){
@@ -643,7 +647,7 @@ if (!$silient){
         }
         $config.T1SearchBase = $arySearchBase
         do{
-            Write-Host "Current searchbase "
+            Write-Host "Current searchbase for JIT members"
             Write-Host $config.T1Searchbase -Separator "`n"
             if ((Read-Host "Add search base? [N]") -eq "y"){
                 $arySearchBase = @()
@@ -672,7 +676,7 @@ if (!$silient){
         $configFileName = Read-Host "Provide a path to store the configuration file[$($env:JustInTimeConfig)]"
         if ($configFileName -eq ""){
             $configFileName = $env:JustInTimeConfig
-        } 
+        }         
         try {
             if (!(Test-Path (Split-Path -Path $configFileName ))){
                 $Null = New-Item (Split-Path $configFileName) -ItemType Directory -ErrorAction Stop
