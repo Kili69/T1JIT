@@ -94,7 +94,8 @@ Param(
 
     $ServerDomain = (Get-ADDomain).DNSroot
 
-    $result = .\RequestAdminAccess.ps1 -ServerDomain $ServerDomain -Servername $ServerName -ElevatedMinutes $ElevatedMinutes -UIused
+    #$result = .\RequestAdminAccess.ps1 -ServerDomain $ServerDomain -Servername $ServerName -ElevatedMinutes $ElevatedMinutes -UIused
+    $result = New-JITRequestAdminAccess -Server $ServerName -Minutes $ElevatedMinutes -UIused
     return $result
     }
 
