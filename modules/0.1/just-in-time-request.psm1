@@ -17,6 +17,8 @@ inability to use the sample scripts or documentation, even if Microsoft has been
 possibility of such damages
 
 This module file contains the user functions to request the administrator privileges
+
+ModulVersion 0.1.20240825
 #>
 
 #region global variables
@@ -33,7 +35,7 @@ function Write-ScriptMessage {
         [ValidateSet('Information','Warning','Error')]
         [string] $Severity = 'Information',
         [Parameter (Mandatory=$false, Position=2)]
-        [switch]$UIused
+        [bool]$UIused = $false
     )
     If ($UIused){
         Write-Output $Message
@@ -79,7 +81,7 @@ function Get-JITconfig{
     #region parameter validation
     #If the parameter configurationFile is null or empty, change the variable to the value of
     #the system environment JustInTimeConfig 
-    if ($null -eq $configurationFile){
+    if ($configurationFile -eq ""){
         if ($env:JustInTimeConfig -eq ""){
             $configurationFile = ".\jit.config"
         } else {
@@ -177,17 +179,22 @@ function Get-User{
     #To enumerate the recursive memberof SID of the user a 2nd LDAP query is needed. The recursive memberof SID stored in the TokenGroups 
     # attribute
     #extrating the domain component from the user distinguishedname
-    $UserDomainDN = [regex]::Match($oUser.DistinguishedName,"DC=.*").value
-    #enumerating the Domain DNS name from the user distinguished name
-    $UserDomainDNSName = (Get-ADForest).domains | Where-Object {(Get-ADDomain -Server $_).DistinguishedName -eq $UserDomainDN}
-    #searching the user with the TokenGroups attribute
-    $oUser = Get-ADUser -LDAPFilter "(ObjectClass=user)" -SearchBase $ouser.DistinguishedName -SearchScope Base -Server $userDomainDNSName -Properties "TokenGroups"
-    return $oUser
+    if ($null -eq $oUser){
+        #can't find user object in the global catalog
+        return $null
+    } else {   
+        $UserDomainDN = [regex]::Match($oUser.DistinguishedName,"DC=.*").value
+        #enumerating the Domain DNS name from the user distinguished name
+        $UserDomainDNSName = (Get-ADForest).domains | Where-Object {(Get-ADDomain -Server $_).DistinguishedName -eq $UserDomainDN}
+        #searching the user with the TokenGroups attribute
+        $oUser = Get-ADUser -LDAPFilter "(ObjectClass=user)" -SearchBase $ouser.DistinguishedName -SearchScope Base -Server $userDomainDNSName -Properties "TokenGroups"
+        return $oUser
+    }
 }
 
 #region Exported functions
 <#
-New-JITRequestAdminRequest
+New-AdminRequest
 .SYNOPSIS
     requesting administrator privileges to a server
 .DESCRIPTION
@@ -210,17 +217,17 @@ New-JITRequestAdminRequest
 .OUTPUTS
     None
 .EXAMPLE
-    New-JITRequestAdminAccess myhost.contoso.com
+    New-AdminAccess myhost.contoso.com
         Create a administrator request for the current user for server myhost.compunter.com
-    New-JetRequestAdminAccess myhost
+    New-AdminAccess myhost
         Create a administrator request for the current user for the server myhost. My host must exists
         in the forest necessarily in the current domain
-    New-JITRequestAdminAccess myhost.contoso.com 30
+    New-AdminAccess myhost.contoso.com 30
         Request administrator privileges for myhost.contoso.com for 30 minutes
-    New-JITRequestAdminAccess -Server myhost.contoso.com -Minutes 30 -user myuser@contoso.com
+    New-AdminAccess -Server myhost.contoso.com -Minutes 30 -user myuser@contoso.com
         Request administrator privileges for myhost.contoso.com for 30 minutes for user myuser@contoso.com
 #>
-function New-JITRequestAdminAccess{
+function New-AdminRequest{
     param(
         # The name of the server requesting administrator privileges
         [Parameter(Mandatory = $true, Position=0 )]
@@ -246,12 +253,15 @@ function New-JITRequestAdminAccess{
     switch ($Minutes) {
         0 {
             $Minutes = $config.DefaultElevatedTime
+            break
           }
         ({$_ -lt 5}){
             $Minutes = 5
+            break
         }
         ({$_ -gt $config.MaxElevatedTime}){
             $Minutes = $config.MaxElevatedTime
+            break
         }
     }
     #endregion
@@ -280,11 +290,10 @@ function New-JITRequestAdminAccess{
     }
     #if multiple server object with the same name exists in the forest, terminate the function
     if ($oServer.GetType().Name -eq "Object[]"){
-        Write-ScriptMessage -Message "Multiple computer found with this name $Server in the current forest. Please use the DNS hostname in stead" -Severity Warning -UIused $UIused
+        Write-ScriptMessage -Message "Multiple computer found with this name $server in the current forest, Please use the DNS hostname instead " -Severity Warning -UIused $UIused 
         exit
     }
-    #region build the group name
-    #the group name in mulitdomain mode is
+        #the group name in mulitdomain mode is
     #   <AdminPreFix><Domain NetBIOS Name><Seperator><server short name>
     # in single mode
     #   <AdminPreFix><Server name>
@@ -298,7 +307,7 @@ function New-JITRequestAdminAccess{
     }
     #endregion
     #if delegation mode is activated, the function validate the user is allowed to request access to this server
-    if ($config.DelegationMode){
+    if ($config.EnableDelegation){
         #reading the delegation repository defined in the JIT configuration
         $DelegationConfig = Get-Content $config.DelegationConfigPath | ConvertFrom-Json
         $userIsAllowed = $false
@@ -335,9 +344,17 @@ function New-JITRequestAdminAccess{
 }
 
 <#
-Show the current request status for a user
+This function shows the current request status for a user. 
+.PARAMETER User
+    Is the name of the user
+.PARAMETER UIused
+    Is a internal parameter for show messages in the UI mode
+.INPUTS
+    user object 
+.OUTPUTS
+    a list of server group name where the user is member of
 #>
-function Get-JITRequestStatus{
+function Get-AdminStatus{
     param(
     # Name of the user
     [Parameter(Mandatory=$False, Position=0)]
@@ -346,7 +363,8 @@ function Get-JITRequestStatus{
     [bool]$UIused = $False
     )
     $config = Get-JITconfig
-    $oUser = Get-JITUser $User
+    $oUser = Get-User $User
+    $retVal = @()
     if ($null -eq $oUser){
         Write-ScriptMessage -Message "cannot find user " -Severity Warning -UIused $UIused
         Return
@@ -368,8 +386,10 @@ function Get-JITRequestStatus{
                 $TimeValue = [math]::Floor($TTLsec / 60)
             }   
             Write-ScriptMessage -Message  "$($oUser.DistinguishedName ) Is Member elevated on $Domain\$Server for $TimeValue minutes" -Severity Information -UIused $UIused
+            $retval += @{Server ="$domain\$server";Time = $TimeValue}
         }
     }
+    return $retVal
 }
 #endregion
 
