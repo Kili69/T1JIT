@@ -32,6 +32,10 @@
    .Notes
    Version 0.1.20240213
    Autor: Andreas Luy
+   Version 0.1.20240907
+    Autor: Kili
+        using the Just-In-Time Module instead of the RequestAdminAccess script
+        combo list box items change the <NetBiosDomainName>\<server>
 
 #>
 
@@ -91,11 +95,7 @@ Param(
             [Parameter(mandatory=$true)][String]$ServerName,
             [Parameter(mandatory=$true)][Int]$ElevatedMinutes
         )
-
-    $ServerDomain = (Get-ADDomain).DNSroot
-
-    #$result = .\RequestAdminAccess.ps1 -ServerDomain $ServerDomain -Servername $ServerName -ElevatedMinutes $ElevatedMinutes -UIused
-    $result = New-JITRequestAdminAccess -Server $ServerName -Minutes $ElevatedMinutes -UIused
+    $result = New-AdminRequest -Server $ServerName -Minutes $ElevatedMinutes -UIused $true
     return $result
     }
 
@@ -156,7 +156,9 @@ if (Test-Path $configurationFile) {
 
     $T1Groups = Get-ADGroup -Filter "Name -like '*$($config.AdminPreFix)*'" -SearchBase $config.OU
     Foreach ($T1Group in $T1Groups) {
-        $objComboBox.Items.Add(($T1Group.Name).Substring(($config.AdminPreFix).Length))|Out-Null
+        $ServerDomainNetBiosName = $T1Group.Name.Substring(($config.AdminPreFix).Length) 
+        $ServerDomainNetBiosName = $ServerDomainNetBiosName.replace($config.DomainSeparator , "\")
+        $objComboBox.Items.Add($ServerDomainNetBiosName) | Out-Null
     }
     $objComboBox.Location  = New-Object System.Drawing.Point(10,40)
     $objComboBox.size = new-object System.Drawing.Size(($Panelwidth-30),25) 
@@ -232,7 +234,7 @@ if (Test-Path $configurationFile) {
                 $objResultTextBox.Text = ("Requesting elevation for:`r`n  Server   : "+$ObjComboBox.selectedItem+`
                     "`r`n  Domain: "+[String](Get-ADDomain).DNSroot+"`r`n  Time     : "+$objElevationTimeInputBox.Text)
                 Start-Sleep -Seconds 3
-                $result = RequestElevation -ServerName $ObjComboBox.selectedItem -ElevatedMinutes ([Int]$objElevationTimeInputBox.Text)
+                $result = RequestElevation -ServerName $ObjComboBox.SelectedItem -ElevatedMinutes ([int]$objElevationTimeInputBox.Text) 
                 $objResultTextBox.Text = $result
                 Start-Sleep -Seconds 5
                 $objElevationTimeInputBox.Text = [String]$config.DefaultElevatedTime

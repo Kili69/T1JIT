@@ -18,12 +18,17 @@ possibility of such damages
 
 This module file contains the user functions to request the administrator privileges
 
-ModulVersion 0.1.20240825
+Version 0.1.20240825
+    initial Version
+
+Version 0.1.20240907
+    The server format can be in FQDN, HostName, NetBiosName\HostName or DNSname\HostName
 #>
 
 #region global variables
 [int]$_configBuildVersion = "20231108"
-$GlobalCatalogServer = "$((Get-ADDomainController -Discover -Service GlobalCatalog).HostName):3268"
+$GC = Get-ADDomainController -Discover -Service "GlobalCatalog" -ForceDiscover
+$GlobalCatalogServer = "$($GC.HostName):3268"
 
 #endregion
 
@@ -155,11 +160,11 @@ function Get-User{
     switch ($user){
         ""{
             #searching for the current user object in AD
-            $oUser = get-ADuser $env:UserName -Properties ObjectSID  
+            $oUser = get-ADuser $env:UserName -Properties ObjectSID,CanonicalName  
         }
         ({$_ -like "*@*"}){
             #searching for the user in the UPN format
-            $oUser = get-ADUser -Filter "UserPrincipalName -eq '$User'" -Server $GlobalCatalogServer -Properties ObjectSID
+            $oUser = get-ADUser -Filter "UserPrincipalName -eq '$User'" -Server $GlobalCatalogServer -Properties ObjectSID,CanonicalName
         }
         ({$_ -like "*\*"}){
             #searching for the user in a specified domain
@@ -167,13 +172,13 @@ function Get-User{
             foreach ($DomainDNS in (GEt-ADForest).Domains){
                 $Domain == Get-ADDomain -Server $DomainDNS
                 if ($Domain.NetBIOSName -eq $user.split("\")[0]){
-                    $oUser = get-aduser -Filter "SamAccountName -eq $($user.split("\")[1])" -Server $DomainDNS -Properties ObjectSID
+                    $oUser = get-aduser -Filter "SamAccountName -eq $($user.split("\")[1])" -Server $DomainDNS -Properties ObjectSID,CanonicalName
                     break
                 }
             }
         }
         Default {
-            $oUser = Get-aduser -Filter "SamAccountName -eq '$User'"
+            $oUser = Get-aduser -Filter "SamAccountName -eq '$User'" -Properties ObjectSID,CanonicalName
         }
     }
     #To enumerate the recursive memberof SID of the user a 2nd LDAP query is needed. The recursive memberof SID stored in the TokenGroups 
@@ -183,13 +188,12 @@ function Get-User{
         #can't find user object in the global catalog
         return $null
     } else {   
-        $UserDomainDN = [regex]::Match($oUser.DistinguishedName,"DC=.*").value
-        #enumerating the Domain DNS name from the user distinguished name
-        $UserDomainDNSName = (Get-ADForest).domains | Where-Object {(Get-ADDomain -Server $_).DistinguishedName -eq $UserDomainDN}
-        #searching the user with the TokenGroups attribute
-        $oUser = Get-ADUser -LDAPFilter "(ObjectClass=user)" -SearchBase $ouser.DistinguishedName -SearchScope Base -Server $userDomainDNSName -Properties "TokenGroups"
-        return $oUser
-    }
+            #enumerating the Domain DNS name from the user distinguished name
+            $userDomainDNSName = $oUser.CanonicalName.split("/")[0]
+            #searching the user with the TokenGroups attribute
+            $oUser = Get-ADUser -LDAPFilter "(ObjectClass=user)" -SearchBase $ouser.DistinguishedName -SearchScope Base -Server $userDomainDNSName -Properties "TokenGroups"
+            return $oUser    
+     }
 }
 
 #region Exported functions
@@ -234,6 +238,9 @@ function New-AdminRequest{
         [string]
         $Server,
         # The amount of minutes to request administrator privileges
+        #In Mulit Forest environments you can provide the domain name instead of the FQDN
+        [Parameter(Mandatory = $false)]
+        [string] $ServerDomain,
         [Parameter(Mandatory = $false, Position=1)]
         [int]
         $Minutes = 0,
@@ -278,10 +285,34 @@ function New-AdminRequest{
     #the primary DNS name is registered.
     #if the server parameter is not as FQDN the function searches for the computername in the AD forest
     #If mulitple computers with the same name exists if the forest the function return a $null object
-    if ($server -like "*.*"){
-        $oServer = Get-ADcomputer -Filter "DNSHostName -eq '$Server'" -Server $GlobalCatalogServer
-    } else {
-        $oServer = Get-ADComputer -Filter "Name -eq '$Server'" -Server $GlobalCatalogServer
+    switch ($Server) {
+        {$_ -like "*\*"}{
+            #Hostname format is NetBIOS
+            $oNetBiosServerName = $server.Split("\")
+            if ($oNetBiosServerName[0] -like "*.*"){
+                $oserver = Get-ADComputer -Filter "Name -eq '$($oNetBiosServerName[1])'" -Server $oNetBiosServerName[0] -Properties CanonicalName
+            } else {
+                Foreach ($ForestDomainDNSName in (Get-ADForest).Domains){
+                    if ((Get-ADDomain -Server $ForestDomainDNSName).NetBiosName -eq $oNetBiosServerName[0]){
+                        $oServer = Get-ADcomputer  -Filter "Name -eq '$($oNetBiosServerName[1])'"  -Server $ForestDomainDNSName -Properties CanonicalName    
+                        break
+                    }
+                }
+            }
+            break
+        }
+        {$_ -like "*.*"}{
+            #Hostname format is DNS ServerName
+            $oServer = Get-ADcomputer -Filter "DNSHostName -eq '$Server'" -Server $GlobalCatalogServer -Properties CanonicalName
+            break
+        }
+        Default {
+            if ($ServerDomain -eq ""){
+                $oServer = Get-ADComputer -Filter "Name -eq '$Server'" -Server $GlobalCatalogServer -Properties CanonicalName
+            } else {
+                $oServer = Get-ADcomputer -Filter "Name -eq '$Server'" -Server $ServerDomain -Properties CanonicalName
+            }
+        }
     }
     #validate the server object exists. If the serverobject doesn't exists terminate the function
     if ($null -eq $oServer){
@@ -298,8 +329,9 @@ function New-AdminRequest{
     # in single mode
     #   <AdminPreFix><Server name>
     if ($config.EnableMultiDomainSupport){
-        $ServerDomainDN = [regex]::Match($oserver.DistinguishedName,"DC=.*").value
-        $ServerDomainDNSName = (Get-ADForest).domains | Where-Object {(Get-ADDomain -Server $_).DistinguishedName -eq $ServerDomainDN}
+        #$ServerDomainDN = [regex]::Match($oserver.DistinguishedName,"DC=.*").value
+        #$ServerDomainDNSName = (Get-ADForest).domains | Where-Object {(Get-ADDomain -Server $_ -ErrorAction SilentlyContinue).DistinguishedName -eq $ServerDomainDN}
+        $ServerDomainDNSName = $oServer.CanonicalName.split("/")[0]
         $ServerDomainNetBiosName = (GEt-ADdomain -Server $ServerDomainDNSName).NetBIOSName
         $ServerGroupName = "$($config.AdminPreFix)$serverDomainNetBiosName$($config.DomainSeparator)$($oServer.Name)"
     } else {
@@ -340,7 +372,7 @@ function New-AdminRequest{
     $ElevateUser | Add-Member -MemberType NoteProperty -Name "CallingUser" -Value "$($env:USERNAME)@$($env:USERDNSDOMAIN)"
     $EventMessage = ConvertTo-Json $ElevateUser
     Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId $config.ElevateEventID -Message $EventMessage
-    Write-ScriptMessage -Message  "The $user will be elevated soon" -Severity Information -UIused $UIused
+    Write-ScriptMessage -Message  "The $($oUser.DistinguishedName) will be elevated soon" -Severity Information -UIused $UIused
 }
 
 <#
