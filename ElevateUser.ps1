@@ -60,6 +60,8 @@ possibility of such damages
         If the paramter configuration file is not provided, the global environment variable JustInTimeConfig will be used
         instead of the local directory
         Improved Monitoring
+    VErsion 0.1.20240925
+        More detailed debug information
 
 
     Event ID's
@@ -247,13 +249,14 @@ try{
         return
     }
     Write-Log -Severity Debug -Message "Found eventID $eventRecordID"
+    Write-Log -Severity Debug -Message "Raw Event from Record $eventRecordID $($RequestEvent.Message)"
     $Request = ConvertFrom-Json $RequestEvent.Message
     #endregion
     #check the elevation group is available. If not terminate the script
     $AdminGroup = Get-ADGroup -Filter "Name -eq '$($Request.ServerGroup)'"
     if ($null -eq $AdminGroup )
     {
-        Write-ScriptMessage -EventID 2001 -Severity Error -Message "RequestID $eventRecordID :Can not find $ServerGroupName" 
+        Write-ScriptMessage -EventID 2001 -Severity Error -Message "RequestID: $eventRecordID Can not find $($Request.ServerGroup)" 
         return
     }
     #region Search for the user in the entire AD Forest
