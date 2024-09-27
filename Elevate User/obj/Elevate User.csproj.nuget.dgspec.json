@@ -50,6 +50,10 @@
             "System.DirectoryServices": {
               "target": "Package",
               "version": "[8.0.0, )"
+            },
+            "System.DirectoryServices.AccountManagement": {
+              "target": "Package",
+              "version": "[8.0.0, )"
             }
           },
           "imports": [
