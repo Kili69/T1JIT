@@ -91,6 +91,9 @@ possibility of such damages
             The userelevate schedule task run in paralell if multiple request events send to the event log
      Version 0.1.20240801
         - Updated dialog messages
+    Version 0.1.20241004
+        -New configuration option to use the ManagedBy attribute added to the config
+        -New configuration option max concurrent servers
 
 
 .PARAMETER InstallationDirectory
@@ -262,7 +265,7 @@ function CreateOU {
 }
 #endregion
 #region global variables 
-$_scriptVersion = "0.1.20240801" #the current script version
+$_scriptVersion = "0.1.20241004" #the current script version
 #region Default values
 $configFileName = "JIT.config" #The default name of the configuration file
 $STGroupManagementTaskName = "Tier 1 Local Group Management" #Name of the Schedule tasl to enumerate servers
@@ -368,6 +371,8 @@ $config | Add-Member -MemberType NoteProperty -Name "EnableDelegation"          
 $config | Add-Member -MemberType NoteProperty -Name "EnableMultiDomainSupport"       -Value $true
 $config | Add-Member -MemberType NoteProperty -Name "T1Searchbase"                   -Value @("<DomainRoot>")
 $config | Add-Member -MemberType NoteProperty -Name "DomainSeparator"                -Value "#"
+$config | Add-Member -MemberType NoteProperty -Name "UseManagedByforDelegation"      -Value $true
+$config | Add-Member -MemberType NoteProperty -Name "MaxConcurrentServer"            -Value 50
 
 #check for an existing configuration file and read the configuration
 if (Test-Path $env:JustInTimeConfig){
