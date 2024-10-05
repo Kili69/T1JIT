@@ -1,26 +1,26 @@
-﻿{
-    "ConfigScriptVersion":  "0.1.20240123",
+{
+    "ConfigScriptVersion":  "0.1.20241004",
     "AdminPreFix":  "Admin_",
-    "OU":  "OU=JIT-Administrator Groups,OU=Tier 1,OU=Admin,DC=contoso,DC=com",
-    "MaxElevatedTime":  1440,
-    "DefaultElevatedTime":  60,
+    "OU":  "OU=JIT-Administrator Groups,OU=Tier 1,OU=Admin,DC=fabrikam,DC=com",
+    "MaxElevatedTime":  20,
+    "DefaultElevatedTime":  15,
     "ElevateEventID":  100,
-    "Tier0ServerGroupName":  "Tier 0 computers",
+    "Tier0ServerGroupName":  "CN=Tier 0 Computers,OU=Groups,OU=Tier 0,OU=Admin,DC=fabrikam,DC=com",
     "LDAPT0Computers":  "(\u0026(ObjectClass=Computer)(!(ObjectClass=msDS-GroupManagedServiceAccount))(!(PrimaryGroupID=516))(!(PrimaryGroupID=521)))",
     "LDAPT0ComputerPath":  "OU=Tier 0,OU=Admin",
     "LDAPT1Computers":  "(\u0026(OperatingSystem=*Windows*)(ObjectClass=Computer)(!(ObjectClass=msDS-GroupManagedServiceAccount))(!(PrimaryGroupID=516))(!(PrimaryGroupID=521)))",
     "EventSource":  "T1Mgmt",
     "EventLog":  "Tier 1 Management",
-    "GroupManagementTaskRerun":  5,
+    "GroupManagementTaskRerun":  10,
     "GroupManagedServiceAccountName":  "T1GroupMgmt",
-    "Domain":  "contoso.com",
-    "DelegationConfigPath":  "C:\\T1JIT\\delegation.config",
+    "Domain":  "fabrikam.com",
+    "DelegationConfigPath":  "\\\\fabrikam.com\\SYSVOL\\fabrikam.com\\Just-In-time\\Tier1delegation.config",
     "EnableDelegation":  true,
     "EnableMultiDomainSupport":  true,
     "T1Searchbase":  [
-                         "OU=Servers,DC=contoso,DC=com",
-                         "OU=Servers,DC=child,DC=contoso,DC=com"
+                         "OU=Servers,DC=fabrikam,DC=com"
                      ],
-    "DomainSeparator":  "#"
+    "DomainSeparator":  "#",
+    "UseManagedByforDelegation":  true,
+    "MaxConcurrentServer":  50
 }
-
