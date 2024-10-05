@@ -30,7 +30,7 @@ Version 0.1.20241004
 #>
 
 #region global variables
-[int]$_configBuildVersion = "20241004"
+[int]$_configBuildVersion = "20241003"
 $GC = Get-ADDomainController -Discover -Service "GlobalCatalog" -ForceDiscover
 $GlobalCatalogServer = "$($GC.HostName):3268"
 
@@ -119,7 +119,7 @@ function Get-JITconfig{
     #extracting and converting the build version of the script and the configuration file
     $configFileBuildVersion = [int]([regex]::Matches($config.ConfigScriptVersion,"[^\.]*$")).Groups[0].Value 
     #Validate the build version of the jit.config file is equal or higher then the tested jit.config file version
-    if ($_configBuildVersion -ge $configFileBuildVersion)
+    if ($_configBuildVersion -gt $configFileBuildVersion)
     {
         throw "Invalid configuration file version"
         return
@@ -510,6 +510,10 @@ function New-AdminRequest{
     }
     #endregion
     #if delegation mode is activated, the function validate the user is allowed to request access to this server
+    if ($null -eq $oServer.DNSHostName){
+        Write-ScriptMessage -Message "Missing DNS Hostname entry on the computer object. Aborting elevation" -Severity Warning -UIused $UIused
+        return
+    }
     if (!(Get-UserElevationStatus -ServerName $oServer.DNSHostName -UserName $oUser.UserPrincipalName -DelegationConfig $config.DelegationConfigPath)){
         Write-ScriptMessage -Message "User is not allowed to request administrator privileges" -Severity Warning -UIused $UIused
         return
@@ -540,11 +544,14 @@ This function shows the current request status for a user.
 function Get-AdminStatus{
     param(
     # Name of the user
-    [Parameter(Mandatory=$true, Position=0, ValueFromPipeline = $true)]
+    [Parameter(Mandatory=$false, Position=0, ValueFromPipeline = $true)]
     $User,
     [Parameter(Mandatory=$False)]
     [bool]$UIused = $False
     )
+    if ($null -eq $User){
+        $user = $env:USERNAME
+    }
     $config = Get-JITconfig
     if ($user -is [string]){
         $User = Get-User $User
@@ -570,9 +577,15 @@ function Get-AdminStatus{
             } else {
                 $TimeValue = [math]::Floor($TTLsec / 60)
             }   
-            Write-ScriptMessage -Message  "$($User.DistinguishedName ) Is Member elevated on $Domain\$Server for $TimeValue minutes" -Severity Information -UIused $UIused
-            $retval += @{Server ="$domain\$server";Time = $TimeValue}
+            $obj = new-Object PSObject
+            $obj | Add-Member -MemberType NoteProperty -Name "Server" -Value "$domain\$server"
+            $obj | Add-Member -MemberType NoteProperty -Name "TTL"    -Value "$TimeValue"
+            $retVal += $obj
         }
     }
-    return $retVal
+    if ($UIused){
+        $retVal |ForEach-Object{Write-scriptMessage -Message "$User is elevated on $($_.Server) for $($_.TTL) minutes"}
+    } else {
+        return $retVal
+    }
 }

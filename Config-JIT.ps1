@@ -366,7 +366,7 @@ $config | Add-Member -MemberType NoteProperty -Name "EventLog"                  
 $config | Add-Member -MemberType NoteProperty -Name "GroupManagementTaskRerun"       -Value 5
 $config | Add-Member -MemberType NoteProperty -Name "GroupManagedServiceAccountName" -Value "T1GroupMgmt"
 $config | Add-Member -MemberType NoteProperty -Name "Domain"                         -Value $ADDomainDNS
-$config | Add-Member -MemberType NoteProperty -Name "DelegationConfigPath"           -Value "$InstallationDirectory\Tier1delegation.config" #Parameter added is the path to the delegation config file
+$config | Add-Member -MemberType NoteProperty -Name "DelegationConfigPath"           -Value "\\$ADDomainDNS\SYSVOL\$ADDomainDNS\Just-In-time\Tier1delegation.config" #Parameter added is the path to the delegation config file
 $config | Add-Member -MemberType NoteProperty -Name "EnableDelegation"               -Value $true
 $config | Add-Member -MemberType NoteProperty -Name "EnableMultiDomainSupport"       -Value $true
 $config | Add-Member -MemberType NoteProperty -Name "T1Searchbase"                   -Value @("<DomainRoot>")
