@@ -23,6 +23,9 @@ possibility of such damages
     program files folder,the modules into the modules and start the configuration script
 Version 0.1.20240918
     Inital Version
+Version 0.1.20241006
+    Overwrites existing versions
+    change the working folder to program folder
 #>
 
 $JitProgramFolder = $env:ProgramFiles +"\Just-In-Time"
@@ -37,15 +40,18 @@ try {
         New-Item -Path $TargetDir -ItemType Directory -ErrorAction Stop
     }
     #copy program files
-    Copy-Item .\Config-JIT.ps1 $TargetDir -ErrorAction Stop
-    Copy-Item .\Config-JITUI.ps1 $TargetDir -ErrorAction Stop
-    Copy-Item .\DelegationConfig.ps1 $TargetDir -ErrorAction Stop
-    Copy-Item .\ElevateUser.ps1 $TargetDir -ErrorAction Stop
-    Copy-Item .\RequestAdminAccessUI.ps1 $TargetDir -ErrorAction Stop
-    Copy-Item .\Tier1LocalAdminGroup.ps1 $TargetDir -ErrorAction Stop
-    New-Item "$($env:ProgramFiles)\WindowsPowerShell\Modules\Just-In-Time" -ItemType Directory -ErrorAction Stop
-    Copy-Item .\modules\* -Destination "$($env:ProgramFiles)\WindowsPowerShell\Modules\Just-In-time" -Recurse -ErrorAction Stop -Force
-    Write-Host "Start configuratin with $TargetDir\config-JIT.ps1"
+    Copy-Item .\Config-JIT.ps1 $TargetDir -ErrorAction Stop -Force -Verbose
+    Copy-Item .\Config-JITUI.ps1 $TargetDir -ErrorAction Stop -Force -Verbose
+    Copy-Item .\DelegationConfig.ps1 $TargetDir -ErrorAction Stop -Force -Verbose
+    Copy-Item .\ElevateUser.ps1 $TargetDir -ErrorAction Stop -Force -Verbose
+    Copy-Item .\RequestAdminAccessUI.ps1 $TargetDir -ErrorAction Stop -Force -Verbose
+    Copy-Item .\Tier1LocalAdminGroup.ps1 $TargetDir -ErrorAction Stop -Force -Verbose
+    if (!(Test-Path "$($env:ProgramFiles)\WindowsPowerShell\Modules\Just-In-Time") ){
+        New-Item "$($env:ProgramFiles)\WindowsPowerShell\Modules\Just-In-Time" -ItemType Directory -ErrorAction Stop -Verbose
+    }
+    Copy-Item .\modules\* -Destination "$($env:ProgramFiles)\WindowsPowerShell\Modules\Just-In-time" -Recurse -ErrorAction Stop -Force 
+    Set-Location -Path $TargetDir
+    Write-Host "Start the configuration: $TargetDir\config-JIT.ps1"
     
 } 
 catch [System.UnauthorizedAccessException] {
