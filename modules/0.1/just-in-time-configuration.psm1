@@ -22,6 +22,7 @@ $DefaultconfigFileName = "JIT.config" #The default name of the configuration fil
 $DefaultSTGroupManagementTaskName = "Tier 1 Local Group Management" #Name of the Schedule tasl to enumerate servers
 $DefaultStGroupManagementTaskPath = "\Just-In-Time-Privilege" #Is the schedule task folder
 $DefaultSTElevateUser = "Elevate User" #Is the name of the Schedule task to elevate users
+$RegExDistinguishedName = "((OU|CN)=[^,]+,)*DC="
 
 #region Functions
 function New-ADDGuidMap
@@ -255,12 +256,52 @@ function Update-JIT.GMSA{
 function Create-JIT.ScheduleTask{
 
 }
-function Add-JIT.ServerOU{
-
+function Add-JitServerOU{
+    param (
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [string]$OU
+    )
+    $config = Get-Content $env:JustInTimeConfig | ConvertFrom-Json
+    #Search for dnsdomain
+    $DomainDN = [regex]::Match($OU,"dc=.+").Value
+    foreach ($ADDomainDNS in (Get-ADForest).Domains){
+        IF ($DomainDN -eq $(Get-ADDomain -Server $ADDomainDNS).DistinguishedName){
+            break;
+        }
+    }
+    if ((Get-ADObject -Filter "DistinguishedName -eq '$OU'" -server $ADDomainDNS)){
+        if ($config.T1Searchbase -contains $OU){
+            Write-Host "$OU is already defined" -ForegroundColor Yellow
+        } else {
+            $config.T1Searchbase += $OU
+            ConvertTo-Json $config | Out-File $env:JustInTimeConfig -Confirm:$false
+        }
+    } else {
+        throw [System.ArgumentException]::new("Invalid DistinguishedName", $OU)
+    }
 }
-function Remove-JIT.ServerOU{
-
+function Get-JitServerOU{
+    $config = Get-Content $env:JustInTimeConfig | ConvertFrom-Json
+    return $config.T1Searchbase
 }
-
+function Remove-JITServerOU{
+    param(
+        [Parameter (Mandatory = $true, ValueFromPipeline = $true)]
+        [string]$OU
+    )
+    $config = Get-Content $env:JustInTimeConfig | ConvertFrom-Json
+    if ($config.T1Searchbase -contains $OU){
+        $tempSerachBase = @()
+        foreach ($sb in $config.T1Searchbase){
+            if ($sb -ne $OU){
+                $tempSerachBase += $sb
+            }
+        }
+        $config.T1Searchbase = $tempSerachBase
+        ConvertTo-Json $config | Out-File $env:JustInTimeConfig -Confirm:$false
+    } else {
+        Write-Host "$OU is not defined" -ForegroundColor Yellow
+    }
+}
 #endregion
 
