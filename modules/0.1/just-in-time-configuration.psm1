@@ -134,6 +134,11 @@ function CreateOU {
         [string]$DomainDNS
     )
     try{
+        #check if OU already exist
+        if ([ADSI]::Exists("LDAP://$OUPath")){
+            $success = $true
+            return $success
+        }
         #load the OU path into array to create the entire path step by step
         $DomainDN = (Get-ADDomain -Server $DomainDNS).DistinguishedName
         $aryOU=$OUPath.Split(",").Trim()
