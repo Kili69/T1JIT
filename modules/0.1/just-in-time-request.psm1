@@ -27,6 +27,8 @@ Version 0.1.20241004
     New function Get-UserElevationStatus added. 
         This function validate the user is allowed to request administrator privileges on a server
     New-AdminRequest changed to use the Get-UserelevationStatus
+Version 0.1.20241023
+    New function to convert a distinguishedname into the correspongind DNS Name
 #>
 
 #region global variables
@@ -35,6 +37,15 @@ $GC = Get-ADDomainController -Discover -Service "GlobalCatalog" -ForceDiscover
 $GlobalCatalogServer = "$($GC.HostName):3268"
 
 #endregion
+function ConvertFrom-DN2Dns {
+    param(
+        [Parameter(Mandatory= $true, ValueFromPipeline)]
+        [string]$DistinguishedName
+    )
+
+    $DistinguishedName = [regex]::Match($DistinguishedName,"(dc=[^,]+,)*dc=.+$",[System.Text.RegularExpressions.RegexOptions]::IgnoreCase).Value
+    return (Get-ADObject -Filter "nCname -eq '$DistinguishedName'" -Searchbase (Get-ADForest).PartitionsContainer -Properties dnsroot).DnsRoot
+}
 
 function Write-ScriptMessage {
     param (
@@ -292,7 +303,10 @@ function Get-UserElevationStatus{
         #region searching computer
         switch -Wildcard ($ServerName) {
             "*.*" {
-                $Computer = Get-ADComputer -Filter "DNSHostName -eq '$ServerName'" -Properties ManagedBy -Server $GlobalCatalogServer
+                $Computer = Get-ADComputer -Filter "DNSHostName -eq '$ServerName'" -Server $GlobalCatalogServer
+                #The global catalog does not contains the ManagedBy attribute
+                $domainDNS = ConvertFrom-DN2Dns $Computer.DistinguishedName
+                $Computer = Get-ADComputer $Computer -Properties ManagedBy -Server $domainDNS
                 break
             }
             "*.*/*"{

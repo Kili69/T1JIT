@@ -67,7 +67,8 @@ possibility of such damages
     Version 0.1.20241004
         The validation the user is allowed is replaced by the Just-In-Time module function GetUserElevationStatus
         Elevation Throttle implemented. New parameter in the JIT.config MaxConcurrentServer required
-
+    Version 0.1.20241023
+        Fix bug in config build version detection
     Event ID's
     1    Error  Unhandled Error has occured
     
@@ -199,7 +200,7 @@ function Write-Log {
 ##############################################################################################################################
 # Main Programm starts here                                                                                                  #
 ##############################################################################################################################
-[int]$_ScriptVersion = "20241004"
+[int]$_ScriptVersion = "20241023"
 [int]$_configBuildVersion = "20241004"
 Import-Module Just-In-Time
 #region Manage log file
@@ -234,7 +235,7 @@ $config = Get-Content $ConfigurationFile | ConvertFrom-Json
 $configFileBuildVersion = [int]([regex]::Matches($config.ConfigScriptVersion,"[^\.]*$")).Groups[0].Value 
 Write-Log -Severity Debug -Message "$configurationFile has build version $configFileBuildVersion"
 #Validate the build version of the jit.config file is equal or higher then the tested jit.config file version
-if (!($_configBuildVersion -ge $configFileBuildVersion))
+if ($_configBuildVersion -gt $configFileBuildVersion)
 {
     Write-ScriptMessage -EventID 2005 -Severity Error -Message "RequestID $eventRecordID : Invalid configuration file version $configFileBuildVersion expected $_configBuildVersion or higher"
     return

@@ -272,7 +272,7 @@ function CreateOU {
 if (!(New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){
     #Terminate script if it is not running as local administrator
     Write-Host "Administrator privileges required" -ForegroundColor Red
-    return 0x64
+    #return
 }
 
 #region global variables 
@@ -307,20 +307,24 @@ if ($quiet){
         if ($configurationFile -eq ""){
             Write-Host "The parameter silent requires the environment variable JustInTimeConfig or the -configurationFile parameter" -ForegroundColor Red
             Write-Host "Just-In-Time configuration stopped"
-            exit
-        }else{
+            return
+        }else {
             if (!(Test-Path $configurationFile)){
                 Write-Host "The configuration file $configurationFile doesn't exists" -ForegroundColor Red
                 Write-Host "Just-In-Time configuraiton stopped"
+            } else {
+                [Environment]::SetEnvironmentVariable("JustInTimeConfig", "$configurationFile", "Machine")
+                $env:JustInTimeConfig = $configurationFile            
             }
         }
-    } else{
-        if (!(Test-Path $env:JustInTimeConfig)){
+    } else {
+        if ((Test-Path $env:JustInTimeConfig)){} else {
             Write-Host "Can't access configuration file $($env:JustInTimeConfig). Aborting configuration" -ForegroundColor Red
             Write-Host "Validate the Just-In-Time variable"
-            exit
-        }
+            return
+        } 
     }
+
 }
 #endregion
 #region Prepare system variable
@@ -474,7 +478,7 @@ try {
     $principalsAllowToRetrivePassword = (Get-ADServiceAccount -Identity $config.GroupManagedServiceAccountName -Properties PrincipalsAllowedToRetrieveManagedPassword).PrincipalsAllowedToRetrieveManagedPassword
     if (($principalsAllowToRetrivePassword.Count -eq 0) -or ($principalsAllowToRetrivePassword.Value -notcontains (Get-ADComputer -Identity $env:COMPUTERNAME).DistinguishedName)){
         Write-Host "Adding current computer to the list of computer who an retrive the password"
-        $principalsAllowToretrivePassword.Add((Get-ADComputer -Identity $env:COMPUTERNAME))
+        $principalsAllowToretrivePassword.Add((Get-ADComputer -Identity $env:COMPUTERNAME).DistinguishedName)
         Set-ADServiceAccount -Identity $GMSAName -PrincipalsAllowedToRetrieveManagedPassword $principalsAllowToRetrivePassword -Server $config.Domain
     }
 } catch {
