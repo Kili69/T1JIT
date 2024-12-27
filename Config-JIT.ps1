@@ -96,7 +96,10 @@ possibility of such damages
         -New configuration option max concurrent servers
     Version 0.1.20241013
         -Terminate script if it is not running as local administrator
-
+   Version 0.1.20241227
+        - by Andreas Luy
+	- corrected minor bugs
+ 
 
 .PARAMETER InstallationDirectory
     Installation directory
@@ -394,7 +397,11 @@ $config | Add-Member -MemberType NoteProperty -Name "MaxConcurrentServer"       
 #check for an existing configuration file and read the configuration
 try {
     if ($null -ne $env:JustInTimeConfig){
-        $existingconfig = Get-Content $env:JustInTimeConfig | ConvertFrom-Json
+        if (Test-Path $env:JustInTimeConfig) {
+            $existingconfig = Get-Content $env:JustInTimeConfig | ConvertFrom-Json
+        } else {
+            Write-Host ($env:JustInTimeConfig+" does not exist ...") -ForegroundColor Yellow
+        }
     }
     if ($configurationFile -ne ""){
         $existingconfig = Get-Content $configurationFile | ConvertFrom-Json
@@ -520,7 +527,7 @@ if (!$quiet){
                 if (CreateOU -OUPath $OU -DomainDNS (Get-ADDomain).DNSRoot) {
                     Write-Host "'$OU' succesfully created" -ForegroundColor Green
                 }
-                $OU = $null
+                # $OU = $null
             }
         } 
         catch {
@@ -554,7 +561,7 @@ if (!$quiet){
                 $MaxMinutes = 0
             }
             {$_ -gt 1440}{
-                Write-Host "Maximum elevation time 1441 minutes" -ForegroundColor Yellow
+                Write-Host "Maximum elevation time 1440 minutes" -ForegroundColor Yellow
                 $MaxMinutes = 0
             }
             Default{
@@ -582,7 +589,7 @@ if (!$quiet){
                 $DefaultElevatedTime = 0
             }  
             Default {
-                $config.MaxElevatedTime = $DefaultElevatedTime
+                $config.DefaultElevatedTime = $DefaultElevatedTime
             }      
         }
     } while($DefaultElevatedTime -eq 0)
@@ -658,9 +665,9 @@ if (!$quiet){
     } while (5 -lt $GroupManagementTaskRerun -gt 1439 )
     $arySearchBase = @()
     foreach ($SearchBase in $config.T1Searchbase){
-        if ($SearchBase -ne "<DomainRoot>"){
-            $arySearchbase += $SearchBase
-        }
+#        if ($SearchBase -ne "<DomainRoot>"){
+#            $arySearchbase += $SearchBase
+#        }
     }
     $config.T1SearchBase = $arySearchBase
     do{
@@ -683,11 +690,18 @@ if (!$quiet){
             $SearchBase = "N"
         }
     } while ($SearchBase -ne "N") 
+    if (!$config.T1Searchbase) {
+        $config.T1Searchbase += "<DomainRoot>"
+    }
     #endregion
-    #Writing configuration file
-    $DomainDNS = (Get-ADDomain).DNSRoot
-    $DefaultJITConfigPath = "\\$DomainDNS\SYSVOL\$DomainDNS\Just-in-Time\JIT.config"
-    Write-Host "It is recommended to store the configuration file on a central storage like $DefaultJITConfigPath"
+    if ((-not $env:JustInTimeConfig) -or ($env:JustInTimeConfig -eq "")) {
+        #Writing configuration file
+        $DomainDNS = (Get-ADDomain).DNSRoot
+        $DefaultJITConfigPath = "\\$DomainDNS\SYSVOL\$DomainDNS\Just-in-Time\JIT.config"
+        Write-Host "It is recommended to store the configuration file on a central storage like $DefaultJITConfigPath"
+    } else {
+        $DefaultJITConfigPath = $env:JustInTimeConfig
+    }
     $configSaved = $false
     do {
         $configFileName = Read-Host "Provide a path to store the configuration file[$DefaultJITConfigPath]"

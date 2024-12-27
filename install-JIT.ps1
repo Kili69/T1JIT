@@ -26,6 +26,9 @@ Version 0.1.20240918
 Version 0.1.20241006
     Overwrites existing versions
     change the working folder to program folder
+Version 0.1.20241227
+    by Andreas Luy
+    Fixing minor bugs
 #>
 param(
     [Parameter(Mandatory = $false)]
