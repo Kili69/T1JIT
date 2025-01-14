@@ -80,6 +80,8 @@ possibility of such damages
             "Get-JitDelegation"
             "Remove-JitDelegation"
             "Add-JitDelegation"
+    0.1.2024.1006
+        fixing bug, if the delegation file doesnt exists
     
 #>
 <#
@@ -175,10 +177,7 @@ function Update-JitDelegation {
     }
     if ((Test-Path $config.DelegationConfigPath)){
         $CurrentDelegation += Get-Content "$($config.DelegationConfigPath)" | ConvertFrom-Json 
-    } else {
-        Write-Host "Missing JIT configurtion file"
-        Return $false
-    }
+    } 
     switch ($action) {
         'AddDelegation' {
             $OU= ValidateOU -OU $OU

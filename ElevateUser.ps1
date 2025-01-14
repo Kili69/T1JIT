@@ -1,4 +1,4 @@
-<#
+<# 
 Script Info
 
 Author: Andreas Lucas [MSFT]
@@ -67,6 +67,11 @@ possibility of such damages
     Version 0.1.20241004
         The validation the user is allowed is replaced by the Just-In-Time module function GetUserElevationStatus
         Elevation Throttle implemented. New parameter in the JIT.config MaxConcurrentServer required
+    Version 0.1.20241023
+        Fix bug in config build version detection
+    Version 0.1.20241227
+	by Andreas Luy
+        Fixing minor bugs
 
     Event ID's
     1    Error  Unhandled Error has occured
@@ -199,7 +204,7 @@ function Write-Log {
 ##############################################################################################################################
 # Main Programm starts here                                                                                                  #
 ##############################################################################################################################
-[int]$_ScriptVersion = "20241004"
+[int]$_ScriptVersion = "20241023"
 [int]$_configBuildVersion = "20241004"
 Import-Module Just-In-Time
 #region Manage log file
@@ -228,13 +233,13 @@ if (!(Test-Path $ConfigurationFile))
     Write-ScriptMessage -EventID 2000 -Severity Error -Message "RequestID $eventRecordID : Configuration file missing $configurationFile Elevation aborted"
     return
 } 
-Write-Log -Severity Debug -Message "sucessfully read the $ConfigurationFile"
 #Read the configuration file from a JSON file
 $config = Get-Content $ConfigurationFile | ConvertFrom-Json
+Write-Log -Severity Debug -Message "sucessfully read the $ConfigurationFile"
 $configFileBuildVersion = [int]([regex]::Matches($config.ConfigScriptVersion,"[^\.]*$")).Groups[0].Value 
 Write-Log -Severity Debug -Message "$configurationFile has build version $configFileBuildVersion"
 #Validate the build version of the jit.config file is equal or higher then the tested jit.config file version
-if (!($_configBuildVersion -ge $configFileBuildVersion))
+if ($_configBuildVersion -gt $configFileBuildVersion)
 {
     Write-ScriptMessage -EventID 2005 -Severity Error -Message "RequestID $eventRecordID : Invalid configuration file version $configFileBuildVersion expected $_configBuildVersion or higher"
     return
@@ -275,21 +280,30 @@ try{
     $userDomain = [regex]::Match($oUser.canonicalName,"[^/]+").value
     Write-Log -Severity Debug -Message "Found user $userDomain \ $($oUser.SamAccountName)"
     #endregion
-    #region This scection check the permission for this user if the elevation version is enabled
+
+    #region This section check the permission for this user if the elevation version is enabled
     #extract the server name from the group name
     if ($config.EnableMultiDomainSupport){
-        $oServerName = [regex]::Match($Request.ServerGroup,"$($config.AdminPreFix)(\w+)$($config.DomainSeparator)(.+)").Groups[2].Value
+        #$oServerName = [regex]::Match($Request.ServerGroup,"$($config.AdminPreFix)(\w+)$($config.DomainSeparator)(.+)").Groups[2].Value
         #extract the netbios name from the group name and convert it into the Domain DNS name
-        $oServerDomainNetBiosName = [regex]::Match($Request.ServerGroup,"$($config.AdminPreFix)(\w+)$($config.DomainSeparator)(.+)").Groups[1].Value
-        $oServerDNSDomain = (Get-ADObject -Filter "NetBiosName -eq '$oServerDomainNetBiosName'" -SearchBase "$((Get-ADRootDSE).ConfigurationNamingContext)" -Properties DNSRoot).DNSRoot
-        $oServer = Get-ADComputer -Identity $oServerName -Server $oServerDNSDomain[0] -Properties ManagedBy -ErrorAction SilentlyContinue
-        Write-Log -Severity Debug -Message "Multidomain support is enabled ServerName:$oServerName" 
+        #$oServerDomainNetBiosName = [regex]::Match($Request.ServerGroup,"$($config.AdminPreFix)(\w+)$($config.DomainSeparator)(.+)").Groups[1].Value
+        #$oServerDNSDomain = (Get-ADObject -Filter "NetBiosName -eq '$oServerDomainNetBiosName'" -SearchBase "$((Get-ADRootDSE).ConfigurationNamingContext)" -Properties DNSRoot).DNSRoot
+        #$oServer = Get-ADComputer -Identity $oServerName -Server $oServerDNSDomain[0] -Properties ManagedBy -ErrorAction SilentlyContinue
+        #$oServerDNSDomain = (($Request.ServerGroup).Substring(($config.AdminPreFix).Length)).Split($config.DomainSeparator)[0]
+        $oServerName = (($Request.ServerGroup).Substring(($config.AdminPreFix).Length)).Split($config.DomainSeparator)[1]
+        $oServerDNSDomain = $Request.ServerDomain
+        Write-Log -Severity Debug -Message "oServerDNSDomain: $oServerDNSDomain" 
+        Write-Log -Severity Debug -Message "oServerName: $oServerName" 
+        $oServer = Get-ADComputer -Identity $oServerName -Server $oServerDNSDomain -Properties ManagedBy -ErrorAction SilentlyContinue
+        Write-Log -Severity Debug -Message "Multidomain support is enabled - ServerName: $oServerName" 
     } else {
-        $oServerName = [regex]::Match($Request.ServerGroup,"$($config.AdminPreFix)(.+)").Groups[1].Value
+        #$oServerName = [regex]::Match($Request.ServerGroup,"$($config.AdminPreFix)(.+)").Groups[1].Value
+        $oServerName = (($Request.ServerGroup).Substring(($config.AdminPreFix).Length))
         Write-log -Message "Multidomain support is disabled ServerName: $oServerName " -Severity Debug
         $oserver = Get-ADComputer -Identity $oServerName -Properties ManagedBy -ErrorAction SilentlyContinue
     }    
-    Write-Log -Message "oServerName = $oserverName oServerDomainNameBiosName = $oServerDomainNetBiosName oServerDNSDomain = $oServerDNSDomain" -Severity Debug
+#    Write-Log -Message "oServerName = $oserverName oServerDomainNameBiosName = $oServerDomainNetBiosName oServerDNSDomain = $oServerDNSDomain" -Severity Debug
+    Write-Log -Message "oServerName = $oserverName oServerDNSDomain = $oServerDNSDomain" -Severity Debug
     #search for the member server object
     #if the server object cannot be found in the AD terminat the script
     if ($null -eq $oServer){
@@ -297,11 +311,12 @@ try{
         return
     }
     if ($config.EnableDelegation){
+        Write-Log -Severity Debug -Message "Delegation support is enabled - ServerName: $oServerName" 
         if (!(Test-Path $config.DelegationConfigPath)){
             Write-ScriptMessage -EventID 2109 -Severity Error -Message "Invalid path $($config.DelegationConfigPath)"
             return
         }
-        if (!(Get-UserElevationStatus -ServerName $oServer.DNSHostName -UserName $oUser.UserPrincipalName -DelegationConfig $config.DelegationConfigPath)){
+        if (!(Get-UserElevationStatus -ServerName $oServer.DNSHostName -UserName $oUser.UserPrincipalName -DelegationConfig $config.DelegationConfigPath -AllowManagebyAttribute $config.UseManagedByforDelegation)){
             Write-ScriptMessage -EventID 2103 -Message "User $($oUser.DistinguishedName) is not allowed to request privileged access on $($oServer.DistinguishedName) " -Severity Warning
             return
         }

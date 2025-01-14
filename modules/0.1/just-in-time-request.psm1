@@ -27,6 +27,12 @@ Version 0.1.20241004
     New function Get-UserElevationStatus added. 
         This function validate the user is allowed to request administrator privileges on a server
     New-AdminRequest changed to use the Get-UserelevationStatus
+Version 0.1.20241023
+    New function to convert a distinguishedname into the correspongind DNS Name
+version 0.1.20241219 by Andreas Luy
+    Changed group naming from NetBios to full Dns naming scheme
+    moved Get-Jitconfig to Just-in-time-configuration.psm1
+
 #>
 
 #region global variables
@@ -35,6 +41,15 @@ $GC = Get-ADDomainController -Discover -Service "GlobalCatalog" -ForceDiscover
 $GlobalCatalogServer = "$($GC.HostName):3268"
 
 #endregion
+function ConvertFrom-DN2Dns {
+    param(
+        [Parameter(Mandatory= $true, ValueFromPipeline)]
+        [string]$DistinguishedName
+    )
+
+    $DistinguishedName = [regex]::Match($DistinguishedName,"(dc=[^,]+,)*dc=.+$",[System.Text.RegularExpressions.RegexOptions]::IgnoreCase).Value
+    return (Get-ADObject -Filter "nCname -eq '$DistinguishedName'" -Searchbase (Get-ADForest).PartitionsContainer -Properties dnsroot).DnsRoot
+}
 
 function Write-ScriptMessage {
     param (
@@ -56,75 +71,6 @@ function Write-ScriptMessage {
         }
         Write-Host $Message -ForegroundColor $ForegroundColor
     }
-}
-<#
-.SYNOPSIS
-    Import the configuration from JIT.config file
-.DESCRIPTION
-    Reading the JIT.config from the System variable or a expicite JIT configuration file. 
-    The function return the configuration as JIT config object
-    This is a module private function
-.PARAMETER configurationFile
-    this is a optional parameter to use a dedicated configuration file.
-    If this parameter is not available the function read the configuration files
-    from the in the $env:JustInTimeConfig varaible or from the current directory
-.INPUTS
-    The path to the configuration file as string
-.OUTPUTS
-    JIT config object as PSObject 
-.EXAMPLE
-    Get-JITConfig
-    Tries to read the JIT configuration from the path in the SYSTEM variable JustInTimeConfig. 
-    If the environement is not available or the file doesn't exist, the function tries to read 
-    the configuration file from the current directory
-    Get-JITConfig .\jit.config
-        Read the configuration from the path
-    Get-JITConfig -ConfigurationFile .\jit.config
-        Read the configuration from the path
-#>
-function Get-JITconfig{
-    param(
-        [Parameter (Mandatory=$false, Position=0)]
-        [string]$configurationFile
-    )
-    #region parameter validation
-    #If the parameter configurationFile is null or empty, change the variable to the value of
-    #the system environment JustInTimeConfig 
-    if ($configurationFile -eq ""){
-        if ($env:JustInTimeConfig -eq ""){
-            $configurationFile = ".\jit.config"
-        } else {
-            if ($null -eq $env:JustInTimeConfig){
-                throw "Configuration enviroment variable missing"
-                return
-            } else {
-                $configurationFile = $env:JustInTimeConfig
-            }
-
-        }
-    }
-    #endregion
-    if (!(Test-Path $configurationFile))
-    {
-        throw "Configuration $configurationFile missing"
-        Return
-    }
-    try{
-        $config = Get-Content $configurationFile | ConvertFrom-Json
-    }
-    catch{
-        throw "Invalid configuration file $configurationFile"
-        return
-    }
-    #extracting and converting the build version of the script and the configuration file
-    $configFileBuildVersion = [int]([regex]::Matches($config.ConfigScriptVersion,"[^\.]*$")).Groups[0].Value 
-    #Validate the build version of the jit.config file is equal or higher then the tested jit.config file version
-    if ($_configBuildVersion -gt $configFileBuildVersion)
-    {
-        throw "Invalid configuration file version"
-        return
-    }
-    return $config
 }
 
 <#
@@ -292,7 +238,10 @@ function Get-UserElevationStatus{
         #region searching computer
         switch -Wildcard ($ServerName) {
             "*.*" {
-                $Computer = Get-ADComputer -Filter "DNSHostName -eq '$ServerName'" -Properties ManagedBy -Server $GlobalCatalogServer
+                $Computer = Get-ADComputer -Filter "DNSHostName -eq '$ServerName'" -Server $GlobalCatalogServer
+                #The global catalog does not contains the ManagedBy attribute
+                $domainDNS = ConvertFrom-DN2Dns $Computer.DistinguishedName
+                $Computer = Get-ADComputer $Computer -Properties ManagedBy -Server $domainDNS
                 break
             }
             "*.*/*"{
@@ -326,7 +275,7 @@ function Get-UserElevationStatus{
         }
         return $false
     }
-    #check the ManagedBy attribute is available
+    #check the ManagedBy attribute is available 1st if not use delegation.config
     if ($null -ne $Computer.ManagedBy -and $AllowManagebyAttribute){
         $oManagedBy = Get-ADObject -Filter "DistinguishedName -eq '$($Computer.ManagedBy)'" -Server $GlobalCatalogServer -Properties ObjectSID, CanonicalName
         Switch ($oManagedBy.ObjectClass){
@@ -347,9 +296,8 @@ function Get-UserElevationStatus{
             }
         }
     }
-    if ($null -eq $DelegationConfig){
-        return $false
-    } else {
+    # no match with ManagedBy attribute, using delegation.config
+    if ($config.EnableDelegation){
         $oDelegation = Get-Content $DelegationConfig | ConvertFrom-Json 
         $ServerDelegations = $oDelegation | Where-Object {$Computer.DistinguishedName -like "*$($_.ComputerOU)"} 
          foreach ($OU in $ServerDelegations){
@@ -407,55 +355,67 @@ function New-AdminRequest{
         [Parameter(Mandatory = $true, Position=0 )]
         [string]$Server,
         # The amount of minutes to request administrator privileges
-        #In Mulit Forest environments you can provide the domain name instead of the FQDN
+        #In Multi Forest environments you can provide the domain name instead of the FQDN
         [Parameter(Mandatory = $false)]
-        [string] $ServerDomain,
+        [string]$ServerDomain,
         [Parameter(Mandatory = $false, Position=1)]
-        [int]
-        $Minutes = 0,
+        [int]$Minutes = 0,
         #If the request is for a different user
         [Parameter(Mandatory = $false)]
         [string]$User,
         [Parameter (Mandatory = $false)]
-        [bool] $UIused = $false
+        [bool]$UIused = $false
     )
+
     #reading the current configuration
     $config = Get-JITconfig
-    #region validation of minutes
-    #if the vlaue must be between 5 and the maximum configured value. If the value is lower then 5
-    #then the minutes variable will be set to 5
-    #if the parameter is 0 the parameter will be changed to the configured default value 
-    switch ($Minutes) {
-        0 {
-            $Minutes = $config.DefaultElevatedTime
-            break
-          }
-        ({$_ -lt 5}){
-            $Minutes = 5
-            break
+
+    #The following part is only required if UI is NOT used
+    if (!$UIused) {
+
+        #region validation of minutes
+        #if the value must be between 15 and the maximum configured value. If the value is lower then 15
+        #then the minutes variable will be set to 15
+        #if the parameter is 0 the parameter will be changed to the configured default value 
+        switch ($Minutes) {
+            0 {
+                $Minutes = $config.DefaultElevatedTime
+                break
+              }
+            ({$_ -lt 15}){
+                $Minutes = 15
+                break
+            }
+            ({$_ -gt $config.MaxElevatedTime}){
+                $Minutes = $config.MaxElevatedTime
+                break
+            }
         }
-        ({$_ -gt $config.MaxElevatedTime}){
-            $Minutes = $config.MaxElevatedTime
-            break
-        }
+        #endregion
     }
-    #endregion
-    #region user elvalutation
-    #terminate the function of the user object is not available in the AD forest
+
+    #region user evaluation
+    if (!$User) { # no user provided
+        # get current logged on user
+        $User = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name.split("\")[1]
+    }
+
+    #terminate the function if the user object is not available in the AD forest
     $oUser = Get-User $User
     if ((Get-AdminStatus $oUser).count -gt $config.MaxConcurrentServer){
-        Write-ScriptMessage "Elevation limit reached. retry in a couple of minutes"
+        Write-ScriptMessage "Elevation limit reached. retry in a couple of minutes" -UIused $UIused
     }
     if ($Null -eq $oUser){
         Write-ScriptMessage "Can find the user object." -Severity Warning -UIused $UIused
         return
     }
     #endregion
+
     #if the server variable contains a . the hostname is FQDN. The function searches for the computer
     #object with this DNSHostName attribute. This function does not query the DNS it self. It is mandatory
     #the primary DNS name is registered.
     #if the server parameter is not as FQDN the function searches for the computername in the AD forest
-    #If mulitple computers with the same name exists if the forest the function return a $null object
+    #If multiple computers with the same name exists if the forest the function return a $null object
     switch ($Server) {
         {$_ -like "*\*"}{
             #Hostname format is NetBIOS
@@ -495,28 +455,33 @@ function New-AdminRequest{
         Write-ScriptMessage -Message "Multiple computer found with this name $server in the current forest, Please use the DNS hostname instead " -Severity Warning -UIused $UIused 
         return
     }
-        #the group name in mulitdomain mode is
-    #   <AdminPreFix><Domain NetBIOS Name><Seperator><server short name>
+    # the group name in multidomain mode is
+    #   <AdminPreFix><Dns Domain Name><Seperator><server short name>
     # in single mode
     #   <AdminPreFix><Server name>
     if ($config.EnableMultiDomainSupport){
         #$ServerDomainDN = [regex]::Match($oserver.DistinguishedName,"DC=.*").value
         #$ServerDomainDNSName = (Get-ADForest).domains | Where-Object {(Get-ADDomain -Server $_ -ErrorAction SilentlyContinue).DistinguishedName -eq $ServerDomainDN}
         $ServerDomainDNSName = $oServer.CanonicalName.split("/")[0]
-        $ServerDomainNetBiosName = (GEt-ADdomain -Server $ServerDomainDNSName).NetBIOSName
-        $ServerGroupName = "$($config.AdminPreFix)$serverDomainNetBiosName$($config.DomainSeparator)$($oServer.Name)"
+        #$ServerDomainNetBiosName = (GEt-ADdomain -Server $ServerDomainDNSName).NetBIOSName
+        #$ServerGroupName = "$($config.AdminPreFix)$serverDomainNetBiosName$($config.DomainSeparator)$($oServer.Name)"
+        # we will work with dns domain name
+        $ServerGroupName = "$($config.AdminPreFix)$ServerDomainDNSName$($config.DomainSeparator)$($oServer.Name)"
     } else {
         $ServerGroupName = "$($config.AdminPreFix)$($oServer.Name)"
     }
     #endregion
-    #if delegation mode is activated, the function validate the user is allowed to request access to this server
-    if ($null -eq $oServer.DNSHostName){
+
+    if (!$oServer.DNSHostName){
         Write-ScriptMessage -Message "Missing DNS Hostname entry on the computer object. Aborting elevation" -Severity Warning -UIused $UIused
         return
     }
-    if (!(Get-UserElevationStatus -ServerName $oServer.DNSHostName -UserName $oUser.UserPrincipalName -DelegationConfig $config.DelegationConfigPath)){
-        Write-ScriptMessage -Message "User is not allowed to request administrator privileges" -Severity Warning -UIused $UIused
-        return
+    #if delegation mode is activated, the function validates if the user is allowed to request access to this server
+    if ($config.EnableDelegation) {
+        if (!(Get-UserElevationStatus -ServerName $oServer.DNSHostName -UserName $oUser.UserPrincipalName -DelegationConfig $config.DelegationConfigPath)){
+            Write-ScriptMessage -Message "User is not allowed to request administrator privileges" -Severity Warning -UIused $UIused
+            return
+        }
     }
     #Prepare the eventlog entry and write the JIT request to the Jit eventlog
     $ElevateUser = New-Object PSObject
@@ -524,10 +489,11 @@ function New-AdminRequest{
     $ElevateUser | Add-Member -MemberType NoteProperty -Name "ServerGroup" -Value $ServerGroupName
     $ElevateUser | Add-Member -MemberType NoteProperty -Name "ServerDomain" -Value $ServerDomainDNSName
     $ElevateUser | Add-Member -MemberType NoteProperty -Name "ElevationTime" -Value $Minutes
-    $ElevateUser | Add-Member -MemberType NoteProperty -Name "CallingUser" -Value "$($env:USERNAME)@$($env:USERDNSDOMAIN)"
+    #$ElevateUser | Add-Member -MemberType NoteProperty -Name "CallingUser" -Value "$($env:USERNAME)@$($env:USERDNSDOMAIN)"
+    $ElevateUser | Add-Member -MemberType NoteProperty -Name "CallingUser" -Value (([ADSI]"LDAP://<SID=$([System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value)>").UserPrincipalName).ToString()
     $EventMessage = ConvertTo-Json $ElevateUser
     Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId $config.ElevateEventID -Message $EventMessage
-    Write-ScriptMessage -Message  "The $($User.DistinguishedName) will be elevated soon" -Severity Information -UIused $UIused
+    Write-ScriptMessage -Message "The $($oUser.DistinguishedName) will be elevated soon" -Severity Information -UIused $UIused
 }
 
 <#
@@ -565,11 +531,14 @@ function Get-AdminStatus{
         $UserisMember = $Group.Members | Where-Object {$_ -like "*$($User.DistinguishedName)"}
         If ($null -ne $UserisMember){            
             if ($config.EnableMultiDomainSupport){
-                $Domain = [regex]::Match($Group.Name,"$($config.AdminPreFix)([^#]+)").Groups[1].Value
-                $Server = [regex]::Match($Group.Name,"$($config.AdminPreFix)[^#]+#(.+)").Groups[1].Value
+                $Domain = (($Group.Name).Substring(($config.AdminPreFix).Length)).Split($config.DomainSeparator)[0]
+                $Server = (($Group.Name).Substring(($config.AdminPreFix).Length)).Split($config.DomainSeparator)[1]
+                #$Domain = [regex]::Match($Group.Name,"$($config.AdminPreFix)([^#]+)").Groups[1].Value
+                #$Server = [regex]::Match($Group.Name,"$($config.AdminPreFix)[^#]+#(.+)").Groups[1].Value
                 $TTLsec = [regex]::Match($UserisMember, "\d+").Value
             } else {
-                $Server = [regex]::Match($Group.Name,"$($config.AdminPreFix)(.+)").Groups[1].Value
+                $Server = (($Group.Name).Substring(($config.AdminPreFix).Length))
+                #$Server = [regex]::Match($Group.Name,"$($config.AdminPreFix)(.+)").Groups[1].Value
                 $TTLsec = [regex]::Match($UserisMember, "\d+").Value
             }
             if ($TTLsec -eq ""){

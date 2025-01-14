@@ -1,5 +1,5 @@
 <#
-Script Info
+Script Info 
 
 Author: Andreas Lucas [MSFT]
 Download: https://github.com/Kili69/T1JIT
@@ -26,14 +26,27 @@ Version 0.1.20240918
 Version 0.1.20241006
     Overwrites existing versions
     change the working folder to program folder
+Version 0.1.20241227
+    by Andreas Luy
+    Fixing minor bugs
 #>
+param(
+    [Parameter(Mandatory = $false)]
+    [string]$JitProgramFolder,
+    [Parameter (Mandatory = $false)]
+    [string]$JitConfigFile,
+    [switch]$silient
+)
+if ($null -ne $JitProgramFolder){
+    $JitProgramFolder = $env:ProgramFiles +"\Just-In-Time"
+}
 
-$JitProgramFolder = $env:ProgramFiles +"\Just-In-Time"
-
-Write-Host "Welcome the the Just-In-Time administration programm installation"
-$TargetDir = Read-Host "Installation Directory ($JitProgramFolder)"
+if (!$silient){
+    Write-Host "Welcome the the Just-In-Time administration programm installation"
+    $TargetDir = Read-Host "Installation Directory ($JitProgramFolder)"
+} 
 if ($TargetDir -eq ""){
-    $TargetDir = $JitProgramFolder
+$TargetDir = $JitProgramFolder
 }
 try {
     if (!(Test-Path -Path $TargetDir)) {
@@ -51,8 +64,11 @@ try {
     }
     Copy-Item .\modules\* -Destination "$($env:ProgramFiles)\WindowsPowerShell\Modules\Just-In-time" -Recurse -ErrorAction Stop -Force 
     Set-Location -Path $TargetDir
-    Write-Host "Start the configuration: $TargetDir\config-JIT.ps1"
-    
+    if ($silient){
+        Start-Process -FilePath "$TargetDir\config-JIT.ps1" -ArgumentList "silient","configurationFile $JitconfigFile" 
+    } else {
+        Write-Host "Start the configuration: $TargetDir\config-JIT.ps1"
+    }
 } 
 catch [System.UnauthorizedAccessException] {
     Write-Host "A access denied error occured" -ForegroundColor Red
