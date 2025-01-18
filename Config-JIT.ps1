@@ -1,4 +1,4 @@
-<#
+<# 
 Script Info
 
 Author: Andreas Lucas [MSFT]
@@ -91,7 +91,15 @@ possibility of such damages
             The userelevate schedule task run in paralell if multiple request events send to the event log
      Version 0.1.20240801
         - Updated dialog messages
-
+    Version 0.1.20241004
+        -New configuration option to use the ManagedBy attribute added to the config
+        -New configuration option max concurrent servers
+    Version 0.1.20241013
+        -Terminate script if it is not running as local administrator
+   Version 0.1.20241227
+        - by Andreas Luy
+	- corrected minor bugs
+ 
 
 .PARAMETER InstallationDirectory
     Installation directory
@@ -108,7 +116,7 @@ param (
     [Parameter ()]
     [switch]$AdvancedSetup,
     [Parameter ()]
-    [switch]$silient,
+    [switch]$quiet,
     [Parameter (Mandatory=$false)]
     [string]$configurationFile
 )
@@ -261,8 +269,17 @@ function CreateOU {
     Return $true
 }
 #endregion
+#############################################################################################
+# Main program starts here
+#############################################################################################
+if (!(New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){
+    #Terminate script if it is not running as local administrator
+    Write-Host "Administrator privileges required" -ForegroundColor Red
+    #return
+}
+
 #region global variables 
-$_scriptVersion = "0.1.20240801" #the current script version
+[string]$_scriptVersion = "0.1.20241013" #the current script version
 #region Default values
 $configFileName = "JIT.config" #The default name of the configuration file
 $STGroupManagementTaskName = "Tier 1 Local Group Management" #Name of the Schedule tasl to enumerate servers
@@ -286,31 +303,36 @@ if (!($InstallationDirectory)){
     exit
 }
 #region validate configuration file for silent installation
-#the silient paramter required the configuration script or the Just-In-Time environment. 
+#the quiet paramter required the configuration script or the Just-In-Time environment. 
 #   The configuration scirpt will terminate if the configuraiton file is not accessible
-if ($silient){
+if ($quiet){
     if ($null -eq $env:JustInTimeConfig){
         if ($configurationFile -eq ""){
             Write-Host "The parameter silent requires the environment variable JustInTimeConfig or the -configurationFile parameter" -ForegroundColor Red
             Write-Host "Just-In-Time configuration stopped"
-            exit
-        }else{
+            return
+        }else {
             if (!(Test-Path $configurationFile)){
                 Write-Host "The configuration file $configurationFile doesn't exists" -ForegroundColor Red
                 Write-Host "Just-In-Time configuraiton stopped"
+            } else {
+                [Environment]::SetEnvironmentVariable("JustInTimeConfig", "$configurationFile", "Machine")
+                $env:JustInTimeConfig = $configurationFile            
             }
         }
-    } else{
-        if (!(Test-Path $env:JustInTimeConfig)){
+    } else {
+        if ((Test-Path $env:JustInTimeConfig)){} else {
             Write-Host "Can't access configuration file $($env:JustInTimeConfig). Aborting configuration" -ForegroundColor Red
             Write-Host "Validate the Just-In-Time variable"
-            exit
-        }
+            return
+        } 
     }
+
 }
 #endregion
 #region Prepare system variable
 #creating the system variable if if doesn't exists
+<#
 try {
     #Provide the environment variable as system variable. In the 2nd step validate the 
     if ($Null -eq $env:JustInTimeConfig ){
@@ -337,6 +359,7 @@ catch{
     exit
 }
 #endregion
+#>
 #Validate the Active Directory PAW feature is activated. If not the script will terminate
 if (!((Get-ADOptionalFeature -Filter "name -eq 'Privileged Access Management Feature'").EnabledScopes)){
     Write-Host "Active Directory PAM feature is not enables" -ForegroundColor Yellow
@@ -344,7 +367,7 @@ if (!((Get-ADOptionalFeature -Filter "name -eq 'Privileged Access Management Fea
     Write-Host "Enable-ADOptionalFeature ""Privileged Access Management Feature"" -Scope ForestOrConfigurationSet -Target $((Get-ADForest).Name)"
     Write-Host "Before continuing with JIT"
     Write-Host "Aborting!"
-    exit
+    return 0x1
 }
 #region Creating the configuratin object with default values and read the existing configuration file it it exists. 
 $config = New-Object PSObject
@@ -363,28 +386,49 @@ $config | Add-Member -MemberType NoteProperty -Name "EventLog"                  
 $config | Add-Member -MemberType NoteProperty -Name "GroupManagementTaskRerun"       -Value 5
 $config | Add-Member -MemberType NoteProperty -Name "GroupManagedServiceAccountName" -Value "T1GroupMgmt"
 $config | Add-Member -MemberType NoteProperty -Name "Domain"                         -Value $ADDomainDNS
-$config | Add-Member -MemberType NoteProperty -Name "DelegationConfigPath"           -Value "$InstallationDirectory\Tier1delegation.config" #Parameter added is the path to the delegation config file
+$config | Add-Member -MemberType NoteProperty -Name "DelegationConfigPath"           -Value "\\$ADDomainDNS\SYSVOL\$ADDomainDNS\Just-In-time\Tier1delegation.config" #Parameter added is the path to the delegation config file
 $config | Add-Member -MemberType NoteProperty -Name "EnableDelegation"               -Value $true
 $config | Add-Member -MemberType NoteProperty -Name "EnableMultiDomainSupport"       -Value $true
 $config | Add-Member -MemberType NoteProperty -Name "T1Searchbase"                   -Value @("<DomainRoot>")
 $config | Add-Member -MemberType NoteProperty -Name "DomainSeparator"                -Value "#"
+$config | Add-Member -MemberType NoteProperty -Name "UseManagedByforDelegation"      -Value $true
+$config | Add-Member -MemberType NoteProperty -Name "MaxConcurrentServer"            -Value 50
 
 #check for an existing configuration file and read the configuration
-if (Test-Path $env:JustInTimeConfig){
-    $existingconfig = Get-Content $env:JustInTimeConfig | ConvertFrom-Json
-    if ((([regex]::Match($existingconfig.ConfigScriptVersion,"\d+$")).Value) -gt (([regex]::Match($_scriptVersion,"\d+$")).Value)){
-        Write-Host "The configuration file is created with a newer configuration script. Please use the latest configuration file" -ForegroundColor Red
-        exit
+try {
+    if ($null -ne $env:JustInTimeConfig){
+        if (Test-Path $env:JustInTimeConfig) {
+            $existingconfig = Get-Content $env:JustInTimeConfig | ConvertFrom-Json
+        } else {
+            Write-Host ($env:JustInTimeConfig+" does not exist ...") -ForegroundColor Yellow
+        }
     }
-    #Replace the default values with the existing values
-    foreach ($setting in ($existingconfig | Get-Member -MemberType NoteProperty)){
-        $config.$($setting.Name) = $existingconfig.$($setting.Name)
+    if ($configurationFile -ne ""){
+        $existingconfig = Get-Content $configurationFile | ConvertFrom-Json
+    }   
+    if ($null -ne $existingconfig){
+        if ((([regex]::Match($existingconfig.ConfigScriptVersion,"\d+$")).Value) -gt (([regex]::Match($_scriptVersion,"\d+$")).Value)){
+            Write-Host "The configuration file is created with a newer configuration script. Please use the latest configuration file" -ForegroundColor Red
+            return
+        }
+        #Replace the default values with the existing values
+        foreach ($setting in ($existingconfig | Get-Member -MemberType NoteProperty)){
+            $config.$($setting.Name) = $existingconfig.$($setting.Name)
+        }
+        $config.ConfigScriptVersion = $_scriptVersion
     }
-    $config.ConfigScriptVersion = $_scriptVersion
 }
+catch [System.Management.Automation.ItemNotFoundException]{
+    Write-Host "Invalid path $($Error[0].CategoryInfo.TargetName)" -ForegroundColor Red
+    return
+}
+catch [System.ArgumentException]{
+    Write-Host "Invalid config file $configurationFile" -ForegroundColor Red
+}
+
 #endregion
 #Definition of the AD group prefix. Use the default value if the question is not answerd
-if (!$silient){
+if (!$quiet){
     $AdminPreFix = Read-Host -Prompt "Admin Prefix for local administrators [$($config.AdminPreFix)]"
     if ($AdminPreFix -ne ""){
         $config.AdminPreFix = $AdminPreFix
@@ -394,13 +438,15 @@ if (!$silient){
         $gmsaName = Read-Host -Prompt "Group managed service account name [$($config.GroupManagedServiceAccountName)]"
         if ($gmsaName -ne ""){ 
             $config.GroupManagedServiceAccountName = $gmsaName
+        } else {
+            $gmsaName = $config.GroupManagedServiceAccountName
         }
         #validation GMSA name
-        if (5 -lt $gmsaName -gt 8 ){
-            Write-Host "Invalid length of the GMSA name. The name must between 5 and 8 characters"
+        if (($gmsaName -lt 5) -or ($gmsaName.Length -gt 14) ){
+            Write-Host "Invalid length of the GMSA name. The name must between 5 and 14 characters" -ForegroundColor Yellow
             $gmsaName = ""
         }
-    } while ($gmsaName -ne "")
+    } while ($gmsaName -eq "")
     if ($AdvancedSetup){
         $ReadEnableDelegationMode = Read-Host -Prompt "Enable the delegation mode? (Y/N)[Y]"
     }
@@ -420,7 +466,7 @@ if (!$silient){
                     Write-Host "Can't find this directory $(Split-Path $DelegationFile). Create the directory manually "
                 } else {
                     $Null = New-Item $DelegationFile -ItemType File -ErrorAction Stop 
-                    Remove-Item $DelegationFile -Force
+                    #Remove-Item $DelegationFile -Force
                 }
             }
             catch {
@@ -428,7 +474,7 @@ if (!$silient){
             }
         }
     }
-}
+} 
 #region GMSA
 $gmsaName = $config.GroupManagedServiceAccountName 
 try {
@@ -438,8 +484,8 @@ try {
     }
     $principalsAllowToRetrivePassword = (Get-ADServiceAccount -Identity $config.GroupManagedServiceAccountName -Properties PrincipalsAllowedToRetrieveManagedPassword).PrincipalsAllowedToRetrieveManagedPassword
     if (($principalsAllowToRetrivePassword.Count -eq 0) -or ($principalsAllowToRetrivePassword.Value -notcontains (Get-ADComputer -Identity $env:COMPUTERNAME).DistinguishedName)){
-        Write-Debug "Adding current computer to the list of computer who an retrive the password"
-        $principalsAllowToretrivePassword.Add((Get-ADComputer -Identity $env:COMPUTERNAME))
+        Write-Host "Adding current computer to the list of computer who an retrive the password"
+        $principalsAllowToretrivePassword.Add((Get-ADComputer -Identity $env:COMPUTERNAME).DistinguishedName)
         Set-ADServiceAccount -Identity $GMSAName -PrincipalsAllowedToRetrieveManagedPassword $principalsAllowToRetrivePassword -Server $config.Domain
     }
 } catch {
@@ -460,13 +506,13 @@ if ($false -eq (Test-ADServiceAccount -Identity $config.GroupManagedServiceAccou
 if (!(Test-ADServiceAccount -Identity $config.GroupManagedServiceAccountName)){
     Write-Host "validation of the Group managed service account ($($config.GroupManagedServiceAccountName)) failed." -ForegroundColor Red
     Write-Host "configuration terminated" -ForegroundColor Red
-    exit
+    return
 }
 
 Add-LogonAsABatchJobPrivilege -Sid ($oGmsa.SID).Value
 #endregion
 
-if (!$silient){
+if (!$quiet){
     #Definition of the AD OU where the AD groups are stored
     do{
         $OU = Read-Host -Prompt "OU for the local administrator groups [$($config.OU)]"
@@ -481,7 +527,7 @@ if (!$silient){
                 if (CreateOU -OUPath $OU -DomainDNS (Get-ADDomain).DNSRoot) {
                     Write-Host "'$OU' succesfully created" -ForegroundColor Green
                 }
-                $OU = $null
+                # $OU = $null
             }
         } 
         catch {
@@ -515,7 +561,7 @@ if (!$silient){
                 $MaxMinutes = 0
             }
             {$_ -gt 1440}{
-                Write-Host "Maximum elevation time 1441 minutes" -ForegroundColor Yellow
+                Write-Host "Maximum elevation time 1440 minutes" -ForegroundColor Yellow
                 $MaxMinutes = 0
             }
             Default{
@@ -543,7 +589,7 @@ if (!$silient){
                 $DefaultElevatedTime = 0
             }  
             Default {
-                $config.MaxElevatedTime = $DefaultElevatedTime
+                $config.DefaultElevatedTime = $DefaultElevatedTime
             }      
         }
     } while($DefaultElevatedTime -eq 0)
@@ -617,65 +663,50 @@ if (!$silient){
             $GroupManagementTaskRerun = $Null
         }
     } while (5 -lt $GroupManagementTaskRerun -gt 1439 )
-    if ($AdvancedSetup){
-        do {
-            if ($config.EnableMultiDomainSupport) {
-                $ReadHost = Read-Host "Enable Mulitdomain support (y/n) [Y]"
-            }
-            else {
-                $ReadHost = Read-Host "Enable Mulitdomain support (y/n) [N]"
-            }
-            switch ($ReadHost) {
-                "y" { $config.EnableMultiDomainSupport = $true }
-                "n" { $config.EnableMultiDomainSupport = $false }
-                "" { }
-                Default {
-                    $ReadHost = ""
-                    Write-Host "Invalid entry" -ForegroundColor Yellow
-                }
-            }
-        } while ($ReadHost -eq "")
-        If ((Read-Host "Do you want to enable Just-In-Time for the entire Domain?(y/n)[N]") -eq "y"){
-            $config.T1Searchbase = @("<DomainRoot>")
-        }
-    } else {
-        $arySearchBase = @()
-        foreach ($SearchBase in $config.T1Searchbase){
-            if ($SearchBase -ne "<DomainRoot>"){
-                $arySearchbase += $SearchBase
-            }
-        }
-        $config.T1SearchBase = $arySearchBase
-        do{
-            Write-Host "Current searchbase for JIT members"
-            Write-Host $config.T1Searchbase -Separator "`n"
-            if ((Read-Host "Add search base? [N]") -eq "y"){
-                $arySearchBase = @()
-                $arySearchBase += $config.T1Seachbase
-                $SearchBase = Read-Host "Search base for JIT computers"
-                if ([RegEx]::Match($Searchbase,"^(OU|CN)=.+").Success){
-                    if ($arySearchBase -contains $SearchBase){
-                        Write-Host "$SearchBase is already available"
-                    } else {
-                        $config.T1Searchbase += $SearchBase
-                    }
+    $arySearchBase = @()
+    foreach ($SearchBase in $config.T1Searchbase){
+#        if ($SearchBase -ne "<DomainRoot>"){
+#            $arySearchbase += $SearchBase
+#        }
+    }
+    $config.T1SearchBase = $arySearchBase
+    do{
+        Write-Host "Current searchbase for JIT members"
+        Write-Host $config.T1Searchbase -Separator "`n"
+        if ((Read-Host "Add search base? [N]") -eq "y"){
+            $arySearchBase = @()
+            $arySearchBase += $config.T1Seachbase
+            $SearchBase = Read-Host "Search base for JIT computers"
+            if ([RegEx]::Match($Searchbase,"^(OU|CN)=.+").Success){
+                if ($arySearchBase -contains $SearchBase){
+                    Write-Host "$SearchBase is already available"
                 } else {
-                    Write-Host "Invalid DN Retry" -ForegroundColor Yellow
+                    $config.T1Searchbase += $SearchBase
                 }
             } else {
-                $SearchBase = "N"
+                Write-Host "Invalid DN Retry" -ForegroundColor Yellow
             }
-        } while ($SearchBase -ne "N") 
+        } else {
+            $SearchBase = "N"
+        }
+    } while ($SearchBase -ne "N") 
+    if (!$config.T1Searchbase) {
+        $config.T1Searchbase += "<DomainRoot>"
     }
     #endregion
-    #Writing configuration file
-    $ForestRootDNS = (Get-ADForest).RootDomain
-    Write-Host "It is recommended to store the configuration file on a central storage like \\$ForestRootDNS\SYSVOL\$ForestRootDNS\Just-in-Time\JIT.config"
+    if ((-not $env:JustInTimeConfig) -or ($env:JustInTimeConfig -eq "")) {
+        #Writing configuration file
+        $DomainDNS = (Get-ADDomain).DNSRoot
+        $DefaultJITConfigPath = "\\$DomainDNS\SYSVOL\$DomainDNS\Just-in-Time\JIT.config"
+        Write-Host "It is recommended to store the configuration file on a central storage like $DefaultJITConfigPath"
+    } else {
+        $DefaultJITConfigPath = $env:JustInTimeConfig
+    }
     $configSaved = $false
     do {
-        $configFileName = Read-Host "Provide a path to store the configuration file[$($env:JustInTimeConfig)]"
+        $configFileName = Read-Host "Provide a path to store the configuration file[$DefaultJITConfigPath]"
         if ($configFileName -eq ""){
-            $configFileName = $env:JustInTimeConfig
+            $configFileName = $DefaultJITConfigPath
         }         
         try {
             if (!(Test-Path (Split-Path -Path $configFileName ))){
@@ -685,11 +716,11 @@ if (!$silient){
 
                 $Null = New-Item -Path "$configFileName" -ItemType File 
             }
-            ConvertTo-Json $config | Out-File $env:JustInTimeConfig -Confirm:$false
             if($env:JustInTimeConfig -ne $configFileName){
                 [Environment]::SetEnvironmentVariable("JustInTimeConfig", $configFileName, [EnvironmentVariableTarget]::Machine)
                 $env:JustInTimeConfig = $configFileName
             }
+            ConvertTo-Json $config | Out-File $env:JustInTimeConfig -Confirm:$false
             $configSaved = $true
         }
         catch [System.Security.SecurityException]{

@@ -63,6 +63,57 @@ Create a group policy with a group policy preferences who adds the <Admin-Prefix
 7. wait till the elevation time is expired
 8. logon as the requested user and validate the user has no more administrator privileges
 
+# Installation
+The installation of of the T1JIT solution is a two step approach. Before youstarte with the installtion, take care the "mark from the web" attribute is removed from any script and PowerShell module file. It's recommended to sing the scripts and modules with your code signature certificates.
+
+## 1 Install the source and the module
+Run the install.ps1 script. this script will copy the script files to the %ProgramFiles% folder and register the Just-In-Time Powershell module. 
+
+## 2 Configure T1JIT
+Run the config-JIT.ps1 script to configure the JIT solution. 
+### Initial configuration
+In the initial configuration you configure the settings for JIT. the script will guide you to all configuration parameters. 
+|Paramter| Description | Example |
+|--------|-------------|---------|
+|AdminPreFix | Is the prefix to identiy the Just-in-time administration group | Admin_ |
+|OU | is the distinguished name of the organizational unit, where the Just-In-Time administration groups are located | OU=JIT-Administrators,OU=Tier 1,OU=Admin,DC=contoso,DC=com |
+|MaxElevatedTime | Is the maximum time in minutes how long a user can be elevated as administrator | 1440 (24 hours) |
+|DefaultElevatedTime | Is the default elevation time, if no time is requested | 60 minutes |
+|Tier0serverGroupName | Is the distinguished name of the Tier 0 computer group. Computer objects whoa re member of this group can not be elevated via T1JIT | Tier 0 computers,OU=Groups,OU=Tier 0,OU=Admin,DC=contoso,DC=com|
+|LDAPT0ComputerPath | Is the realvtive (without the domain component) distinguished name of the OU path, where Tier 0 computers are located. For those computer objects, the tool will not create any AdminGroups. | OU=Tier 0,OU=Admin |
+|GroupManagedServiceAccountName | Is the GMSA name, who maintain the JIT groups. This GMSA must have write / create permission to the "OU" path for groups|
+|Domain| is a list of domains who will be managed by the JIT tool| contoso.com|
+|DelegationConfigPath| Is the UNC to the delegation configuration file. This file contains the permission, who can request Administrator access to a server | \\contoso.com\SYSVOL\contoso.com\Just-In-time\Tier1delegation.config|
+|T1SearchBase| Is a list of full qualified or relative OU path, where the T1JIT solution is searching for computer object. If the path didn't contains the domain component of a DN (DC=), the solution include the path for any domain defined in the domains paramter|OU=Servers,DC=contos,OU=com|
+|MaxConcurrentServer| Is the amount of group member ship a user can request in parallel| 50|
+
+If you initial configuration is done, the delegation must be defined. It's recommended to create a group and add your administrators to this group. With the Add-JitDelegation CMDlet a delegation can be added to the configration
+#### Add-JitDelegation
+this Just-In-Time module command adds a new delegation to the configuration. The syntax of this command is
+Add-JitDelegation -OU "OU=server,DC=contoso,DC=com" -ADObject "MyServerAdminGroup"
+This allows any member of the MyServerAdminGroup to request Administrator access to any server in OU=server,DC=contoso,DC=com including any sub OU
+
+#### Get-JitDelegation
+Shows the current delegation. This command has no parameters
+
+#### Remove-JitDelegation
+Removes a delegation entry fro the configuratiob. 
+Remove-JitDelegation -OU "OU=server,DC=contoso,DC=com" -ADObject "contoso\My2ndAdmins" 
+Members of the contoso\My2ndAdmins cannot request Administrator privileges on server located in this OU
+
+### Advanced configuration parameters
+|Parameter| Description|Example| comment|
+|---------|-------------|------|--------|
+|ConfigScriptVersion| Is the version number who created this configuration file. This parameter is use to avoid incompatible configuration files created by a previous version| 0.1.20241013| The version number will be automatically updated the configuration command. Do not change this value|
+|LDAPT0COmputer| This parameter exclude GMSA and domain controllers for the JIT tool. This is mandantroy to avoid a AD corrution if the JIT group policy (who adds user to the local administrator groupo) on domain root level|(\u0026(ObjectClass=Computer)(!(ObjectClass=msDS-GroupManagedServiceAccount))(!(PrimaryGroupID=516))(!(PrimaryGroupID=521)))| do not change this setting|
+|LDAPT1Computers| Is a LADP query to avoid the creation of incompatible (e.g. non Windows Operating System) computers. |(\u0026(OperatingSystem=*Windows*)(ObjectClass=Computer)(!(ObjectClass=msDS-GroupManagedServiceAccount))(!(PrimaryGroupID=516))(!(PrimaryGroupID=521))| This parameter should only be changed if T1JIT should be restricted to dedicated operation System versions|
+|EventSource| is the event source paramter which will be used to create the required event log entries|T1Mgmt| Do not change this parameter|
+|EventLog| Is the Eventlog name which will be used by the JIT solution for monitoring and elevation|Tier 1 Management| If this parameter needs to changen the Event source must be reregistered|
+|EnableDelegatio|Enable or disable the delegation|True| DO not change this parameter|
+|DomainSeparator| is a separator between the domain name and the computer name in the JIT computer group|#| |
+|UseManagedByDelegation| If this parameter is true, the request permission can by managed by the "Managed by" attribute. This can be used to allow user / group the request privilege for a dedicated server in a OU where the user has no request privilege|true| |
+|MaxConcurrentServer| This paramter defines how many admin request are allowed in parallel| 50 | |
+
 # Contribute
-TODO: Explain how other users and developers can contribute to make your code better. 
+
 

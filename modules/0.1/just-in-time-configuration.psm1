@@ -22,6 +22,7 @@ $DefaultconfigFileName = "JIT.config" #The default name of the configuration fil
 $DefaultSTGroupManagementTaskName = "Tier 1 Local Group Management" #Name of the Schedule tasl to enumerate servers
 $DefaultStGroupManagementTaskPath = "\Just-In-Time-Privilege" #Is the schedule task folder
 $DefaultSTElevateUser = "Elevate User" #Is the name of the Schedule task to elevate users
+$RegExDistinguishedName = "((OU|CN)=[^,]+,)*DC="
 
 #region Functions
 function New-ADDGuidMap
@@ -133,6 +134,11 @@ function CreateOU {
         [string]$DomainDNS
     )
     try{
+        #check if OU already exist
+        if ([ADSI]::Exists("LDAP://$OUPath")){
+            $success = $true
+            return $success
+        }
         #load the OU path into array to create the entire path step by step
         $DomainDN = (Get-ADDomain -Server $DomainDNS).DistinguishedName
         $aryOU=$OUPath.Split(",").Trim()
@@ -255,12 +261,122 @@ function Update-JIT.GMSA{
 function Create-JIT.ScheduleTask{
 
 }
-function Add-JIT.ServerOU{
-
+function Add-JitServerOU{
+    param (
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [string]$OU
+    )
+    $config = Get-Content $env:JustInTimeConfig | ConvertFrom-Json
+    #Search for dnsdomain
+    $DomainDN = [regex]::Match($OU,"dc=.+").Value
+    foreach ($ADDomainDNS in (Get-ADForest).Domains){
+        IF ($DomainDN -eq $(Get-ADDomain -Server $ADDomainDNS).DistinguishedName){
+            break;
+        }
+    }
+    if ((Get-ADObject -Filter "DistinguishedName -eq '$OU'" -server $ADDomainDNS)){
+        if ($config.T1Searchbase -contains $OU){
+            Write-Host "$OU is already defined" -ForegroundColor Yellow
+        } else {
+            $config.T1Searchbase += $OU
+            ConvertTo-Json $config | Out-File $env:JustInTimeConfig -Confirm:$false
+        }
+    } else {
+        throw [System.ArgumentException]::new("Invalid DistinguishedName", $OU)
+    }
 }
-function Remove-JIT.ServerOU{
-
+function Get-JitServerOU{
+    $config = Get-Content $env:JustInTimeConfig | ConvertFrom-Json
+    return $config.T1Searchbase
 }
-
+function Remove-JITServerOU{
+    param(
+        [Parameter (Mandatory = $true, ValueFromPipeline = $true)]
+        [string]$OU
+    )
+    $config = Get-Content $env:JustInTimeConfig | ConvertFrom-Json
+    if ($config.T1Searchbase -contains $OU){
+        $tempSerachBase = @()
+        foreach ($sb in $config.T1Searchbase){
+            if ($sb -ne $OU){
+                $tempSerachBase += $sb
+            }
+        }
+        $config.T1Searchbase = $tempSerachBase
+        ConvertTo-Json $config | Out-File $env:JustInTimeConfig -Confirm:$false
+    } else {
+        Write-Host "$OU is not defined" -ForegroundColor Yellow
+    }
+}
 #endregion
+
+
+<#
+.SYNOPSIS
+    Import the configuration from JIT.config file
+.DESCRIPTION
+    Reading the JIT.config from the System variable or a expicite JIT configuration file. 
+    The function return the configuration as JIT config object
+    This is a module private function
+.PARAMETER configurationFile
+    this is a optional parameter to use a dedicated configuration file.
+    If this parameter is not available the function read the configuration files
+    from the in the $env:JustInTimeConfig varaible or from the current directory
+.INPUTS
+    The path to the configuration file as string
+.OUTPUTS
+    JIT config object as PSObject 
+.EXAMPLE
+    Get-JITConfig
+    Tries to read the JIT configuration from the path in the SYSTEM variable JustInTimeConfig. 
+    If the environement is not available or the file doesn't exist, the function tries to read 
+    the configuration file from the current directory
+    Get-JITConfig .\jit.config
+        Read the configuration from the path
+    Get-JITConfig -ConfigurationFile .\jit.config
+        Read the configuration from the path
+#>
+function Get-JITconfig{
+    param(
+        [Parameter (Mandatory=$false, Position=0)]
+        [string]$configurationFile
+    )
+    #region parameter validation
+    #If the parameter configurationFile is null or empty, change the variable to the value of
+    #the system environment JustInTimeConfig 
+    if (!$configurationFile){
+        if (!$env:JustInTimeConfig){
+            $configurationFile = ".\jit.config"
+        } elseif ($env:JustInTimeConfig -eq ""){
+            $configurationFile = ".\jit.config"
+        } else {
+            $configurationFile = $env:JustInTimeConfig
+        }
+    }
+    #endregion
+
+
+    if (!(Test-Path $configurationFile))
+    {
+        throw "Configuration $configurationFile missing"
+        Return
+    }
+    try{
+        $config = Get-Content $configurationFile | ConvertFrom-Json
+    }
+    catch{
+        throw "Invalid configuration file $configurationFile"
+        return
+    }
+    #extracting and converting the build version of the script and the configuration file
+    $configFileBuildVersion = [int]([regex]::Matches($config.ConfigScriptVersion,"[^\.]*$")).Groups[0].Value 
+    #Validate the build version of the jit.config file is equal or higher then the tested jit.config file version
+    if ($_configBuildVersion -gt $configFileBuildVersion)
+    {
+        throw "Invalid configuration file version"
+        return
+    }
+    return $config
+}
+
 

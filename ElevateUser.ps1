@@ -1,4 +1,4 @@
-<#
+<# 
 Script Info
 
 Author: Andreas Lucas [MSFT]
@@ -60,9 +60,18 @@ possibility of such damages
         If the paramter configuration file is not provided, the global environment variable JustInTimeConfig will be used
         instead of the local directory
         Improved Monitoring
-    VErsion 0.1.20240925
+    Version 0.1.20240925
         More detailed debug information
-
+    Version 0.1.20240928
+        The Attribute ManageyBy can used to request admin access
+    Version 0.1.20241004
+        The validation the user is allowed is replaced by the Just-In-Time module function GetUserElevationStatus
+        Elevation Throttle implemented. New parameter in the JIT.config MaxConcurrentServer required
+    Version 0.1.20241023
+        Fix bug in config build version detection
+    Version 0.1.20241227
+	by Andreas Luy
+        Fixing minor bugs
 
     Event ID's
     1    Error  Unhandled Error has occured
@@ -82,7 +91,8 @@ possibility of such damages
     2006 Warning The request ID is not available
                 The event log entry with the requested ID is not available
     2007 Error  Issuficient access rights
-                The current user cannot update the AD groups or has no access to the active dirctorx
+                The current user cannot update the AD groups or has no access to the active directory
+    2008 Warning The user evlevation throttle. Wait till the user is remove from admin groups
 
 
     2100 Error  The requested server is not available in the Active Directory
@@ -98,6 +108,8 @@ possibility of such damages
     2105 Error  Global catalog is down 
     2106 Information Script logging path
                 This event provides information about the elevate user script and the debug logging path
+    2007 Error  The aD object class in the Managedby attribute is not supported
+    2108 Error  The Delegation.config path is invalid
 
 #>
 [CmdletBinding(DefaultParameterSetName = 'DelegationModel')]
@@ -135,15 +147,16 @@ function Write-Log {
     )
     #Format the log message and write it to the log file
     $LogLine = "$(Get-Date -Format o), [$Severity],[$eventRecordID], $Message"
-    Add-Content -Path $LogFile -Value $LogLine 
+    Add-Content -Path $LogFile -Value $LogLine -ErrorAction SilentlyContinue
     switch ($Severity) {
         'Error'   { 
-            Write-Host $Message -ForegroundColor Red
-            Add-Content -Path $LogFile -Value $Error[0].ScriptStackTrace  
+            Write-Host $Message -ForegroundColor Red             
+            Add-Content -Path $LogFile -Value $Error[0].ScriptStackTrace   -ErrorAction SilentlyContinue
         }
         'Warning' { Write-Host $Message -ForegroundColor Yellow}
         'Information' { Write-Host $Message }
-    }
+        }
+
 }
 <#
 .SYNOPSIS 
@@ -191,8 +204,9 @@ function Write-Log {
 ##############################################################################################################################
 # Main Programm starts here                                                                                                  #
 ##############################################################################################################################
-[int]$_ScriptVersion = "20240731"
-[int]$_configBuildVersion = "20231108"
+[int]$_ScriptVersion = "20241023"
+[int]$_configBuildVersion = "20241004"
+Import-Module Just-In-Time
 #region Manage log file
 [int]$MaxLogFileSize = 1048576 #Maximum size of the log file
 if (!(Test-Path -Path "$($env:ProgramData)\Just-In-Time")) {
@@ -211,14 +225,7 @@ if (Test-Path $LogFile){
 #endregion
 Write-ScriptMessage -Message "ElevateUser process started (RequestID $eventRecordID). Detailed logging available $LogFile" -EventID 2106 -Severity Information
 Write-Log -Message "Script Version $_ScriptVersion. Minimum required config Version $_configBuildVersion" -Severity Information 
-Write-Log -Message "Windows Event ID $($eventRecordID)" -Severity Debug
 #validate the configuration file is available and accessible
-if ($ConfigurationFile -eq "")
-{
-    #if the parameter $configurationFile is null set the JIT.config path to current directory
-    $ConfigurationFile = (Get-Location).Path + '\JIT.config'
-}
-Write-Log -Message "configuration file: $ConfigurationFile " -Severity Debug
 #Validate the JIT.config file is available
 if (!(Test-Path $ConfigurationFile))
 {
@@ -226,13 +233,13 @@ if (!(Test-Path $ConfigurationFile))
     Write-ScriptMessage -EventID 2000 -Severity Error -Message "RequestID $eventRecordID : Configuration file missing $configurationFile Elevation aborted"
     return
 } 
-Write-Log -Severity Debug -Message "sucessfully read the $ConfigurationFile"
 #Read the configuration file from a JSON file
 $config = Get-Content $ConfigurationFile | ConvertFrom-Json
+Write-Log -Severity Debug -Message "sucessfully read the $ConfigurationFile"
 $configFileBuildVersion = [int]([regex]::Matches($config.ConfigScriptVersion,"[^\.]*$")).Groups[0].Value 
 Write-Log -Severity Debug -Message "$configurationFile has build version $configFileBuildVersion"
 #Validate the build version of the jit.config file is equal or higher then the tested jit.config file version
-if ($_configBuildVersion -ge $configFileBuildVersion)
+if ($_configBuildVersion -gt $configFileBuildVersion)
 {
     Write-ScriptMessage -EventID 2005 -Severity Error -Message "RequestID $eventRecordID : Invalid configuration file version $configFileBuildVersion expected $_configBuildVersion or higher"
     return
@@ -267,77 +274,52 @@ try{
         Write-ScriptMessage -EventID 2002 -Severity Warning -Message "Can't find user $($Request.UserDN)"
         return
     }
+    if ((Get-Adminstatus -User $oUser).count -gt $config.MaxConcurrentServer){
+        Write-ScriptMessage -EventID
+    }
     $userDomain = [regex]::Match($oUser.canonicalName,"[^/]+").value
     Write-Log -Severity Debug -Message "Found user $userDomain \ $($oUser.SamAccountName)"
     #endregion
-    #region This scection check the permission for this user if the elevation version is enabled
-    if ($config.EnableDelegation){
-        #continue here if the delegation model is enabled 
-        #Search and read the delegation.config file. If the file is not available terminate the script
-        if (!(Test-path $config.DelegationConfigPath)){
-            Write-ScriptMessage -EventID 2101 -Severity Error -Message "Can't find delegation JSON file $($config.DelegationConfigPath)"
-        }
-        $Delegation = Get-Content $config.DelegationConfigPath | ConvertFrom-Json
-        Write-Log -Severity Debug -Message "Delegtion mode is enabled using $($config.DelegationConfigPath) as delegation file"
-        #extract the server name from the group name
-        if ($config.EnableMultiDomainSupport){
-            $oServerName = [regex]::Match($Request.ServerGroup,"$($config.AdminPreFix)(\w+)$($config.DomainSeparator)(.+)").Groups[2].Value
-        #extract the netbios name from the group name and convert it into the Domain DNS name
-        $oServerDomainNetBiosName = [regex]::Match($Request.ServerGroup,"$($config.AdminPreFix)(\w+)$($config.DomainSeparator)(.+)").Groups[1].Value
-        $oServerDNSDomain = (Get-ADObject -Filter "NetBiosName -eq '$oServerDomainNetBiosName'" -SearchBase "$((Get-ADRootDSE).ConfigurationNamingContext)" -Properties DNSRoot).DNSRoot
-        $oServer = Get-ADComputer -Identity $oServerName -Server $oServerDNSDomain[0] -ErrorAction SilentlyContinue
-        Write-Log -Severity Debug -Message "Multidomain support is enabled ServerName:$oServerName" 
-        } else {
-            $oServerName = [regex]::Match($Request.ServerGroup,"$($config.AdminPreFix)(.+)").Groups[1].Value
-            Write-ScriptMessage -EventID 0 -Message "Multidomain support is disabled ServerName: $oServerName " -Severity Debug
-            #$oServerDomainNetBiosName = (Get-ADDomain).NetBiosName
-            #$oServerDNSDomain = (Get-ADDomain).DNSRoot
-            $oserver = Get-ADComputer -Identity $oServerName -ErrorAction SilentlyContinue
-        }    
-        Write-Log -Message "oServerName = $oserverName oServerDomainNameBiosName = $oServerDomainNetBiosName oServerDNSDomain = $oServerDNSDomain" -Severity Debug
-        #search for the member server object
 
-        #if the server object cannot be found in the AD terminat the script
-        if ($null -eq $oServer){
-            Write-ScriptMessage -EventID 2100 -Severity Error -Message "RequestID $eventRecordID : Can't find $oServer in AD" 
+    #region This section check the permission for this user if the elevation version is enabled
+    #extract the server name from the group name
+    if ($config.EnableMultiDomainSupport){
+        #$oServerName = [regex]::Match($Request.ServerGroup,"$($config.AdminPreFix)(\w+)$($config.DomainSeparator)(.+)").Groups[2].Value
+        #extract the netbios name from the group name and convert it into the Domain DNS name
+        #$oServerDomainNetBiosName = [regex]::Match($Request.ServerGroup,"$($config.AdminPreFix)(\w+)$($config.DomainSeparator)(.+)").Groups[1].Value
+        #$oServerDNSDomain = (Get-ADObject -Filter "NetBiosName -eq '$oServerDomainNetBiosName'" -SearchBase "$((Get-ADRootDSE).ConfigurationNamingContext)" -Properties DNSRoot).DNSRoot
+        #$oServer = Get-ADComputer -Identity $oServerName -Server $oServerDNSDomain[0] -Properties ManagedBy -ErrorAction SilentlyContinue
+        #$oServerDNSDomain = (($Request.ServerGroup).Substring(($config.AdminPreFix).Length)).Split($config.DomainSeparator)[0]
+        $oServerName = (($Request.ServerGroup).Substring(($config.AdminPreFix).Length)).Split($config.DomainSeparator)[1]
+        $oServerDNSDomain = $Request.ServerDomain
+        Write-Log -Severity Debug -Message "oServerDNSDomain: $oServerDNSDomain" 
+        Write-Log -Severity Debug -Message "oServerName: $oServerName" 
+        $oServer = Get-ADComputer -Identity $oServerName -Server $oServerDNSDomain -Properties ManagedBy -ErrorAction SilentlyContinue
+        Write-Log -Severity Debug -Message "Multidomain support is enabled - ServerName: $oServerName" 
+    } else {
+        #$oServerName = [regex]::Match($Request.ServerGroup,"$($config.AdminPreFix)(.+)").Groups[1].Value
+        $oServerName = (($Request.ServerGroup).Substring(($config.AdminPreFix).Length))
+        Write-log -Message "Multidomain support is disabled ServerName: $oServerName " -Severity Debug
+        $oserver = Get-ADComputer -Identity $oServerName -Properties ManagedBy -ErrorAction SilentlyContinue
+    }    
+#    Write-Log -Message "oServerName = $oserverName oServerDomainNameBiosName = $oServerDomainNetBiosName oServerDNSDomain = $oServerDNSDomain" -Severity Debug
+    Write-Log -Message "oServerName = $oserverName oServerDNSDomain = $oServerDNSDomain" -Severity Debug
+    #search for the member server object
+    #if the server object cannot be found in the AD terminat the script
+    if ($null -eq $oServer){
+        Write-ScriptMessage -EventID 2100 -Severity Error -Message "RequestID $eventRecordID : Can't find $oServer in AD" 
+        return
+    }
+    if ($config.EnableDelegation){
+        Write-Log -Severity Debug -Message "Delegation support is enabled - ServerName: $oServerName" 
+        if (!(Test-Path $config.DelegationConfigPath)){
+            Write-ScriptMessage -EventID 2109 -Severity Error -Message "Invalid path $($config.DelegationConfigPath)"
             return
-        } 
-        Write-Debug -Message "Found $oServerName in $oServerDNSDomain"
-        $ServerOU= [regex]::Match($oServer.DistinguishedName,"CN=[^,]+,(.+)").Groups[1].value
-        $oDelegationOU = $Delegation | Where-Object {$ServerOU -like "*$($_.ComputerOU)"}
-        if ($null -eq $oDelegationOU ){
-            Write-ScriptMessage -EventID 2102 -Severity Warning -Message "We found the $($oServer.DistinguishedName) but the OU $ServerOU for Server is not defined in the $($config.DelegationConfigPath)"
-            return
-        } else {
-            #validate the user SID is a assigned to this OU
-            #compare all SID defined in the delegation.config for this ou with the pac of the user
-            $bSidFound = $false
-            #Query revursive all group memberships of the user
-            $oUserSID = @()
-            Foreach ($UserSID in (Get-ADUser -LDAPFilter '(ObjectClass=User)' -SearchBase $oUser.DistinguishedName -SearchScope Base -Server $UserDomain -Properties "TokenGroups").TokenGroups){
-                $oUserSID += $UserSID.Value
-            }
-            $oUserSID += $oUser.SID.Value
-            Write-Debug "User Token SID $oUserSID"       
-            #$oUser contains all SID for the user PAC
-            foreach ($DelegationSID in $oDelegationOU.ADObject){
-                foreach ($UserSID in $oUserSID){
-                    if ($DelegationSID -eq $UserSID){
-                        $bSidFound = $true
-                        break
-                    }
-                }
-                if ($bSidFound){
-                    break
-                }
-            }
-            if (!$bSidFound){
-                #Get all recurvise groups of the user
-                Write-ScriptMessage -EventID 2103 -Message "User $($oUser.DistinguishedName) is not allowed to request privileged access on $($oServer.DistinguishedName) " -Severity Warning
-                return
-            }
         }
-    #Terminate the script if the OU is not defined in the delegation.config file
+        if (!(Get-UserElevationStatus -ServerName $oServer.DNSHostName -UserName $oUser.UserPrincipalName -DelegationConfig $config.DelegationConfigPath -AllowManagebyAttribute $config.UseManagedByforDelegation)){
+            Write-ScriptMessage -EventID 2103 -Message "User $($oUser.DistinguishedName) is not allowed to request privileged access on $($oServer.DistinguishedName) " -Severity Warning
+            return
+        }
     }
     #endregion
     #Region Add user to the local group"

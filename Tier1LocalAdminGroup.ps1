@@ -1,4 +1,4 @@
-<#
+<# 
 Script Info
 
 Author: Andreas Lucas [MSFT]
@@ -62,6 +62,9 @@ possibility of such damages
     Version 0.1.20240726
         - If the paramter configuration file is not provided, the global environment variable JustInTimeConfig will be used
         instead of the local directory
+    Version 0.1.20241227
+        by ANdreas Luy
+	Fixing minor bugs
 
     Event ID
     1000 Information LocalAdmin Group created
@@ -143,14 +146,15 @@ Foreach ($Domain in $aryDomainList) {
             #Search for computer object in the OU and based on the LDAP filter. While the LDAP filter doesn't support DistinguishedNames the query must work again s the $searchbase
             $serverList = Get-ADComputer -LDAPFilter $config.LDAPT1Computers -Properties memberof -SearchBase $Searchbase -Server $Domain | Where-Object { $_.DistinguishedName -notlike "*$($config.LDAPT0ComputerPath)*" }
             $GroupCount += $serverList.count #Display parameter to show the amount of computer object currently working on.
-            $NBDomain = (Get-ADDomain -Server $Domain).NetbiosName
+#            $NBDomain = (Get-ADDomain -Server $Domain).NetbiosName
+            $DnsDomain = (Get-ADDomain -Server $Domain).DnsRoot
             Foreach ($Server in $serverList) {
                 $Statuscounter ++
                 #Show progress for interactive execution
                 Write-Progress -Activity "Group Management" -Status "groups completed $Statuscounter" -PercentComplete (($Statuscounter / $GroupCount) * 100)
                 #If MulitDomain Support is enabled the NetBIOS domain name will be added between Admin-Prefix and the computer name
                 if ($config.EnableMultiDomainSupport) {
-                    $GroupName = "$($config.AdminPrefix)$($NBDomain)$($config.DomainSeparator)$($server.Name)"
+                    $GroupName = "$($config.AdminPrefix)$($DnsDomain)$($config.DomainSeparator)$($server.Name)"
                 }
                 else {
                     $GroupName = "$($config.AdminPreFix)$($Server.Name)"
