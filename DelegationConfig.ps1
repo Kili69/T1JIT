@@ -76,6 +76,8 @@ possibility of such damages
         - Bug fix on JSON writing
     0.1.20240726
         - Using the environment variable $end:JustIntimeConfig if the parameter configFileName is not provided
+    0.1.20250106
+        - Bug fix in the validation of the OU path if you are using the netbios name
     
 #>
 <#
@@ -147,7 +149,7 @@ function Get-Sid{
             "*\*" {
                 $UserNetBiosName = $Name.Split("\")
                 $UserName = $UserNetBiosName[1]
-                $DomainDNS = (Get-ADForest).Domains | Where-Object {(Get-ADDomain -Server $_).NetBiosName -eq $userNetBiosName[0]}
+                $DomainDNS = (Get-ADObject -Filter "netbiosname -eq '$($userNetBiosName[0])'" -SearchBase (Get-ADForest).PartitionsContainer -Properties dnsroot).dnsroot[0]
                 $OSID= (Get-ADObject -Filter{SamAccountName -like $UserName} -Server $DomainDNS -Properties ObjectSId).ObjectSID.Value
             }
             Default {
@@ -161,7 +163,7 @@ function Get-Sid{
     return $OSID
 }
 
-$Script_Version = "0.1.20240726"
+$Script_Version = "0.1.20250106"
 $CurrentDelegation = @()
 Write-Host "Configure JIT delegation (script version $Script_Version)"
 #validate the jit.cofig exists. Load the delelgation.config is the file exists

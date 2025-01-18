@@ -32,6 +32,8 @@ Version 0.1.20241023
 version 0.1.20241219 by Andreas Luy
     Changed group naming from NetBios to full Dns naming scheme
     moved Get-Jitconfig to Just-in-time-configuration.psm1
+version 0.1.2025016 by Kili
+    Fix a eroor if the DNS name of a server is assigned to more the one computer object
 
 #>
 
@@ -240,6 +242,10 @@ function Get-UserElevationStatus{
             "*.*" {
                 $Computer = Get-ADComputer -Filter "DNSHostName -eq '$ServerName'" -Server $GlobalCatalogServer
                 #The global catalog does not contains the ManagedBy attribute
+                if ($Computer.GetType().Name -ne "ADcomputer"){
+                    Write-Host "The computer $serverName is not available in AD. Please validate the DNS name of the computer object (Get-UserElevationState)" -ForegroundColor Red  
+                    return $false
+                }
                 $domainDNS = ConvertFrom-DN2Dns $Computer.DistinguishedName
                 $Computer = Get-ADComputer $Computer -Properties ManagedBy -Server $domainDNS
                 break
@@ -247,21 +253,32 @@ function Get-UserElevationStatus{
             "*.*/*"{
                 $uhelper = [regex]::Match($userName,"^([^/]+).*?/([^/]+)$")
                 $Computer = Get-ADcomputer -Filter "CN -eq '$($uhelper.Groups[2].Value)" -Properties ManagedBy -Server $uhelper.Groups[1].Value
+                if ($Computer.GetType().Name -ne "ADcomputer"){
+                    Write-Host "The computer $serverName is not available in AD. Please validate the canonical name ist correct (Get-UserElevationState)" -ForegroundColor Red
+                    return $false
+                }
                 break
             }
             "*\*"{
                 $uhelper = [regex]::Match($ServerName,"([^\\]+)\\(.+)")
-                Foreach ($ADDomainName in (Get-ADForest).Domains){
-                    $ADDomain = Get-ADDomain -Server $ADDomainName
-                    if ($ADDomain.NetBiosName -eq $uhelper.Groups[1].Value){
-                        $Computer = Get-ADComputer -Filter "CN -eq '$($uhelper.Groups[2].Value)'" -Server $uhelper.Groups[1].Value
-                        break
-                    }
+                $DnsDomainName = (Get-ADObject -Filter "netbiosname -eq '$($uhelper.Groups[1].Value))'" -SearchBase (Get-ADForest).PartitionsContainer -Properties dnsroot).dnsroot
+                if ($DnsDomainName -eq ""){
+                    Write-Host "The computer $DnsDomainName is not available in AD. Please validate the computer is availabe (Get-UserElevationState)" -ForegroundColor Red
+                    return $false
                 }
+                $Computer = Get-ADComputer -Filter "CN -eq '$($uhelper.Groups[2].Value)'" -Server $uhelper.Groups[1].Value -server $DnsDomainName
+                if ($Computer.GetType().Name -ne "ADcomputer"){
+                    Write-Host "The comuter $serverName is not available in AD. Please validate the computer is availabe (Get-UserElevationState)" -ForegroundColor Red
+                    return $false
+                }    
                 break
             }
             Default{
                 $Computer = Get-ADcomputer -Filter "CN -eq '$ServerName'" -Properties Managedby
+                if ($Computer.GetType().Name -ne "ADcomputer"){
+                    Write-Host "The computer $serverName is not available in AD. Please validate the computer is availble (Get-UserElevationState)" -ForegroundColor Red
+                    return $false
+                }
                 break
             }
         }
