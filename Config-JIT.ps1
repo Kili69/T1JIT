@@ -99,6 +99,9 @@ possibility of such damages
    Version 0.1.20241227
         - by Andreas Luy
 	- corrected minor bugs
+    Version 0.1.20250119
+        by Kili
+        if a schedule task already exists, a message to validate the SC will be displayed
  
 
 .PARAMETER InstallationDirectory
@@ -279,7 +282,7 @@ if (!(New-Object Security.Principal.WindowsPrincipal([Security.Principal.Windows
 }
 
 #region global variables 
-[string]$_scriptVersion = "0.1.20241013" #the current script version
+[string]$_scriptVersion = "0.1.20250119" #the current script version
 #region Default values
 $configFileName = "JIT.config" #The default name of the configuration file
 $STGroupManagementTaskName = "Tier 1 Local Group Management" #Name of the Schedule tasl to enumerate servers
@@ -778,6 +781,9 @@ If (!((Get-ScheduledTask).URI -contains "$StGroupManagementTaskPath\$STGroupMana
     catch [System.UnauthorizedAccessException] {
         Write-Host "Schedule task cannot registered." -ForegroundColor Red
     }
+} else {
+    Write-Host "Schedule task $($StGroupManagementTaskPath\$STGroupManagementTaskName) already exists"
+    Write-Host "Update schedule task $($StGroupManagementTaskPath\$STGroupManagementTaskName)"
 }
 #endregion
 if ($config.EnableDelegation){

@@ -72,6 +72,10 @@ possibility of such damages
     Version 0.1.20241227
 	by Andreas Luy
         Fixing minor bugs
+    Version 0.1.20250119
+    by Kili
+        Update event 2007 message. to provide mor information about the error
+        Debug path change to users local\AppData folder
 
     Event ID's
     1    Error  Unhandled Error has occured
@@ -204,15 +208,15 @@ function Write-Log {
 ##############################################################################################################################
 # Main Programm starts here                                                                                                  #
 ##############################################################################################################################
-[int]$_ScriptVersion = "20241023"
+[int]$_ScriptVersion = "20250119"
 [int]$_configBuildVersion = "20241004"
 Import-Module Just-In-Time
 #region Manage log file
 [int]$MaxLogFileSize = 1048576 #Maximum size of the log file
-if (!(Test-Path -Path "$($env:ProgramData)\Just-In-Time")) {
-    New-Item -Path "$($env:ProgramData)\Just-In-Time" -ItemType Directory
+if (!(Test-Path -Path "$($env:LOCALAPPDATA)\Just-In-Time")) {
+    New-Item -Path "$($env:LOCALAPPDATA)\Just-In-Time" -ItemType Directory
 }
-$LogFile = "$($env:ProgramData)\Just-In-Time\$($MyInvocation.MyCommand).log" #Name and path of the log file
+$LogFile = "$($env:LOCALAPPDATA)\Just-In-Time\$($MyInvocation.MyCommand).log" #Name and path of the log file
 #rename existing log files to *.sav if the currentlog file exceed the size of $MaxLogFileSize
 if (Test-Path $LogFile){
     if ((Get-Item $LogFile ).Length -gt $MaxLogFileSize){
@@ -343,7 +347,7 @@ catch [Microsoft.ActiveDirectory.Management.ADServerDownException]{
     return
 }
 catch [Microsoft.ActiveDirectory.Management.ADException]{
-    Write-ScriptMessage -Severity Error -EventID 2007 -Message "RequestID $eventRecordID : A AD exception has occured. $($Error[0])"
+    Write-ScriptMessage -Severity Error -EventID 2007 -Message "RequestID $eventRecordID : A AD exception has occured. While adding $oUSer to $AdminGroup $($Error[0])"
 }
 catch{
     Write-ScriptMessage -Severity Error -EventID 1    -Message "RequestID $eventRecordID : a unexpected Error has occured $($Error[0].Exception) in line $($Error[0].InvocationInfo.ScriptLineNumber) "  

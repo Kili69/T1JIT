@@ -65,6 +65,9 @@ possibility of such damages
     Version 0.1.20241227
         by ANdreas Luy
 	Fixing minor bugs
+    Version 0.1.20250119
+        by Kili
+        New event ID 1005 for access denied error integrated
 
     Event ID
     1000 Information LocalAdmin Group created
@@ -72,6 +75,7 @@ possibility of such damages
     1002 Information permanent user removed
     1003 Error removing permanent user
     1004 Warning The Organizational unit doesn't exists
+    1005 Error Access denied error occured while creating a Local Admin group
     1100 Error configuration file missing 
     
     exit code 
@@ -85,7 +89,7 @@ Param(
     $configurationFile = $env:JustInTimeConfig
 )
 #Script Version
-$_scriptVersion = "0.1.20240202"
+$_scriptVersion = "0.1.20250119"
 $MinConfigVersionBuild = 20240123
 Write-Debug "Script Version $_scriptVersion"
 
@@ -166,6 +170,10 @@ Foreach ($Domain in $aryDomainList) {
                         New-ADGroup -GroupCategory Security -GroupScope DomainLocal -SamAccountName $GroupName -Name $GroupName -Description "Provide Administrators privilege on $($Server.Name)" -Path $config.OU 
                         Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1000 -Message "New Local admin group $GroupName created" -EntryType Information
                         Write-Output "New Local admin group $GroupName created"
+                    }
+                    catch [System.UnauthorizedAccessException]{
+                        Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1005 -Message "Access denied error occured while creating a Local Admin group $groupname : $Error[0]"  -EntryType Error
+                        Write-Output "Error creating Local Admin group $groupname : $Error[0]"
                     }
                     catch {
                         Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1001 -Message "Error creating Local Admin group $groupname : $Error[0]"  -EntryType Error

@@ -10,6 +10,7 @@ In this file we describe the different event logon entries created by T1JIT
 |1002    | T1MGMT | Warning| A user is added permanently to a Administrator access group. AD Objects without a TimeToLive value will be removed from the Administrator Access group| Tier1LocalAdminGroup.ps1|
 |1003    | T1MGMT | Error | A unexpected error occured, while removing a permanently member of a Administrator access group.| Tier1LocalAdminGroup.ps1|
 |1004    | T1MGMT | Warning| A configured OU for searching computer objects doesn't exists in a domain | Tier1LocalAdmingroup.ps1|
+|1005    | T1MGMT | Error |  A access denied occured while creating a JIT group. |
 |2000    | T1MGMT | Error | The configuration file is not available| ElevateUser.ps1|
 |2001    | T1MGMT | Error | The group named in the event log entry is not available. please wait until the group is created| ElevateUser.ps1|edname 
 |2002    | T1MGMT | Warning | The distinguished user name of a Administrator access doesn't exist | ElevateUser.ps1|
