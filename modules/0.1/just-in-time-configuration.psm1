@@ -405,9 +405,10 @@ function Register-JITScheduleTask {
         [validateset ("RegisterGroupTask", "RegisterElevateUserTask")]
         $Task,
         [Parameter (Mandatory = $false)]
-        $ProgramFiles  = "\$($env:ProgramFiles)\Just-In-Time"
+        $ProgramFiles  = "$($env:ProgramFiles)\Just-In-Time"
     )
     $config = Get-JITconfig
+    Write-Host "debug:$ProgramFiles"
     #region createing Scheduled Task Section
     try {
         $STprincipal = New-ScheduledTaskPrincipal -UserId "$((Get-ADDomain).NetbiosName)\$((Get-ADServiceAccount $config.GroupManagedServiceAccountName).SamAccountName)" -LogonType Password    
@@ -419,7 +420,7 @@ function Register-JITScheduleTask {
                     Write-Host "Schedule task $($STGroupManagementTaskName) already exists. The task will be updated" -ForegroundColor Yellow
                     Unregister-ScheduledTask -TaskPath $ScheduleTaskPath -TaskName $STGroupManagementTaskName -Confirm:$false
                 }
-                $STaction = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $InstallationDirectory + '\Tier1LocalAdminGroup.ps1"') 
+                $STaction = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $ProgramFiles + '\Tier1LocalAdminGroup.ps1"') 
                 $STTrigger = New-ScheduledTaskTrigger -AtStartup 
                 $STTrigger.Repetition = $(New-ScheduledTaskTrigger -Once -at 7am -RepetitionInterval (New-TimeSpan -Minutes $($config.GroupManagementTaskRerun))).Repetition                      
                 Register-ScheduledTask -Principal $STprincipal -TaskName $STGroupManagementTaskName -TaskPath $ScheduleTaskPath -Action $STaction -Trigger $STTrigger
@@ -432,7 +433,7 @@ function Register-JITScheduleTask {
                     Unregister-ScheduledTask -TaskPath $ScheduleTaskPath -TaskName $STElevateUser -Confirm:$false 
                 }
 
-                $STaction = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "$ProgramFiles' + '\ElevateUser.ps1" -eventRecordID $(eventRecordID)') -WorkingDirectory $ProgramFiles
+                $STaction = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $ProgramFiles + '\ElevateUser.ps1" -eventRecordID $(eventRecordID)') -WorkingDirectory $ProgramFiles
                 $CIMTriggerClass = Get-CimClass -ClassName MSFT_TaskEventTrigger -Namespace Root/Microsoft/Windows/TaskScheduler:MSFT_TaskEventTrigger
                 $Trigger = New-CimInstance -CimClass $CIMTriggerClass -ClientOnly
                 $Trigger.Subscription = "<QueryList><Query Id=""0"" Path=""$($config.EventLog)""><Select Path=""$($config.EventLog)"">*[System[Provider[@Name='$($config.EventSource)'] and EventID=$($config.ElevateEventID)]]</Select></Query></QueryList>"
