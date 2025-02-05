@@ -102,6 +102,9 @@ possibility of such damages
     Version 0.1.20250119
         by Kili
         if a schedule task already exists, a message to validate the SC will be displayed
+    Version 0.1.20250205
+        by Kili
+        The creation of the schedule tasks is replaced with the new Register-ScheduledTask cmdlet in the JUST-IN-TIME Module
  
 
 .PARAMETER InstallationDirectory
@@ -285,9 +288,7 @@ if (!(New-Object Security.Principal.WindowsPrincipal([Security.Principal.Windows
 [string]$_scriptVersion = "0.1.20250119" #the current script version
 #region Default values
 $configFileName = "JIT.config" #The default name of the configuration file
-$STGroupManagementTaskName = "Tier 1 Local Group Management" #Name of the Schedule tasl to enumerate servers
-$StGroupManagementTaskPath = "\Just-In-Time-Privilege" #Is the schedule task folder
-$STElevateUser = "Elevate User" #Is the name of the Schedule task to elevate users
+
 try {
     $ADDomainDNS = (Get-ADDomain).DNSRoot #$current domain DNSName. Testing the Powershell AD modules are working
 }
@@ -333,36 +334,6 @@ if ($quiet){
 
 }
 #endregion
-#region Prepare system variable
-#creating the system variable if if doesn't exists
-<#
-try {
-    #Provide the environment variable as system variable. In the 2nd step validate the 
-    if ($Null -eq $env:JustInTimeConfig ){
-        [Environment]::SetEnvironmentVariable("JustInTimeConfig", "$InstallationDirectory\$configFileName", "Machine")
-        $env:JustInTimeConfig = "$InstallationDirectory\$configFileName"
-    }
-    if ($configurationFile -ne ""){
-        if (Test-Path $configurationFile){
-            $env:JustInTimeConfig = $configurationFile
-        } else {
-            Write-Host "Can't find configuration file $configurationFile. Installation terminated"
-            exit
-        }
-    }
-}
-catch [System.Management.Automation.MethodInvocationException] {
-    Write-Host "Local Administrator privileges required" -ForegroundColor Red
-    Write-Host "Configuration stopped"
-    exit
-}
-catch{
-    Write-Host "A unexpected error is occured while creating the environment" -ForegroundColor Red
-    Write-Host "configuration aborted"
-    exit
-}
-#endregion
-#>
 #Validate the Active Directory PAW feature is activated. If not the script will terminate
 if (!((Get-ADOptionalFeature -Filter "name -eq 'Privileged Access Management Feature'").EnabledScopes)){
     Write-Host "Active Directory PAM feature is not enables" -ForegroundColor Yellow
@@ -752,39 +723,8 @@ if ($null -eq (Get-EventLog -List | Where-Object {$_.LogDisplayName -eq $config.
 #endregion
 #region createing Scheduled Task Section
 Write-Host "creating schedule task to evaluate required Administrator groups"
-$STprincipal = New-ScheduledTaskPrincipal -UserId "$((Get-ADDomain).NetbiosName)\$((Get-ADServiceAccount $config.GroupManagedServiceAccountName).SamAccountName)" -LogonType Password
-If (!((Get-ScheduledTask).URI -contains "$StGroupManagementTaskPath\$STGroupManagementTaskName"))
-{
-    try {
-        $STaction  = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $InstallationDirectory + '\Tier1LocalAdminGroup.ps1"') 
-        $STTrigger = New-ScheduledTaskTrigger -AtStartup 
-        $STTrigger.Repetition = $(New-ScheduledTaskTrigger -Once -at 7am -RepetitionInterval (New-TimeSpan -Minutes $($config.GroupManagementTaskRerun))).Repetition                      
-        Register-ScheduledTask -Principal $STprincipal -TaskName $STGroupManagementTaskName -TaskPath $StGroupManagementTaskPath -Action $STaction -Trigger $STTrigger
-        Start-ScheduledTask -TaskPath "$StGroupManagementTaskPath\" -TaskName $STGroupManagementTaskName
-        If (!((Get-ScheduledTask).URI -contains "$StGroupManagementTaskPath\$STElevateUser"))
-        {
-            <#
-            create s schedule task who is triggered by eventlog entry in the event Log Tier 1 Management
-            #>
-            $STaction = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $InstallationDirectory + '\ElevateUser.ps1" -eventRecordID $(eventRecordID)') -WorkingDirectory $InstallationDirectory
-            $CIMTriggerClass = Get-CimClass -ClassName MSFT_TaskEventTrigger -Namespace Root/Microsoft/Windows/TaskScheduler:MSFT_TaskEventTrigger
-            $Trigger = New-CimInstance -CimClass $CIMTriggerClass -ClientOnly
-            $Trigger.Subscription = "<QueryList><Query Id=""0"" Path=""$($config.EventLog)""><Select Path=""$($config.EventLog)"">*[System[Provider[@Name='$($config.EventSource)'] and EventID=$($config.ElevateEventID)]]</Select></Query></QueryList>"
-            $Trigger.Enabled = $true
-            $Trigger.ValueQueries = [CimInstance[]]$(Get-CimClass -ClassName MSFT_TaskNamedValue -Namespace Root/Microsoft/Windows/TaskScheduler:MSFT_TaskNamedValue)
-            $Trigger.ValueQueries[0].Name = "eventRecordID"
-            $Trigger.ValueQueries[0].Value = "Event/System/EventRecordID"
-            $ElevateUserSettings = New-ScheduledTaskSettingsSet -MultipleInstances Parallel 
-            Register-ScheduledTask -Principal $STprincipal -TaskName $STElevateUser -TaskPath $StGroupManagementTaskPath -Action $STaction -Trigger $Trigger -Settings $ElevateUserSettings
-        }                        
-    }
-    catch [System.UnauthorizedAccessException] {
-        Write-Host "Schedule task cannot registered." -ForegroundColor Red
-    }
-} else {
-    Write-Host "Schedule task $($StGroupManagementTaskPath\$STGroupManagementTaskName) already exists"
-    Write-Host "Update schedule task $($StGroupManagementTaskPath\$STGroupManagementTaskName)"
-}
+Register-JITScheduleTask -Task RegisterElevateUserTask -Programfiles $InstallationDirectory
+Register-JITScheduleTask -Task RegisterGroupTask -Programfiles $InstallationDirectory
 #endregion
 if ($config.EnableDelegation){
     Write-Host "do not forget to configure your OU delegation"

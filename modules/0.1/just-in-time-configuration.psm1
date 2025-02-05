@@ -17,16 +17,15 @@ inability to use the sample scripts or documentation, even if Microsoft has been
 possibility of such damages
 #>
 
-$configurationModuleVersion = "0.1.240816"
+$configurationModuleVersion = "0.1.20250205"
 $DefaultconfigFileName = "JIT.config" #The default name of the configuration file
-$DefaultSTGroupManagementTaskName = "Tier 1 Local Group Management" #Name of the Schedule tasl to enumerate servers
-$DefaultStGroupManagementTaskPath = "\Just-In-Time-Privilege" #Is the schedule task folder
-$DefaultSTElevateUser = "Elevate User" #Is the name of the Schedule task to elevate users
+$STGroupManagementTaskName = "Tier 1 Local Group Management" #Name of the Schedule tasl to enumerate servers
+$ScheduleTaskPath = "\Just-In-Time\" #Is the schedule task folder
+$STElevateUser = "Elevate User" #Is the name of the Schedule task to elevate users
 $RegExDistinguishedName = "((OU|CN)=[^,]+,)*DC="
 
 #region Functions
-function New-ADDGuidMap
-{
+function New-ADDGuidMap {
     <#
     .SYNOPSIS
         Creates a guid map for the delegation part
@@ -53,8 +52,7 @@ function New-ADDGuidMap
 <#
     This function add a SID to the "Logon as a Batch Job" privilege
 #>
-function Add-LogonAsABatchJobPrivilege 
-{
+function Add-LogonAsABatchJobPrivilege {
     <#
     .SYNOPSIS
         Assign the Logon As A Batch Job privilege to a SID
@@ -72,24 +70,22 @@ function Add-LogonAsABatchJobPrivilege
     #Temporary files for secedit
     $tempPath = [System.IO.Path]::GetTempPath()
     $import = Join-Path -Path $tempPath -ChildPath "import.inf"
-    if(Test-Path $import) { Remove-Item -Path $import -Force }
+    if (Test-Path $import) { Remove-Item -Path $import -Force }
     $export = Join-Path -Path $tempPath -ChildPath "export.inf"
-    if(Test-Path $export) { Remove-Item -Path $export -Force }
+    if (Test-Path $export) { Remove-Item -Path $export -Force }
     $secedt = Join-Path -Path $tempPath -ChildPath "secedt.sdb"
-    if(Test-Path $secedt) { Remove-Item -Path $secedt -Force }
+    if (Test-Path $secedt) { Remove-Item -Path $secedt -Force }
     #Export the current configuration
     secedit /export /cfg $export
-    if ($false -eq  (Test-Path $export)){
+    if ($false -eq (Test-Path $export)) {
         Write-Host 'Administrator privileges required to set "Logon AS Batch job permission" please add the privilege manually'
         Return
     }
     #search for the current SID assigned to the SeBatchJob privilege
     $SIDs = (Select-String $export -Pattern "SeBatchLogonRight").Line
-    if (!($SIDs.Contains($Sid)))
-    {
+    if (!($SIDs.Contains($Sid))) {
         #create a new temporary security configuration file
-        foreach ($line in @("[Unicode]", "Unicode=yes", "[System Access]", "[Event Audit]", "[Registry Values]", "[Version]", "signature=`"`$CHICAGO$`"", "Revision=1", "[Profile Description]", "Description=GrantLogOnAsABatchJob security template", "[Privilege Rights]", "$SIDs,*$sid"))
-        {
+        foreach ($line in @("[Unicode]", "Unicode=yes", "[System Access]", "[Event Audit]", "[Registry Values]", "[Version]", "signature=`"`$CHICAGO$`"", "Revision=1", "[Profile Description]", "Description=GrantLogOnAsABatchJob security template", "[Privilege Rights]", "$SIDs,*$sid")) {
             Add-Content $import $line
         }
         #configure privileges
@@ -133,44 +129,45 @@ function CreateOU {
         [Parameter (Mandatory)]
         [string]$DomainDNS
     )
-    try{
+    try {
         #check if OU already exist
-        if ([ADSI]::Exists("LDAP://$OUPath")){
+        if ([ADSI]::Exists("LDAP://$OUPath")) {
             $success = $true
             return $success
         }
         #load the OU path into array to create the entire path step by step
         $DomainDN = (Get-ADDomain -Server $DomainDNS).DistinguishedName
-        $aryOU=$OUPath.Split(",").Trim()
-        $OUBuildPath = ","+$DomainDN
+        $aryOU = $OUPath.Split(",").Trim()
+        $OUBuildPath = "," + $DomainDN
         
         #walk through the entire domain
         [array]::Reverse($aryOU)
-        $aryOU|ForEach-Object {
+        $aryOU | ForEach-Object {
             #ignore 'DC=' values
             if ($_ -like "ou=*") {
                 $OUName = $_ -ireplace [regex]::Escape("ou="), ""
                 #check if OU already exists
                 if (Get-ADOrganizationalUnit -Filter "distinguishedName -eq '$($_+$OUBuildPath)'") {
                     Write-Debug "$($_+$OUBuildPath) already exists no actions needed"
-                } else {
+                }
+                else {
                     Write-Host "'$($_+$OUBuildPath)' doesn't exist. Creating OU" -ForegroundColor Green
                     New-ADOrganizationalUnit -Name $OUName -Path $OUBuildPath.Substring(1) -Server $DomainDNS                        
                     
                 }
                 #adding current OU to 'BuildOUPath' for next iteration
-                $OUBuildPath = ","+$_+$OUBuildPath
+                $OUBuildPath = "," + $_ + $OUBuildPath
             }
 
 
         }
  
     } 
-    catch [System.UnauthorizedAccessException]{
+    catch [System.UnauthorizedAccessException] {
         Write-Host "Access denied to create $OUPath in $domainDNS"
         Return $false
     } 
-    catch{
+    catch {
         Write-Host "A error occured while create OU Structure"
         Write-Host $Error[0].CategoryInfo.GetType()
         Return $false
@@ -179,9 +176,9 @@ function CreateOU {
 }
 
 
-function Read-JIT.Configuration{
+function Read-JIT.Configuration {
     param(
-        [Parameter (Mandatory=$false, Position=0)]
+        [Parameter (Mandatory = $false, Position = 0)]
         [string]$configurationFile
     )
     #region configuration object
@@ -217,94 +214,97 @@ function Read-JIT.Configuration{
     $config | Add-Member -MemberType NoteProperty -Name "T1Searchbase"                   -Value @("<DomainRoot>")
     $config | Add-Member -MemberType NoteProperty -Name "DomainSeparator"                -Value "#"
     #endregion
-    try{
-        if ($configurationFile -eq ""){
-            if ($Null -eq $env:JustInTimeConfig){
-                if (Test-Path -Path $env:JustInTimeConfig){
+    try {
+        if ($configurationFile -eq "") {
+            if ($Null -eq $env:JustInTimeConfig) {
+                if (Test-Path -Path $env:JustInTimeConfig) {
                     $existingconfig = get-content $env:JustInTimeConfig | ConvertFrom-Json
-                } else {
+                }
+                else {
                     $existingconfig = $Null
                 }
             } 
-        } else {
-            if (Test-Path -Path $configurationFile){
-                    $existingconfig = Get-Content -Path $configurationFile | ConvertFrom-Json
-            } else {
+        }
+        else {
+            if (Test-Path -Path $configurationFile) {
+                $existingconfig = Get-Content -Path $configurationFile | ConvertFrom-Json
+            }
+            else {
                 $existingconfig = $null
             }
         }
-        if ($null -eq $existingconfig ){
+        if ($null -eq $existingconfig ) {
             return $config
         }
-        if ($existingconfig.ConfigVersion -gt $config.ConfigVersion){
+        if ($existingconfig.ConfigVersion -gt $config.ConfigVersion) {
             Write-Host "Invalid configuration model $($existingconfig.ConfigVersion)"
             return $null
         }
         #Replace the default values with the existing values
-        foreach ($setting in ($existingconfig | Get-Member -MemberType NoteProperty)){
+        foreach ($setting in ($existingconfig | Get-Member -MemberType NoteProperty)) {
             $config.$($setting.Name) = $existingconfig.$($setting.Name)
         }
         $config.ConfigurationModulVersion = $configurationModuleVersion
         return $config
     }
-    catch{
+    catch {
         Throw $Error[0]
     }
 }
 
-function Write-JIT.Configuration{
+function Write-JIT.Configuration {
 
 }
-function Update-JIT.GMSA{
+function Update-JIT.GMSA {
 
 }
-function Create-JIT.ScheduleTask{
-
-}
-function Add-JitServerOU{
+function Add-JitServerOU {
     param (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [string]$OU
     )
     $config = Get-Content $env:JustInTimeConfig | ConvertFrom-Json
     #Search for dnsdomain
-    $DomainDN = [regex]::Match($OU,"dc=.+").Value
-    foreach ($ADDomainDNS in (Get-ADForest).Domains){
-        IF ($DomainDN -eq $(Get-ADDomain -Server $ADDomainDNS).DistinguishedName){
+    $DomainDN = [regex]::Match($OU, "dc=.+").Value
+    foreach ($ADDomainDNS in (Get-ADForest).Domains) {
+        IF ($DomainDN -eq $(Get-ADDomain -Server $ADDomainDNS).DistinguishedName) {
             break;
         }
     }
-    if ((Get-ADObject -Filter "DistinguishedName -eq '$OU'" -server $ADDomainDNS)){
-        if ($config.T1Searchbase -contains $OU){
+    if ((Get-ADObject -Filter "DistinguishedName -eq '$OU'" -server $ADDomainDNS)) {
+        if ($config.T1Searchbase -contains $OU) {
             Write-Host "$OU is already defined" -ForegroundColor Yellow
-        } else {
+        }
+        else {
             $config.T1Searchbase += $OU
             ConvertTo-Json $config | Out-File $env:JustInTimeConfig -Confirm:$false
         }
-    } else {
+    }
+    else {
         throw [System.ArgumentException]::new("Invalid DistinguishedName", $OU)
     }
 }
-function Get-JitServerOU{
+function Get-JitServerOU {
     $config = Get-Content $env:JustInTimeConfig | ConvertFrom-Json
     return $config.T1Searchbase
 }
-function Remove-JITServerOU{
+function Remove-JITServerOU {
     param(
         [Parameter (Mandatory = $true, ValueFromPipeline = $true)]
         [string]$OU
     )
     $config = Get-Content $env:JustInTimeConfig | ConvertFrom-Json
-    if ($config.T1Searchbase -contains $OU){
+    if ($config.T1Searchbase -contains $OU) {
         $tempSerachBase = @()
-        foreach ($sb in $config.T1Searchbase){
-            if ($sb -ne $OU){
+        foreach ($sb in $config.T1Searchbase) {
+            if ($sb -ne $OU) {
                 $tempSerachBase += $sb
             }
         }
         $config.T1Searchbase = $tempSerachBase
         ConvertTo-Json $config | Out-File $env:JustInTimeConfig -Confirm:$false
-    } else {
+    }
+    else {
         Write-Host "$OU is not defined" -ForegroundColor Yellow
     }
 }
@@ -336,47 +336,129 @@ function Remove-JITServerOU{
     Get-JITConfig -ConfigurationFile .\jit.config
         Read the configuration from the path
 #>
-function Get-JITconfig{
+function Get-JITconfig {
     param(
-        [Parameter (Mandatory=$false, Position=0)]
+        [Parameter (Mandatory = $false, Position = 0)]
         [string]$configurationFile
     )
     #region parameter validation
     #If the parameter configurationFile is null or empty, change the variable to the value of
     #the system environment JustInTimeConfig 
-    if (!$configurationFile){
-        if (!$env:JustInTimeConfig){
-            $configurationFile = ".\jit.config"
-        } elseif ($env:JustInTimeConfig -eq ""){
-            $configurationFile = ".\jit.config"
-        } else {
+    if (!$configurationFile) {
+        if (!$env:JustInTimeConfig) {
+            $configurationFile = ".\$DefaultconfigFileName"
+        }
+        elseif ($env:JustInTimeConfig -eq "") {
+            $configurationFile = ".\$DefaultconfigFileName"
+        }
+        else {
             $configurationFile = $env:JustInTimeConfig
         }
     }
     #endregion
 
 
-    if (!(Test-Path $configurationFile))
-    {
+    if (!(Test-Path $configurationFile)) {
         throw "Configuration $configurationFile missing"
         Return
     }
-    try{
+    try {
         $config = Get-Content $configurationFile | ConvertFrom-Json
     }
-    catch{
+    catch {
         throw "Invalid configuration file $configurationFile"
         return
     }
     #extracting and converting the build version of the script and the configuration file
-    $configFileBuildVersion = [int]([regex]::Matches($config.ConfigScriptVersion,"[^\.]*$")).Groups[0].Value 
+    $configFileBuildVersion = [int]([regex]::Matches($config.ConfigScriptVersion, "[^\.]*$")).Groups[0].Value 
     #Validate the build version of the jit.config file is equal or higher then the tested jit.config file version
-    if ($_configBuildVersion -gt $configFileBuildVersion)
-    {
+    if ($_configBuildVersion -gt $configFileBuildVersion) {
         throw "Invalid configuration file version"
         return
     }
     return $config
 }
+<#
+.SYNOPSIS
+    Register the schedule task to manage the local administrator group and the user elevation task
+.DESCRIPTION
+    This function registers the schedule task to manage the local administrator group and the user elevation task. If the task exists, it will be updated
+.PARAMETER Task
+    The name of the task to register. The parameter can be 
+        "RegisterGroupTask" to register the task who create the Active Directory groups
+    or "RegisterElevateUserTask" to register the task who elevate the user
+.PARAMETER ProgramFiles
+    The path to the program files folder. This parameter is only required if the script is not installed in the default location
+.INPUTS
+    none
+.OUTPUTS
+    none
+.EXAMPLE
+    Register-JITScheduleTask -Task "RegisterGroupTask"
+        Register the schedule task to manage the local administrator group
+    Register-JITScheduleTask -Task "RegisterElevateUserTask"
+        Register the schedule task to elevate the user
+#>
+function Register-JITScheduleTask {
+    param(
+        [Parameter (Mandatory = $true, ValueFromPipeline = $true)]
+        [validateset ("RegisterGroupTask", "RegisterElevateUserTask")]
+        $Task,
+        [Parameter (Mandatory = $false)]
+        $ProgramFiles  = "\$($env:ProgramFiles)\Just-In-Time"
+    )
+    $config = Get-JITconfig
+    #region createing Scheduled Task Section
+    try {
+        $STprincipal = New-ScheduledTaskPrincipal -UserId "$((Get-ADDomain).NetbiosName)\$((Get-ADServiceAccount $config.GroupManagedServiceAccountName).SamAccountName)" -LogonType Password    
 
+        switch ($Task) {
+            "RegisterGroupTask" {
+                $ST = Get-ScheduledTask -TaskPath $ScheduleTaskPath -TaskName $STGroupManagementTaskName  -ErrorAction SilentlyContinue
+                if ($null -ne $ST) {
+                    Write-Host "Schedule task $($STGroupManagementTaskName) already exists. The task will be updated" -ForegroundColor Yellow
+                    Unregister-ScheduledTask -TaskPath $ScheduleTaskPath -TaskName $STGroupManagementTaskName -Confirm:$false
+                }
+                $STaction = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $InstallationDirectory + '\Tier1LocalAdminGroup.ps1"') 
+                $STTrigger = New-ScheduledTaskTrigger -AtStartup 
+                $STTrigger.Repetition = $(New-ScheduledTaskTrigger -Once -at 7am -RepetitionInterval (New-TimeSpan -Minutes $($config.GroupManagementTaskRerun))).Repetition                      
+                Register-ScheduledTask -Principal $STprincipal -TaskName $STGroupManagementTaskName -TaskPath $ScheduleTaskPath -Action $STaction -Trigger $STTrigger
+                Start-ScheduledTask -TaskPath "$ScheduleTaskPath" -TaskName $STGroupManagementTaskName 
+            }
+            "RegisterElevateUserTask" {
+                $ST = Get-ScheduledTask -TaskPath $ScheduleTaskPath -TaskName $STElevateUser -ErrorAction SilentlyContinue 
+                If ($null -ne $ST) {
+                    Write-Host "Schedule task $($STElevateUser) already exists. The task will be updated" -ForegroundColor Yellow
+                    Unregister-ScheduledTask -TaskPath $ScheduleTaskPath -TaskName $STElevateUser -Confirm:$false 
+                }
 
+                $STaction = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "$ProgramFiles' + '\ElevateUser.ps1" -eventRecordID $(eventRecordID)') -WorkingDirectory $ProgramFiles
+                $CIMTriggerClass = Get-CimClass -ClassName MSFT_TaskEventTrigger -Namespace Root/Microsoft/Windows/TaskScheduler:MSFT_TaskEventTrigger
+                $Trigger = New-CimInstance -CimClass $CIMTriggerClass -ClientOnly
+                $Trigger.Subscription = "<QueryList><Query Id=""0"" Path=""$($config.EventLog)""><Select Path=""$($config.EventLog)"">*[System[Provider[@Name='$($config.EventSource)'] and EventID=$($config.ElevateEventID)]]</Select></Query></QueryList>"
+                $Trigger.Enabled = $true
+                $Trigger.ValueQueries = [CimInstance[]]$(Get-CimClass -ClassName MSFT_TaskNamedValue -Namespace Root/Microsoft/Windows/TaskScheduler:MSFT_TaskNamedValue)
+                $Trigger.ValueQueries[0].Name = "eventRecordID"
+                $Trigger.ValueQueries[0].Value = "Event/System/EventRecordID"
+                $ElevateUserSettings = New-ScheduledTaskSettingsSet -MultipleInstances Parallel 
+                Register-ScheduledTask -Principal $STprincipal -TaskName $STElevateUser -TaskPath $ScheduleTaskPath -Action $STaction -Trigger $Trigger -Settings $ElevateUserSettings
+            }
+            Default { 
+                Write-Host "Invalid Task" -ForegroundColor Red 
+                Return
+            }
+        }
+    }
+    catch [System.InvalidOperationException] {
+        Write-Host "Service account $($config.GroupManagedServiceAccountName) not found" -ForegroundColor Red
+    }
+    catch [System.UnauthorizedAccessException] {
+        Write-Host "Schedule task cannot registered." -ForegroundColor Red
+    }
+    catch {
+        Write-Host "An error occured while creating the schedule task" -ForegroundColor Red
+        Write-Host $Error[0].CategoryInfo.GetType()
+    }
+    #endregion
+
+}
