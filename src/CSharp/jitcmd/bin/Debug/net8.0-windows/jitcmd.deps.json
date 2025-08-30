@@ -6,9 +6,9 @@
   "compilationOptions": {},
   "targets": {
     ".NETCoreApp,Version=v8.0": {
-      "jitcmd/1.0.0": {
+      "jitcmd/0.1.20250830": {
         "dependencies": {
-          "justintime": "1.0.0"
+          "justintime": "0.1.20250830"
         },
         "runtime": {
           "jitcmd.dll": {}
@@ -141,22 +141,22 @@
           }
         }
       },
-      "justintime/1.0.0": {
+      "justintime/0.1.20250830": {
         "dependencies": {
           "System.DirectoryServices": "9.0.8",
           "System.DirectoryServices.AccountManagement": "9.0.8"
         },
         "runtime": {
           "justintime.dll": {
-            "assemblyVersion": "1.0.0",
-            "fileVersion": "1.0.0.0"
+            "assemblyVersion": "0.1.20250830",
+            "fileVersion": "0.1.20250830"
           }
         }
       }
     }
   },
   "libraries": {
-    "jitcmd/1.0.0": {
+    "jitcmd/0.1.20250830": {
       "type": "project",
       "serviceable": false,
       "sha512": ""
@@ -217,7 +217,7 @@
       "path": "system.security.cryptography.protecteddata/9.0.8",
       "hashPath": "system.security.cryptography.protecteddata.9.0.8.nupkg.sha512"
     },
-    "justintime/1.0.0": {
+    "justintime/0.1.20250830": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

@@ -5,12 +5,17 @@
 $LibMinVersion = "0.1"
 
 # project folders
-$csprojPath = "../src/CSharp/justintime/justintime.csproj"
+$csprojPath = (Resolve-Path "../src/CSharp/justintime/justintime.csproj")
+$binBuildDir = "../src/CSharp/justintime/bin/Release/net8.0"
 $libDir = "../release/modules/0.1"
 $psSourceDir = "../src/PowerShell"
-$psReleaseDir = "../release"
+$ReleaseDir = "../release"
 $modulesSourceDir = "$psSourceDir/modules"
-$modulesReleaseDir = "$psReleaseDir/modules"
+$modulesReleaseDir = "$ReleaseDir/modules"
+$scriptSourceDir = "$psSourceDir/scripts"
+#clean up release and build directory
+if (Test-Path $ReleaseDir) { Remove-Item $ReleaseDir -Recurse -Force }
+if (Test-Path $binBuildDir) { Remove-Item $binBuildDir -Recurse -Force }
 
 # 1. Update the library Version with the current date as build number
 $today = Get-Date
@@ -20,31 +25,40 @@ Write-Host "Updating $version in $csprojPath"
 [xml]$csproj = Get-Content $csprojPath
 $versionNode = $csproj.Project.PropertyGroup.Version
 if ($versionNode) {
-    $versionNode.'#text' = $version
+    $versionNode = $version
 } else {
     $pg = $csproj.Project.PropertyGroup | Select-Object -First 1
     $newNode = $csproj.CreateElement("Version")
     $newNode.InnerText = $version
     $pg.AppendChild($newNode) | Out-Null
 }
+$FileVersion = $csproj.Project.PropertyGroup.FileVersion
+if($FileVersion) {
+    $FileVersion = $version
+} else {
+    $fg = $csproj.Project.PropertyGroup | Select-Object -First 1
+    $newFileNode = $csproj.CreateElement("FileVersion")
+    $newFileNode.InnerText = $version
+    $fg.AppendChild($newFileNode) | Out-Null
+}
 $csproj.Save($csprojPath)
 
 # 2. Build the Release version of the library
 Write-Host "Building Release version..."
-dotnet build $csprojPath -c Release
+dotnet publish $csprojPath -c Release -r win-x64 --self-contained true 
 
 # 3. Copy solution files
-$buildOutput = "../src/CSharp/justintime/bin/Release/net8.0"
+$buildOutput = "../src/CSharp/justintime/bin/Release/net8.0/win-x64/publish"
 if (!(Test-Path $libDir)) { New-Item -ItemType Directory -Path $libDir | Out-Null }
 Write-Host "Copying Release files to $libDir"
 Copy-Item "$buildOutput/*" $libDir -Recurse -Force
 
 # 4. PowerShell scripts
-Write-Host "Copying PowerShell scripts to $psReleaseDir"
-Copy-Item "$psSourceDir/*.ps1" $psReleaseDir -Force
+Write-Host "Copying PowerShell scripts to $scriptSourceDir"
+Copy-Item "$scriptSourceDir/*.ps1" $ReleaseDir -Force
 
 # 5. Copy Modules directory
 Write-Host "Copying Modules directory to $modulesReleaseDir"
-Copy-Item $modulesSourceDir $modulesReleaseDir -Recurse -Force
+Copy-Item "$modulesSourceDir\*" $modulesReleaseDir -Recurse -Force
 
 Write-Host "Done!"

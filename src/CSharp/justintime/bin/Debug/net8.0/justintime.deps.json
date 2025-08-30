@@ -6,7 +6,7 @@
   "compilationOptions": {},
   "targets": {
     ".NETCoreApp,Version=v8.0": {
-      "justintime/1.0.0": {
+      "justintime/0.1.20250830": {
         "dependencies": {
           "System.DirectoryServices": "9.0.8",
           "System.DirectoryServices.AccountManagement": "9.0.8"
@@ -145,7 +145,7 @@
     }
   },
   "libraries": {
-    "justintime/1.0.0": {
+    "justintime/0.1.20250830": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

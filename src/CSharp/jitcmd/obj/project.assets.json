@@ -458,7 +458,7 @@
     "C:\\Users\\aa\\.nuget\\packages\\": {}
   },
   "project": {
-    "version": "1.0.0",
+    "version": "0.1.20250830",
     "restore": {
       "projectUniqueName": "C:\\Repos\\T1JIT\\src\\CSharp\\jitcmd\\jitcmd.csproj",
       "projectName": "jitcmd",

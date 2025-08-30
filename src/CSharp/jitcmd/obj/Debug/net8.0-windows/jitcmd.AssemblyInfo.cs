@@ -12,11 +12,11 @@ using System.Reflection;
 
 [assembly: System.Reflection.AssemblyCompanyAttribute("jitcmd")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8f90cbdf94c0a9e74bc0a7cfff5d9d1b919c2911")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("0.1.20250830")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.1.20250830+f9ca8634a3b784236231d18c0b0ad5879ddd5710")]
 [assembly: System.Reflection.AssemblyProductAttribute("jitcmd")]
 [assembly: System.Reflection.AssemblyTitleAttribute("jitcmd")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyVersionAttribute("0.1.0")]
 [assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
 [assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
 
