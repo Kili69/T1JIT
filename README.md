@@ -13,6 +13,7 @@ In many IT environments, users are members of the local administrators group on 
 - `src`: source code
 - `Release`: Solution 
 - `docs`: documentation
+- `build`: scripts to build a new release version
 
 ## Quick-start Installation
 
@@ -45,3 +46,6 @@ github\Bulgwei
 ## 📄 License
 
 This project is licensed under the MIT License.
+
+## Updates
+2025-08-30 The update is a complete restructuring of the files to enable the use of C# code. Integrating C# is essential for extending the JIT Solution into a cloud service. In this update, the code has been separated from the release files. Additionally, the documentation has been moved to the Doc folder to improve clarity. All files required for operation are now located in the release directory.
