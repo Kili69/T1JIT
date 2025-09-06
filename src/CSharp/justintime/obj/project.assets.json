@@ -1,0 +1,510 @@
+{
+  "version": 3,
+  "targets": {
+    "net8.0": {
+      "Microsoft.Bcl.Cryptography/9.0.8": {
+        "type": "package",
+        "dependencies": {
+          "System.Formats.Asn1": "9.0.8"
+        },
+        "compile": {
+          "lib/net8.0/Microsoft.Bcl.Cryptography.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/Microsoft.Bcl.Cryptography.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net8.0/_._": {}
+        }
+      },
+      "System.Configuration.ConfigurationManager/9.0.8": {
+        "type": "package",
+        "dependencies": {
+          "System.Diagnostics.EventLog": "9.0.8",
+          "System.Security.Cryptography.ProtectedData": "9.0.8"
+        },
+        "compile": {
+          "lib/net8.0/System.Configuration.ConfigurationManager.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/System.Configuration.ConfigurationManager.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net8.0/_._": {}
+        }
+      },
+      "System.Diagnostics.EventLog/9.0.8": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/System.Diagnostics.EventLog.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/System.Diagnostics.EventLog.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net8.0/_._": {}
+        },
+        "runtimeTargets": {
+          "runtimes/win/lib/net8.0/System.Diagnostics.EventLog.Messages.dll": {
+            "assetType": "runtime",
+            "rid": "win"
+          },
+          "runtimes/win/lib/net8.0/System.Diagnostics.EventLog.dll": {
+            "assetType": "runtime",
+            "rid": "win"
+          }
+        }
+      },
+      "System.DirectoryServices/9.0.8": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/System.DirectoryServices.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/System.DirectoryServices.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net8.0/_._": {}
+        },
+        "runtimeTargets": {
+          "runtimes/win/lib/net8.0/System.DirectoryServices.dll": {
+            "assetType": "runtime",
+            "rid": "win"
+          }
+        }
+      },
+      "System.DirectoryServices.AccountManagement/9.0.8": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.Bcl.Cryptography": "9.0.8",
+          "System.Configuration.ConfigurationManager": "9.0.8",
+          "System.DirectoryServices": "9.0.8",
+          "System.DirectoryServices.Protocols": "9.0.8"
+        },
+        "compile": {
+          "lib/net8.0/System.DirectoryServices.AccountManagement.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/System.DirectoryServices.AccountManagement.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net8.0/_._": {}
+        },
+        "runtimeTargets": {
+          "runtimes/win/lib/net8.0/System.DirectoryServices.AccountManagement.dll": {
+            "assetType": "runtime",
+            "rid": "win"
+          }
+        }
+      },
+      "System.DirectoryServices.Protocols/9.0.8": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/System.DirectoryServices.Protocols.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/System.DirectoryServices.Protocols.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net8.0/_._": {}
+        },
+        "runtimeTargets": {
+          "runtimes/linux/lib/net8.0/System.DirectoryServices.Protocols.dll": {
+            "assetType": "runtime",
+            "rid": "linux"
+          },
+          "runtimes/osx/lib/net8.0/System.DirectoryServices.Protocols.dll": {
+            "assetType": "runtime",
+            "rid": "osx"
+          },
+          "runtimes/win/lib/net8.0/System.DirectoryServices.Protocols.dll": {
+            "assetType": "runtime",
+            "rid": "win"
+          }
+        }
+      },
+      "System.Formats.Asn1/9.0.8": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/System.Formats.Asn1.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/System.Formats.Asn1.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net8.0/_._": {}
+        }
+      },
+      "System.Security.Cryptography.ProtectedData/9.0.8": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/System.Security.Cryptography.ProtectedData.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/System.Security.Cryptography.ProtectedData.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net8.0/_._": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "Microsoft.Bcl.Cryptography/9.0.8": {
+      "sha512": "6Vqi1oAR87MtPOcosdMJeNznHuy7e7LNrlUjVOEAWd1OaMGNT/mL7kDDXzerzURORvlh0kzPZSnwKc1vEVPMJw==",
+      "type": "package",
+      "path": "microsoft.bcl.cryptography/9.0.8",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "LICENSE.TXT",
+        "PACKAGE.md",
+        "THIRD-PARTY-NOTICES.TXT",
+        "buildTransitive/net461/Microsoft.Bcl.Cryptography.targets",
+        "buildTransitive/net462/_._",
+        "buildTransitive/net8.0/_._",
+        "buildTransitive/netcoreapp2.0/Microsoft.Bcl.Cryptography.targets",
+        "lib/net462/Microsoft.Bcl.Cryptography.dll",
+        "lib/net462/Microsoft.Bcl.Cryptography.xml",
+        "lib/net8.0/Microsoft.Bcl.Cryptography.dll",
+        "lib/net8.0/Microsoft.Bcl.Cryptography.xml",
+        "lib/net9.0/Microsoft.Bcl.Cryptography.dll",
+        "lib/net9.0/Microsoft.Bcl.Cryptography.xml",
+        "lib/netstandard2.0/Microsoft.Bcl.Cryptography.dll",
+        "lib/netstandard2.0/Microsoft.Bcl.Cryptography.xml",
+        "microsoft.bcl.cryptography.9.0.8.nupkg.sha512",
+        "microsoft.bcl.cryptography.nuspec",
+        "useSharedDesignerContext.txt"
+      ]
+    },
+    "System.Configuration.ConfigurationManager/9.0.8": {
+      "sha512": "BR70HYY5jeOa/jBrd/wyydpuqhFyla2ybQRL/UPBIiSvctVqi18iQoM44Gx41jy7t6wuAdKuTnie6io4j8aq3w==",
+      "type": "package",
+      "path": "system.configuration.configurationmanager/9.0.8",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "LICENSE.TXT",
+        "PACKAGE.md",
+        "THIRD-PARTY-NOTICES.TXT",
+        "buildTransitive/net461/System.Configuration.ConfigurationManager.targets",
+        "buildTransitive/net462/_._",
+        "buildTransitive/net8.0/_._",
+        "buildTransitive/netcoreapp2.0/System.Configuration.ConfigurationManager.targets",
+        "lib/net462/System.Configuration.ConfigurationManager.dll",
+        "lib/net462/System.Configuration.ConfigurationManager.xml",
+        "lib/net8.0/System.Configuration.ConfigurationManager.dll",
+        "lib/net8.0/System.Configuration.ConfigurationManager.xml",
+        "lib/net9.0/System.Configuration.ConfigurationManager.dll",
+        "lib/net9.0/System.Configuration.ConfigurationManager.xml",
+        "lib/netstandard2.0/System.Configuration.ConfigurationManager.dll",
+        "lib/netstandard2.0/System.Configuration.ConfigurationManager.xml",
+        "system.configuration.configurationmanager.9.0.8.nupkg.sha512",
+        "system.configuration.configurationmanager.nuspec",
+        "useSharedDesignerContext.txt"
+      ]
+    },
+    "System.Diagnostics.EventLog/9.0.8": {
+      "sha512": "gebRF3JLLJ76jz1CQpvwezNapZUjFq20JQsaGHzBH0DzlkHBLpdhwkOei9usiOkIGMwU/L0ALWpNe1JE+5/itw==",
+      "type": "package",
+      "path": "system.diagnostics.eventlog/9.0.8",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "LICENSE.TXT",
+        "PACKAGE.md",
+        "THIRD-PARTY-NOTICES.TXT",
+        "buildTransitive/net461/System.Diagnostics.EventLog.targets",
+        "buildTransitive/net462/_._",
+        "buildTransitive/net8.0/_._",
+        "buildTransitive/netcoreapp2.0/System.Diagnostics.EventLog.targets",
+        "lib/net462/System.Diagnostics.EventLog.dll",
+        "lib/net462/System.Diagnostics.EventLog.xml",
+        "lib/net8.0/System.Diagnostics.EventLog.dll",
+        "lib/net8.0/System.Diagnostics.EventLog.xml",
+        "lib/net9.0/System.Diagnostics.EventLog.dll",
+        "lib/net9.0/System.Diagnostics.EventLog.xml",
+        "lib/netstandard2.0/System.Diagnostics.EventLog.dll",
+        "lib/netstandard2.0/System.Diagnostics.EventLog.xml",
+        "runtimes/win/lib/net8.0/System.Diagnostics.EventLog.Messages.dll",
+        "runtimes/win/lib/net8.0/System.Diagnostics.EventLog.dll",
+        "runtimes/win/lib/net8.0/System.Diagnostics.EventLog.xml",
+        "runtimes/win/lib/net9.0/System.Diagnostics.EventLog.Messages.dll",
+        "runtimes/win/lib/net9.0/System.Diagnostics.EventLog.dll",
+        "runtimes/win/lib/net9.0/System.Diagnostics.EventLog.xml",
+        "system.diagnostics.eventlog.9.0.8.nupkg.sha512",
+        "system.diagnostics.eventlog.nuspec",
+        "useSharedDesignerContext.txt"
+      ]
+    },
+    "System.DirectoryServices/9.0.8": {
+      "sha512": "xN2JrOfhcOyswOflVZG27XlFJDPPqU7AQtAAStWcnKoC8W9XCLOLdAYIrrwiZMfeRhavVErI8HkSO/c2TQ+z2g==",
+      "type": "package",
+      "path": "system.directoryservices/9.0.8",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "LICENSE.TXT",
+        "PACKAGE.md",
+        "THIRD-PARTY-NOTICES.TXT",
+        "buildTransitive/net8.0/_._",
+        "buildTransitive/netcoreapp2.0/System.DirectoryServices.targets",
+        "lib/net462/_._",
+        "lib/net8.0/System.DirectoryServices.dll",
+        "lib/net8.0/System.DirectoryServices.xml",
+        "lib/net9.0/System.DirectoryServices.dll",
+        "lib/net9.0/System.DirectoryServices.xml",
+        "lib/netstandard2.0/System.DirectoryServices.dll",
+        "lib/netstandard2.0/System.DirectoryServices.xml",
+        "runtimes/win/lib/net8.0/System.DirectoryServices.dll",
+        "runtimes/win/lib/net8.0/System.DirectoryServices.xml",
+        "runtimes/win/lib/net9.0/System.DirectoryServices.dll",
+        "runtimes/win/lib/net9.0/System.DirectoryServices.xml",
+        "system.directoryservices.9.0.8.nupkg.sha512",
+        "system.directoryservices.nuspec",
+        "useSharedDesignerContext.txt"
+      ]
+    },
+    "System.DirectoryServices.AccountManagement/9.0.8": {
+      "sha512": "IZHybhmB3VQKy71WdIgApB/dZxL3nHlx5Vt0R1sZKnxv+zJ7JOA/FbiulRl3JUUSYV3F4vte/95bMrtjCxNMnA==",
+      "type": "package",
+      "path": "system.directoryservices.accountmanagement/9.0.8",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "LICENSE.TXT",
+        "PACKAGE.md",
+        "THIRD-PARTY-NOTICES.TXT",
+        "buildTransitive/net8.0/_._",
+        "buildTransitive/netcoreapp2.0/System.DirectoryServices.AccountManagement.targets",
+        "lib/net462/_._",
+        "lib/net8.0/System.DirectoryServices.AccountManagement.dll",
+        "lib/net8.0/System.DirectoryServices.AccountManagement.xml",
+        "lib/net9.0/System.DirectoryServices.AccountManagement.dll",
+        "lib/net9.0/System.DirectoryServices.AccountManagement.xml",
+        "lib/netstandard2.0/System.DirectoryServices.AccountManagement.dll",
+        "lib/netstandard2.0/System.DirectoryServices.AccountManagement.xml",
+        "runtimes/win/lib/net8.0/System.DirectoryServices.AccountManagement.dll",
+        "runtimes/win/lib/net8.0/System.DirectoryServices.AccountManagement.xml",
+        "runtimes/win/lib/net9.0/System.DirectoryServices.AccountManagement.dll",
+        "runtimes/win/lib/net9.0/System.DirectoryServices.AccountManagement.xml",
+        "system.directoryservices.accountmanagement.9.0.8.nupkg.sha512",
+        "system.directoryservices.accountmanagement.nuspec",
+        "useSharedDesignerContext.txt"
+      ]
+    },
+    "System.DirectoryServices.Protocols/9.0.8": {
+      "sha512": "n//z9hQr+zGvv6nDN8B0aKyz90FFsVbbzDNHtx/ieOzkxYdcfEzf2q7EpkHMBNofxvD7QrM8AQrS7+jJQyRIsw==",
+      "type": "package",
+      "path": "system.directoryservices.protocols/9.0.8",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "LICENSE.TXT",
+        "PACKAGE.md",
+        "THIRD-PARTY-NOTICES.TXT",
+        "buildTransitive/net8.0/_._",
+        "buildTransitive/netcoreapp2.0/System.DirectoryServices.Protocols.targets",
+        "lib/net462/_._",
+        "lib/net8.0/System.DirectoryServices.Protocols.dll",
+        "lib/net8.0/System.DirectoryServices.Protocols.xml",
+        "lib/net9.0/System.DirectoryServices.Protocols.dll",
+        "lib/net9.0/System.DirectoryServices.Protocols.xml",
+        "lib/netstandard2.0/System.DirectoryServices.Protocols.dll",
+        "lib/netstandard2.0/System.DirectoryServices.Protocols.xml",
+        "runtimes/linux/lib/net8.0/System.DirectoryServices.Protocols.dll",
+        "runtimes/linux/lib/net8.0/System.DirectoryServices.Protocols.xml",
+        "runtimes/linux/lib/net9.0/System.DirectoryServices.Protocols.dll",
+        "runtimes/linux/lib/net9.0/System.DirectoryServices.Protocols.xml",
+        "runtimes/osx/lib/net8.0/System.DirectoryServices.Protocols.dll",
+        "runtimes/osx/lib/net8.0/System.DirectoryServices.Protocols.xml",
+        "runtimes/osx/lib/net9.0/System.DirectoryServices.Protocols.dll",
+        "runtimes/osx/lib/net9.0/System.DirectoryServices.Protocols.xml",
+        "runtimes/win/lib/net8.0/System.DirectoryServices.Protocols.dll",
+        "runtimes/win/lib/net8.0/System.DirectoryServices.Protocols.xml",
+        "runtimes/win/lib/net9.0/System.DirectoryServices.Protocols.dll",
+        "runtimes/win/lib/net9.0/System.DirectoryServices.Protocols.xml",
+        "system.directoryservices.protocols.9.0.8.nupkg.sha512",
+        "system.directoryservices.protocols.nuspec",
+        "useSharedDesignerContext.txt"
+      ]
+    },
+    "System.Formats.Asn1/9.0.8": {
+      "sha512": "gGL0gt2nAArsF2oOMFzClll6QN2FhtooTxEQ+K26uer4lrhahnYIo/qOn5HUSfjHlM91646L5/7dYIMJ86fHkQ==",
+      "type": "package",
+      "path": "system.formats.asn1/9.0.8",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "LICENSE.TXT",
+        "PACKAGE.md",
+        "THIRD-PARTY-NOTICES.TXT",
+        "buildTransitive/net461/System.Formats.Asn1.targets",
+        "buildTransitive/net462/_._",
+        "buildTransitive/net8.0/_._",
+        "buildTransitive/netcoreapp2.0/System.Formats.Asn1.targets",
+        "lib/net462/System.Formats.Asn1.dll",
+        "lib/net462/System.Formats.Asn1.xml",
+        "lib/net8.0/System.Formats.Asn1.dll",
+        "lib/net8.0/System.Formats.Asn1.xml",
+        "lib/net9.0/System.Formats.Asn1.dll",
+        "lib/net9.0/System.Formats.Asn1.xml",
+        "lib/netstandard2.0/System.Formats.Asn1.dll",
+        "lib/netstandard2.0/System.Formats.Asn1.xml",
+        "system.formats.asn1.9.0.8.nupkg.sha512",
+        "system.formats.asn1.nuspec",
+        "useSharedDesignerContext.txt"
+      ]
+    },
+    "System.Security.Cryptography.ProtectedData/9.0.8": {
+      "sha512": "w7+KCnqmtDboV8dxTLxlUltasP7AgzNFdTLq1D/ey50ykgXW+CJBIQkzYZjgPzmjKB+/PGGUKYrH7TSbwrDtRw==",
+      "type": "package",
+      "path": "system.security.cryptography.protecteddata/9.0.8",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "LICENSE.TXT",
+        "PACKAGE.md",
+        "THIRD-PARTY-NOTICES.TXT",
+        "buildTransitive/net461/System.Security.Cryptography.ProtectedData.targets",
+        "buildTransitive/net462/_._",
+        "buildTransitive/net8.0/_._",
+        "buildTransitive/netcoreapp2.0/System.Security.Cryptography.ProtectedData.targets",
+        "lib/MonoAndroid10/_._",
+        "lib/MonoTouch10/_._",
+        "lib/net462/System.Security.Cryptography.ProtectedData.dll",
+        "lib/net462/System.Security.Cryptography.ProtectedData.xml",
+        "lib/net8.0/System.Security.Cryptography.ProtectedData.dll",
+        "lib/net8.0/System.Security.Cryptography.ProtectedData.xml",
+        "lib/net9.0/System.Security.Cryptography.ProtectedData.dll",
+        "lib/net9.0/System.Security.Cryptography.ProtectedData.xml",
+        "lib/netstandard2.0/System.Security.Cryptography.ProtectedData.dll",
+        "lib/netstandard2.0/System.Security.Cryptography.ProtectedData.xml",
+        "lib/xamarinios10/_._",
+        "lib/xamarinmac20/_._",
+        "lib/xamarintvos10/_._",
+        "lib/xamarinwatchos10/_._",
+        "system.security.cryptography.protecteddata.9.0.8.nupkg.sha512",
+        "system.security.cryptography.protecteddata.nuspec",
+        "useSharedDesignerContext.txt"
+      ]
+    }
+  },
+  "projectFileDependencyGroups": {
+    "net8.0": [
+      "System.DirectoryServices >= 9.0.8",
+      "System.DirectoryServices.AccountManagement >= 9.0.8"
+    ]
+  },
+  "packageFolders": {
+    "C:\\Users\\aa\\.nuget\\packages\\": {}
+  },
+  "project": {
+    "version": "0.1.20250830",
+    "restore": {
+      "projectUniqueName": "C:\\Repos\\T1JIT\\src\\CSharp\\justintime\\justintime.csproj",
+      "projectName": "justintime",
+      "projectPath": "C:\\Repos\\T1JIT\\src\\CSharp\\justintime\\justintime.csproj",
+      "packagesPath": "C:\\Users\\aa\\.nuget\\packages\\",
+      "outputPath": "C:\\Repos\\T1JIT\\src\\CSharp\\justintime\\obj\\",
+      "projectStyle": "PackageReference",
+      "configFilePaths": [
+        "C:\\Users\\aa\\AppData\\Roaming\\NuGet\\NuGet.Config"
+      ],
+      "originalTargetFrameworks": [
+        "net8.0"
+      ],
+      "sources": {
+        "https://api.nuget.org/v3/index.json": {}
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "projectReferences": {}
+        }
+      },
+      "warningProperties": {
+        "warnAsError": [
+          "NU1605"
+        ]
+      },
+      "restoreAuditProperties": {
+        "enableAudit": "true",
+        "auditLevel": "low",
+        "auditMode": "direct"
+      }
+    },
+    "frameworks": {
+      "net8.0": {
+        "targetAlias": "net8.0",
+        "dependencies": {
+          "System.DirectoryServices": {
+            "target": "Package",
+            "version": "[9.0.8, )"
+          },
+          "System.DirectoryServices.AccountManagement": {
+            "target": "Package",
+            "version": "[9.0.8, )"
+          }
+        },
+        "imports": [
+          "net461",
+          "net462",
+          "net47",
+          "net471",
+          "net472",
+          "net48",
+          "net481"
+        ],
+        "assetTargetFallback": true,
+        "warn": true,
+        "frameworkReferences": {
+          "Microsoft.NETCore.App": {
+            "privateAssets": "all"
+          }
+        },
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.413/PortableRuntimeIdentifierGraph.json"
+      }
+    }
+  }
+}
