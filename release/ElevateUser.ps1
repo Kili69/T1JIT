@@ -72,6 +72,8 @@ possibility of such damages
     Version 0.1.20241227
 	by Andreas Luy
         Fixing minor bugs
+    Version 0.1.20250830
+        Minor bug fixing on event logging
 
     Event ID's
     1    Error  Unhandled Error has occured
@@ -204,7 +206,7 @@ function Write-Log {
 ##############################################################################################################################
 # Main Programm starts here                                                                                                  #
 ##############################################################################################################################
-[int]$_ScriptVersion = "20241023"
+[int]$_ScriptVersion = "20250830"
 [int]$_configBuildVersion = "20241004"
 Import-Module Just-In-Time
 #region Manage log file
@@ -275,7 +277,7 @@ try{
         return
     }
     if ((Get-Adminstatus -User $oUser).count -gt $config.MaxConcurrentServer){
-        Write-ScriptMessage -EventID
+        Write-ScriptMessage -EventID 2009 -Severity Warning -Message "The Administrator request for user $oUser exceeded the maximum concurrent server limit of $($config.MaxConcurrentServer)"
     }
     $userDomain = [regex]::Match($oUser.canonicalName,"[^/]+").value
     Write-Log -Severity Debug -Message "Found user $userDomain \ $($oUser.SamAccountName)"
@@ -307,7 +309,7 @@ try{
     #search for the member server object
     #if the server object cannot be found in the AD terminat the script
     if ($null -eq $oServer){
-        Write-ScriptMessage -EventID 2100 -Severity Error -Message "RequestID $eventRecordID : Can't find $oServer in AD" 
+        Write-ScriptMessage -EventID 2100 -Severity Warning -Message "RequestID $eventRecordID : Can't find $oServer in AD" 
         return
     }
     if ($config.EnableDelegation){

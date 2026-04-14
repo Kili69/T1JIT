@@ -65,6 +65,11 @@ possibility of such damages
     Version 0.1.20241227
         by ANdreas Luy
 	Fixing minor bugs
+    Version 0.1.20260409
+        by Kili
+        - New groups will be created on the PDC. If the PDC is not available the script will try to connect to any DC with ADWS enabled. 
+            If no DC is available the script will terminate with an error 0x3EA
+
 
     Event ID
     1000 Information LocalAdmin Group created
@@ -78,6 +83,8 @@ possibility of such damages
     0x3E8 configuratin file missing
     0x3E9 invalid configuration file version
     0x3EA malformed JSON file
+    0x3EB can not connect to a DC on ADWS port
+    0x3EC unexpected error while evaluating the PDC
 #>
 [CmdletBinding ( SupportsShouldProcess)]
 Param(
@@ -85,9 +92,10 @@ Param(
     $configurationFile = $env:JustInTimeConfig
 )
 #Script Version
-$_scriptVersion = "0.1.20240202"
+$_scriptVersion = "0.1.20260409"
 $MinConfigVersionBuild = 20240123
 Write-Debug "Script Version $_scriptVersion"
+$tcpAdwsPort = 9389
 
 #Read configuration
 #if the configuration file doesnt exists or is malformed terminat the script
@@ -111,6 +119,23 @@ if ($configBuildVersion -lt $MinconfigVersionBuild) {
     exit 0x3E9
 }
 #endregion
+
+#region Evaluate PDC
+try{
+    $workingDC = (Get-ADDomainController -Discover -Service "PrimaryDC").HostName
+    if (!(Test-NetConnection -ComputerName $workingDC -Port $tcpAdwsPort -InformationLevel Quiet -ErrorAction SilentlyContinue)) {
+        $workingDC = (Get-ADDomainController -Discover -Service ADWS).HostName
+    }
+    if ([string]::IsNullOrEmpty($workingDC)) {
+        Write-Error -Message "Can not connect to a DC  on ADWS port. Please check the connectivity and the availability of the AD Webservice"
+        exit 0x3EB
+    }
+} 
+catch {
+    Write-Error -Message "a unexpected error occured while evaluating the ADWS service $Error"    
+    exit 0x3EC
+}
+#end region
 #region Group creation
 # In this region the AD groups will be created and users on existing groups will be removed if they are permanent member
 #
@@ -163,7 +188,7 @@ Foreach ($Domain in $aryDomainList) {
                 if (!([bool](Get-ADGroup -Filter { Name -eq $GroupName }))) {   
                     #create the Tier 1 computer group objects if they don't exists
                     try {
-                        New-ADGroup -GroupCategory Security -GroupScope DomainLocal -SamAccountName $GroupName -Name $GroupName -Description "Provide Administrators privilege on $($Server.Name)" -Path $config.OU 
+                        New-ADGroup -GroupCategory Security -GroupScope DomainLocal -SamAccountName $GroupName -Name $GroupName -Description "Provide Administrators privilege on $($Server.Name)" -Path $config.OU -Server $workingDC
                         Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1000 -Message "New Local admin group $GroupName created" -EntryType Information
                         Write-Output "New Local admin group $GroupName created"
                     }
@@ -182,7 +207,7 @@ Foreach ($Domain in $aryDomainList) {
                         if (!$Match.Success -eq $true) {
                             try {
                                 #here is still a bug the member is from a child domain
-                                Get-ADGroup $GroupName | Remove-ADGroupMember -Members (Get-ADObject -Identity $Member ) -Confirm:$false
+                                Get-ADGroup $GroupName -Server $workingDC | Remove-ADGroupMember -Members (Get-ADObject -Identity $Member -Server $workingDC) -Confirm:$false
                                 Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1002 -Message "Removing permanent user $Member from group $GroupName" -EntryType Warning
                                 Write-Output "Removing permanent user $Member from group $GroupName"
                             }

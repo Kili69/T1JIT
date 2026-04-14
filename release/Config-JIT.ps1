@@ -99,7 +99,8 @@ possibility of such damages
    Version 0.1.20241227
         - by Andreas Luy
 	- corrected minor bugs
- 
+    Version 0.1.20250830
+        - The Just-In-Time configuration folder will be created if it doesn't exist
 
 .PARAMETER InstallationDirectory
     Installation directory
@@ -279,7 +280,7 @@ if (!(New-Object Security.Principal.WindowsPrincipal([Security.Principal.Windows
 }
 
 #region global variables 
-[string]$_scriptVersion = "0.1.20241013" #the current script version
+[string]$_scriptVersion = "0.1.20250830" #the current script version
 #region Default values
 $configFileName = "JIT.config" #The default name of the configuration file
 $STGroupManagementTaskName = "Tier 1 Local Group Management" #Name of the Schedule tasl to enumerate servers
@@ -783,5 +784,6 @@ If (!((Get-ScheduledTask).URI -contains "$StGroupManagementTaskPath\$STGroupMana
 if ($config.EnableDelegation){
     Write-Host "do not forget to configure your OU delegation"
     Write-Host "to allow the group Server-Admins on OU=Server,OU=contoso,OU=com use the command"
-    Write-Host ".\DelegationConfig.ps1 -action AddDelegation -OU ""OU=Server,DC=contoso,DC=com"" -AdUserOrGroup ""contoso\Server-Admins"" "
+    #Write-Host ".\DelegationConfig.ps1 -action AddDelegation -OU ""OU=Server,DC=contoso,DC=com"" -AdUserOrGroup ""contoso\Server-Admins"" "
+    Write-Host " To add a delegation use the command: Add-JitDelegation -OU ""OU=Server,DC=contoso,DC=com"" -AdUserOrGroup ""contoso\Server-Admins"" "
 }
