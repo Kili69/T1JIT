@@ -29,6 +29,8 @@ Version 0.1.20241006
 Version 0.1.20241227
     by Andreas Luy
     Fixing minor bugs
+Version 0.1.20250830
+    The delegation-config.ps1 is replaced with PS-Module command Add-JitDelegation
 #>
 param(
     [Parameter(Mandatory = $false)]
@@ -55,7 +57,6 @@ try {
     #copy program files
     Copy-Item .\Config-JIT.ps1 $TargetDir -ErrorAction Stop -Force -Verbose
     Copy-Item .\Config-JITUI.ps1 $TargetDir -ErrorAction Stop -Force -Verbose
-    Copy-Item .\DelegationConfig.ps1 $TargetDir -ErrorAction Stop -Force -Verbose
     Copy-Item .\ElevateUser.ps1 $TargetDir -ErrorAction Stop -Force -Verbose
     Copy-Item .\RequestAdminAccessUI.ps1 $TargetDir -ErrorAction Stop -Force -Verbose
     Copy-Item .\Tier1LocalAdminGroup.ps1 $TargetDir -ErrorAction Stop -Force -Verbose

@@ -259,7 +259,37 @@ function Update-JIT.GMSA{
 
 }
 function Create-JIT.ScheduleTask{
-
+    $config = Read-JIT.Configuration
+    $STprincipal = New-ScheduledTaskPrincipal -UserId "$((Get-ADDomain).NetbiosName)\$((Get-ADServiceAccount $config.GroupManagedServiceAccountName).SamAccountName)" -LogonType Password
+If (!((Get-ScheduledTask).URI -contains "$StGroupManagementTaskPath\$STGroupManagementTaskName"))
+{
+    try {
+        $STaction  = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $InstallationDirectory + '\Tier1LocalAdminGroup.ps1"') 
+        $STTrigger = New-ScheduledTaskTrigger -AtStartup 
+        $STTrigger.Repetition = $(New-ScheduledTaskTrigger -Once -at 7am -RepetitionInterval (New-TimeSpan -Minutes $($config.GroupManagementTaskRerun))).Repetition                      
+        Register-ScheduledTask -Principal $STprincipal -TaskName $STGroupManagementTaskName -TaskPath $StGroupManagementTaskPath -Action $STaction -Trigger $STTrigger
+        Start-ScheduledTask -TaskPath "$StGroupManagementTaskPath\" -TaskName $STGroupManagementTaskName
+        If (!((Get-ScheduledTask).URI -contains "$StGroupManagementTaskPath\$STElevateUser"))
+        {
+            <#
+            create s schedule task who is triggered by eventlog entry in the event Log Tier 1 Management
+            #>
+            $STaction = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $InstallationDirectory + '\ElevateUser.ps1" -eventRecordID $(eventRecordID)') -WorkingDirectory $InstallationDirectory
+            $CIMTriggerClass = Get-CimClass -ClassName MSFT_TaskEventTrigger -Namespace Root/Microsoft/Windows/TaskScheduler:MSFT_TaskEventTrigger
+            $Trigger = New-CimInstance -CimClass $CIMTriggerClass -ClientOnly
+            $Trigger.Subscription = "<QueryList><Query Id=""0"" Path=""$($config.EventLog)""><Select Path=""$($config.EventLog)"">*[System[Provider[@Name='$($config.EventSource)'] and EventID=$($config.ElevateEventID)]]</Select></Query></QueryList>"
+            $Trigger.Enabled = $true
+            $Trigger.ValueQueries = [CimInstance[]]$(Get-CimClass -ClassName MSFT_TaskNamedValue -Namespace Root/Microsoft/Windows/TaskScheduler:MSFT_TaskNamedValue)
+            $Trigger.ValueQueries[0].Name = "eventRecordID"
+            $Trigger.ValueQueries[0].Value = "Event/System/EventRecordID"
+            $ElevateUserSettings = New-ScheduledTaskSettingsSet -MultipleInstances Parallel 
+            Register-ScheduledTask -Principal $STprincipal -TaskName $STElevateUser -TaskPath $StGroupManagementTaskPath -Action $STaction -Trigger $Trigger -Settings $ElevateUserSettings
+        }                        
+    }
+    catch [System.UnauthorizedAccessException] {
+        Write-Host "Schedule task cannot registered." -ForegroundColor Red
+    }
+}
 }
 function Add-JitServerOU{
     param (

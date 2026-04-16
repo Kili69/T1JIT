@@ -65,8 +65,10 @@ possibility of such damages
     Version 0.1.20241227
         by ANdreas Luy
 	Fixing minor bugs
-    Version 0.1.20250831
-        - Fixed issue with false positive on child domains
+    Version 0.1.20260409
+        by Kili
+        - New groups will be created on the PDC. If the PDC is not available the script will try to connect to any DC with ADWS enabled. 
+            If no DC is available the script will terminate with an error 0x3EA
 
 
     Event ID
@@ -81,6 +83,8 @@ possibility of such damages
     0x3E8 configuratin file missing
     0x3E9 invalid configuration file version
     0x3EA malformed JSON file
+    0x3EB can not connect to a DC on ADWS port
+    0x3EC unexpected error while evaluating the PDC
 #>
 [CmdletBinding ( SupportsShouldProcess)]
 Param(
@@ -88,9 +92,10 @@ Param(
     $configurationFile = $env:JustInTimeConfig
 )
 #Script Version
-$_scriptVersion = "0.1.20250831"
+$_scriptVersion = "0.1.20260409"
 $MinConfigVersionBuild = 20240123
 Write-Debug "Script Version $_scriptVersion"
+$tcpAdwsPort = 9389
 
 #Read configuration
 #if the configuration file doesnt exists or is malformed terminat the script
@@ -114,6 +119,23 @@ if ($configBuildVersion -lt $MinconfigVersionBuild) {
     exit 0x3E9
 }
 #endregion
+
+#region Evaluate PDC
+try{
+    $workingDC = (Get-ADDomainController -Discover -Service "PrimaryDC").HostName
+    if (!(Test-NetConnection -ComputerName $workingDC -Port $tcpAdwsPort -InformationLevel Quiet -ErrorAction SilentlyContinue)) {
+        $workingDC = (Get-ADDomainController -Discover -Service ADWS).HostName
+    }
+    if ([string]::IsNullOrEmpty($workingDC)) {
+        Write-Error -Message "Can not connect to a DC  on ADWS port. Please check the connectivity and the availability of the AD Webservice"
+        exit 0x3EB
+    }
+} 
+catch {
+    Write-Error -Message "a unexpected error occured while evaluating the ADWS service $Error"    
+    exit 0x3EC
+}
+#end region
 #region Group creation
 # In this region the AD groups will be created and users on existing groups will be removed if they are permanent member
 #
@@ -145,62 +167,63 @@ Foreach ($Domain in $aryDomainList) {
             }
         }
         #Validate the OU exists. It is not mandatory to have the same Tier 1 OU structure in all domains
-        $pattern = "[OU|CN]=[^,]+,$((Get-ADDomain -Server $Domain).DistinguishedName)"
-        if ($SearchBase -match $pattern) {
-            if (Get-ADOrganizationalUnit -Identity $SearchBase -Server $Domain){
-                #Search for computer object in the OU and based on the LDAP filter. While the LDAP filter doesn't support DistinguishedNames the query must work again s the $searchbase
-                $serverList = Get-ADComputer -LDAPFilter $config.LDAPT1Computers -Properties memberof -SearchBase $Searchbase -Server $Domain | Where-Object { $_.DistinguishedName -notlike "*$($config.LDAPT0ComputerPath)*" }
-                $GroupCount += $serverList.count #Display parameter to show the amount of computer object currently working on.
-                $DnsDomain = (Get-ADDomain -Server $Domain).DnsRoot
-                Foreach ($Server in $serverList) {
-                    $Statuscounter ++
-                    #Show progress for interactive execution
-                    Write-Progress -Activity "Group Management" -Status "groups completed $Statuscounter" -PercentComplete (($Statuscounter / $GroupCount) * 100)
-                    #If MulitDomain Support is enabled the NetBIOS domain name will be added between Admin-Prefix and the computer name
-                    if ($config.EnableMultiDomainSupport) {
-                        $GroupName = "$($config.AdminPrefix)$($DnsDomain)$($config.DomainSeparator)$($server.Name)"
+        if ($SearchBase -like "*$((Get-ADDomain -Server $Domain).DistinguishedName)") {
+            #Search for computer object in the OU and based on the LDAP filter. While the LDAP filter doesn't support DistinguishedNames the query must work again s the $searchbase
+            $serverList = Get-ADComputer -LDAPFilter $config.LDAPT1Computers -Properties memberof -SearchBase $Searchbase -Server $Domain | Where-Object { $_.DistinguishedName -notlike "*$($config.LDAPT0ComputerPath)*" }
+            $GroupCount += $serverList.count #Display parameter to show the amount of computer object currently working on.
+#            $NBDomain = (Get-ADDomain -Server $Domain).NetbiosName
+            $DnsDomain = (Get-ADDomain -Server $Domain).DnsRoot
+            Foreach ($Server in $serverList) {
+                $Statuscounter ++
+                #Show progress for interactive execution
+                Write-Progress -Activity "Group Management" -Status "groups completed $Statuscounter" -PercentComplete (($Statuscounter / $GroupCount) * 100)
+                #If MulitDomain Support is enabled the NetBIOS domain name will be added between Admin-Prefix and the computer name
+                if ($config.EnableMultiDomainSupport) {
+                    $GroupName = "$($config.AdminPrefix)$($DnsDomain)$($config.DomainSeparator)$($server.Name)"
+                }
+                else {
+                    $GroupName = "$($config.AdminPreFix)$($Server.Name)"
+                }
+                #Check the group already exists. If not create a new group otherwise check for the groupmembers
+                if (!([bool](Get-ADGroup -Filter { Name -eq $GroupName }))) {   
+                    #create the Tier 1 computer group objects if they don't exists
+                    try {
+                        New-ADGroup -GroupCategory Security -GroupScope DomainLocal -SamAccountName $GroupName -Name $GroupName -Description "Provide Administrators privilege on $($Server.Name)" -Path $config.OU -Server $workingDC
+                        Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1000 -Message "New Local admin group $GroupName created" -EntryType Information
+                        Write-Output "New Local admin group $GroupName created"
                     }
-                    else {
-                        $GroupName = "$($config.AdminPreFix)$($Server.Name)"
+                    catch {
+                        Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1001 -Message "Error creating Local Admin group $groupname : $Error[0]"  -EntryType Error
+                        Write-Output "Error creating Local Admin group $groupname : $Error[0]"
                     }
-                    #Check the group already exists. If not create a new group otherwise check for the groupmembers
-                    if (!([bool](Get-ADGroup -Filter { Name -eq $GroupName }))) {   
-                        #create the Tier 1 computer group objects if they don't exists
-                        try {
-                            New-ADGroup -GroupCategory Security -GroupScope DomainLocal -SamAccountName $GroupName -Name $GroupName -Description "Provide Administrators privilege on $($Server.Name)" -Path $config.OU 
-                            Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1000 -Message "New Local admin group $GroupName created" -EntryType Information
-                            Write-Output "New Local admin group $GroupName created"
-                        }
-                        catch {
-                            Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1001 -Message "Error creating Local Admin group $groupname : $Error[0]"  -EntryType Error
-                            Write-Output "Error creating Local Admin group $groupname : $Error[0]"
-                        }
-                    }   
-                    else {
-                        #remove any not timebombed object
-                        #If the member property doesn't contains a TTL remove them from the group 
-                        Foreach ($Member in (Get-ADGroup $GroupName -Property members -ShowMemberTimeToLive).members) {
-                            Write-Debug "Removeing permanent users from $GroupName"
-                            $Regex = [RegEx]::new("<TTL=\d*>,CN=.")
-                            $Match = $Regex.Match($Member)
-                            if (!$Match.Success -eq $true) {
-                                try {
-                                    #here is still a bug the member is from a child domain
-                                    Get-ADGroup $GroupName | Remove-ADGroupMember -Members (Get-ADObject -Identity $Member ) -Confirm:$false
-                                    Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1002 -Message "Removing permanent user $Member from group $GroupName" -EntryType Warning
-                                    Write-Output "Removing permanent user $Member from group $GroupName"
-                                }
-                                catch {
-                                    Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1003 -Message "Can not remove permanent user from $GroupName $Error" -EntryType Error
-                                }
+                }
+                else {
+                    #remove any not timebombed object
+                    #If the member property doesn't contains a TTL remove them from the group 
+                    Foreach ($Member in (Get-ADGroup $GroupName -Property members -ShowMemberTimeToLive).members) {
+                        Write-Debug "Removeing permanent users from $GroupName"
+                        $Regex = [RegEx]::new("<TTL=\d*>,CN=.")
+                        $Match = $Regex.Match($Member)
+                        if (!$Match.Success -eq $true) {
+                            try {
+                                #here is still a bug the member is from a child domain
+                                Get-ADGroup $GroupName -Server $workingDC | Remove-ADGroupMember -Members (Get-ADObject -Identity $Member -Server $workingDC) -Confirm:$false
+                                Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1002 -Message "Removing permanent user $Member from group $GroupName" -EntryType Warning
+                                Write-Output "Removing permanent user $Member from group $GroupName"
+                            }
+                            catch {
+                                Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1003 -Message "Can not remove permanent user from $GroupName $Error" -EntryType Error
                             }
                         }
                     }
                 }
             }
             Write-Progress -Activity "Group Management" -Completed
-        } 
+        } else {
+            Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId 1004 -Message "$Domain : The OU $searchbase cound not be found" -EntryType Warning
+            Write-Output "$Domain : The OU $searchbase cound not be found"
+        }
     }
 }
 #endregion
-Write-Output "working on $GroupCount groups in $((Get-Date)-$Starttime)"
+Write-Output "working on $GroupCount in $((Get-Date)-$Starttime)"

@@ -34,11 +34,13 @@ version 0.1.20241219 by Andreas Luy
     moved Get-Jitconfig to Just-in-time-configuration.psm1
 version 0.1.2025016 by Kili
     Fix a eroor if the DNS name of a server is assigned to more the one computer object
+version 0.1.20260413
+    Return a error message if the requested user has no configured UPN. The UPN is required to use the delegation.config file. If the user has no UPN the function will terminate with a warning message
 
 #>
 
 #region global variables
-[int]$_configBuildVersion = "20241003"
+[int]$_configBuildVersion = "20260413"
 $GC = Get-ADDomainController -Discover -Service "GlobalCatalog" -ForceDiscover
 $GlobalCatalogServer = "$($GC.HostName):3268"
 
@@ -424,6 +426,10 @@ function New-AdminRequest{
     }
     if ($Null -eq $oUser){
         Write-ScriptMessage "Can find the user object." -Severity Warning -UIused $UIused
+        return
+    }
+    if ($null -eq $oUser.userPrincipalName){
+        Write-ScriptMessage "Missing UPN attribute on the user object. Aborting elevation" -Severity Warning -UIused $UIused
         return
     }
     #endregion
