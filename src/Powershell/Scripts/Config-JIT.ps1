@@ -103,11 +103,13 @@ possibility of such damages
         - The Just-In-Time configuration folder will be created if it doesn't exist
 
 .PARAMETER InstallationDirectory
-    Installation directory
+    Optional base folder for the JIT configuration. The script uses this path to locate or create the JIT.config file.
 .PARAMETER AdvancedSetup
-    This switch provides additional properties during the setup
+    Enables advanced setup options, including prompts for additional configuration properties.
+.PARAMETER quiet
+    Runs setup in quiet mode for unattended scenarios. Uses existing configuration without interactive prompts where possible.
 .PARAMETER configurationFile
-    For unattended installation 
+    Full path to an existing JIT.config file. Primarily used for unattended or automated installation.
 #>
 [CmdletBinding(SupportsShouldProcess)]
 param (
@@ -126,26 +128,35 @@ function New-ADDGuidMap
 {
     <#
     .SYNOPSIS
-        Creates a guid map for the delegation part
+        Builds a schema GUID lookup table for Active Directory attributes and classes.
     .DESCRIPTION
-        Creates a guid map for the delegation part
+        Queries the Active Directory schema partition for objects that have a schemaIDGUID
+        and returns a hashtable keyed by lDAPDisplayName. The returned map is used by
+        delegation and ACL logic to resolve object GUIDs by schema name.
     .EXAMPLE
         PS C:\> New-ADDGuidMap
+        Returns a hashtable such as:
+            user -> <GUID>
+            group -> <GUID>
+            member -> <GUID>
     .OUTPUTS
         Hashtable
+        Key: [string] lDAPDisplayName
+        Value: [Guid] schemaIDGUID
     .NOTES
         Author: Constantin Hager
         Date: 06.08.2019
     #>
-    $rootdse = Get-ADRootDSE
-    $guidmap = @{ }
+    $rootdse = Get-ADRootDSE #Get the rootDSE to query the schema naming context
+    $guidmap = @{ } #Initialize an empty hashtable to store the mapping of lDAPDisplayName to schemaIDGUID
+    #Define the parameters for the Get-ADObject cmdlet to query the schema partition for objects with a schemaIDGUID
     $GuidMapParams = @{
-        SearchBase = ($rootdse.SchemaNamingContext)
-        LDAPFilter = "(schemaidguid=*)"
-        Properties = ("lDAPDisplayName", "schemaIDGUID")
+        SearchBase = ($rootdse.SchemaNamingContext) #Set the search base to the schema naming context
+        LDAPFilter = "(schemaidguid=*)" #Filter for objects that have a schemaIDGUID attribute
+        Properties = ("lDAPDisplayName", "schemaIDGUID") #Request the lDAPDisplayName and schemaIDGUID properties for each object
     }
-    Get-ADObject @GuidMapParams | ForEach-Object { $guidmap[$_.lDAPDisplayName] = [System.GUID]$_.schemaIDGUID }
-    return $guidmap
+    Get-ADObject @GuidMapParams | ForEach-Object { $guidmap[$_.lDAPDisplayName] = [System.GUID]$_.schemaIDGUID } #For each object returned by the query, add an entry to the hashtable with the lDAPDisplayName as the key and the schemaIDGUID as the value
+    return $guidmap #Return the completed hashtable mapping lDAPDisplayName to schemaIDGUID
 }
 <#
     This function add a SID to the "Logon as a Batch Job" privilege
@@ -154,13 +165,19 @@ function Add-LogonAsABatchJobPrivilege
 {
     <#
     .SYNOPSIS
-        Assign the Logon As A Batch Job privilege to a SID
+        Grants the "Log on as a batch job" user right to a security principal SID.
     .DESCRIPTION
-        Assign the Logon As A Batch Job privilege to a SID
+        Exports the local security policy, checks the SeBatchLogonRight assignment,
+        and appends the specified SID if it is not already present. The updated
+        policy is imported and applied by using secedit.
+    .PARAMETER Sid
+        Security identifier (SID) of the user that should receive the
+        SeBatchLogonRight privilege.
     .EXAMPLE
-        Add-LogonAsABatchJob -SID "S-1-5-0"
+        Add-LogonAsABatchJobPrivilege -Sid "S-1-5-21-1111111111-2222222222-3333333333-1234"
+        Grants "Log on as a batch job" to the specified account SID.
     .OUTPUTS
-        none
+        None
     .NOTES
         Author: Andreas Lucas
         Date: 2021-10-10
@@ -202,25 +219,25 @@ function Add-LogonAsABatchJobPrivilege
 }
 
 function CreateOU {
-    <# Function create the entire OU path of the relative distinuished name without the domain component. This function
-    is required to provide the same OU structure in the entrie forest
-    .SYNOPSIS 
-        Create OU path in the current $DomainDNS
+    <#
+    .SYNOPSIS
+        Creates a complete OU path in the specified domain.
     .DESCRIPTION
-        create OU and sub OU to build the entire OU path. As an example on a DN like OU=Computers,OU=Tier 0,OU=Admin in
-        contoso. The funtion create in the 1st round the OU=Admin if requried, in the 2nd round the OU=Tier 0,OU=Admin
-        and so on till the entrie path is created
-    .PARAMETER OUPath 
-        the relative OU path withou domain component
+        Creates each missing organizational unit (OU) in a relative distinguished
+        name path and builds the hierarchy from top to bottom in the target domain.
+        Existing OUs are detected and skipped.
+    .PARAMETER OUPath
+        Relative OU path without domain components (DC=...), for example
+        "OU=Servers,OU=Tier 1,OU=Admin".
     .PARAMETER DomainDNS
-        Domain DNS Name
+        DNS name of the target Active Directory domain, for example "contoso.com".
     .EXAMPLE
         CreateOU -OUPath "OU=Test,OU=Demo" -DomainDNS "contoso.com"
+        Creates missing OUs in the specified hierarchy in contoso.com.
     .OUTPUTS
-        $True
-            if the OUs are sucessfully create
-        $False
-            If at least one OU cannot created. It the user has not the required rights, the function will also return $false 
+        System.Boolean
+        Returns $true when all required OUs exist or are created successfully.
+        Returns $false if creation fails, including access denied scenarios.
     #>
 
     [CmdletBinding ( SupportsShouldProcess)]
