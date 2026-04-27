@@ -1,0 +1,153 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "KjitWeb/1.0.0": {
+        "dependencies": {
+          "Microsoft.AspNetCore.Authentication.Negotiate": "10.0.0",
+          "Microsoft.Extensions.Hosting.WindowsServices": "10.0.0",
+          "System.DirectoryServices": "9.0.0"
+        },
+        "runtime": {
+          "KjitWeb.dll": {}
+        },
+        "resources": {
+          "de/KjitWeb.resources.dll": {
+            "locale": "de"
+          },
+          "en/KjitWeb.resources.dll": {
+            "locale": "en"
+          }
+        }
+      },
+      "Microsoft.AspNetCore.Authentication.Negotiate/10.0.0": {
+        "dependencies": {
+          "System.DirectoryServices.Protocols": "10.0.0"
+        },
+        "runtime": {
+          "lib/net10.0/Microsoft.AspNetCore.Authentication.Negotiate.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.25.52411"
+          }
+        }
+      },
+      "Microsoft.Extensions.Hosting.WindowsServices/10.0.0": {
+        "dependencies": {
+          "System.ServiceProcess.ServiceController": "10.0.0"
+        },
+        "runtime": {
+          "lib/net10.0/Microsoft.Extensions.Hosting.WindowsServices.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.25.52411"
+          }
+        }
+      },
+      "System.DirectoryServices/9.0.0": {
+        "runtime": {
+          "lib/net9.0/System.DirectoryServices.dll": {
+            "assemblyVersion": "9.0.0.0",
+            "fileVersion": "9.0.24.52809"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/win/lib/net9.0/System.DirectoryServices.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "9.0.0.0",
+            "fileVersion": "9.0.24.52809"
+          }
+        }
+      },
+      "System.DirectoryServices.Protocols/10.0.0": {
+        "runtime": {
+          "lib/net10.0/System.DirectoryServices.Protocols.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.25.52411"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/linux/lib/net10.0/System.DirectoryServices.Protocols.dll": {
+            "rid": "linux",
+            "assetType": "runtime",
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.25.52411"
+          },
+          "runtimes/osx/lib/net10.0/System.DirectoryServices.Protocols.dll": {
+            "rid": "osx",
+            "assetType": "runtime",
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.25.52411"
+          },
+          "runtimes/win/lib/net10.0/System.DirectoryServices.Protocols.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.25.52411"
+          }
+        }
+      },
+      "System.ServiceProcess.ServiceController/10.0.0": {
+        "runtime": {
+          "lib/net10.0/System.ServiceProcess.ServiceController.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.25.52411"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/win/lib/net10.0/System.ServiceProcess.ServiceController.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.25.52411"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "KjitWeb/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Microsoft.AspNetCore.Authentication.Negotiate/10.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-cEC7UfQW+mgJzjnLY9TbE6TZCbwas2oWJpdctsUfii8hNH1681MmgU78TqcUIlfLAlnv+AkSTMpyD/ozmxZ+DA==",
+      "path": "microsoft.aspnetcore.authentication.negotiate/10.0.0",
+      "hashPath": "microsoft.aspnetcore.authentication.negotiate.10.0.0.nupkg.sha512"
+    },
+    "Microsoft.Extensions.Hosting.WindowsServices/10.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-4jFNSKTrGd2bHjIHY+TMqcB56gtIm91fNwfqWp2SMvVAvuweAnUMDWiai1CN4boM2s0zi4xVU9rWDLjIA58tDQ==",
+      "path": "microsoft.extensions.hosting.windowsservices/10.0.0",
+      "hashPath": "microsoft.extensions.hosting.windowsservices.10.0.0.nupkg.sha512"
+    },
+    "System.DirectoryServices/9.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-q1NKWidJNjnMImfp77Mljk3ZgZocTW5MQS6Cj+E+AvpGQVwQ+1HUlko7UOcBaV9m1QnouXyZ8ja6XhOPuOP0IA==",
+      "path": "system.directoryservices/9.0.0",
+      "hashPath": "system.directoryservices.9.0.0.nupkg.sha512"
+    },
+    "System.DirectoryServices.Protocols/10.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-XYQT4aM4S5uo0EM0j5ASsqBVgcz8cTf64rdHAzTo/5zaAnbWn6VeE2gzFxRj089kq82s7Zxd9jCMqfhhcYILew==",
+      "path": "system.directoryservices.protocols/10.0.0",
+      "hashPath": "system.directoryservices.protocols.10.0.0.nupkg.sha512"
+    },
+    "System.ServiceProcess.ServiceController/10.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-PaFmFQXX/qL1vl0CfdJUMPMYT8TOEHlcdEiOZtd4LV2rcaS/WDQM4bpECcbRM4BrD+DWkWd/jtb6iPOqAX9TWA==",
+      "path": "system.serviceprocess.servicecontroller/10.0.0",
+      "hashPath": "system.serviceprocess.servicecontroller.10.0.0.nupkg.sha512"
+    }
+  }
+}

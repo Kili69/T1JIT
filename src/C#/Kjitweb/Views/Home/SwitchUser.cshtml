@@ -1,0 +1,39 @@
+@model SwitchUserViewModel
+@inject Microsoft.Extensions.Localization.IStringLocalizer<KjitWeb.SharedResource> L
+
+@{
+    ViewData["Title"] = L["SwitchUserButton"];
+}
+
+<div class="card shadow-sm" style="max-width: 480px; margin: 2rem auto;">
+    <div class="card-body">
+        <h1 class="h4 mb-3">@L["SwitchUserButton"]</h1>
+        <p class="text-muted mb-3">@User.Identity?.Name</p>
+
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <div class="alert alert-danger">@Model.ErrorMessage</div>
+        }
+
+        <form method="post" asp-action="SwitchUser" autocomplete="off">
+            @Html.AntiForgeryToken()
+
+            <div class="mb-3">
+                <label for="Username" class="form-label">Benutzername</label>
+                <input type="text" id="Username" name="Username" class="form-control"
+                       value="@Model.Username" autocomplete="username" required autofocus />
+            </div>
+
+            <div class="mb-3">
+                <label for="Password" class="form-label">Kennwort</label>
+                <input type="password" id="Password" name="Password" class="form-control"
+                       autocomplete="current-password" required />
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Anmelden</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Abbrechen</a>
+            </div>
+        </form>
+    </div>
+</div>
