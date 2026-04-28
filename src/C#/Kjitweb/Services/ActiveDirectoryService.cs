@@ -1,3 +1,18 @@
+/// <summary>
+/// Service responsible for interacting with Active Directory to resolve user and server information based on the application's configuration
+/// and the authenticated user's context. This includes determining the user's current elevation groups, available domains, default domain, and server names based on LDAP queries. The service also supports delegation rules to restrict server visibility based on group membership.
+/// </summary>
+/// <remarks>
+/// This service relies on the configuration provided in JIT.config for critical settings such as the domain LDAP path, server search bases, and delegation rules. It uses the System.DirectoryServices APIs to perform LDAP queries against Active Directory. The service is designed to handle various edge cases gracefully, such as missing configuration, LDAP connectivity issues, and unexpected user contexts, while logging relevant information for troubleshooting.
+/// The GetCurrentElevationGroups method retrieves the groups that the authenticated user is currently a member of, which can be used to determine their current elevation level. The GetAvailableDomains method lists the domains in the current forest, while GetDefaultDomainForUser attempts to infer the user's default domain from their UPN or the service's domain configuration. The GetServerNames method queries Active Directory for computer objects based on configured search bases and optional domain filtering, supporting delegation rules to limit results based on group membership.
+/// The service also includes helper methods for parsing and normalizing LDAP paths, extracting information from search results, and handling security identifiers. It is designed to be resilient to common issues such as misconfiguration or LDAP query failures, logging warnings and errors as appropriate without throwing exceptions that would disrupt the user experience. This allows the application to continue functioning even if Active Directory information cannot be retrieved, albeit with reduced functionality.
+/// </remarks> 
+/// <example>
+/// <code>
+/// var adService = new ActiveDirectoryService(configuration, logger);
+/// var elevationGroups = adService.GetCurrentElevationGroups();
+/// </code>
+/// </example>  
 using Sds = System.DirectoryServices.Protocols;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -7,28 +22,59 @@ using System.Text.RegularExpressions;
 
 namespace KjitWeb.Services;
 
-// SearchScope constants for LDAP searches
+/// <summary>
+///     Defines the search scope for LDAP queries. These constants are used to specify the depth of the search in the directory when performing LDAP queries.   
+/// </summary>
 internal static class SearchScope
 {
+    /// <summary>
+    ///     The search is limited to the base object.
+    /// </summary>
     public const int Base = 0;
+    /// <summary>
+    ///     The search is limited to the immediate children of the base object.
+    /// </summary>
     public const int OneLevel = 1;
+    /// <summary>
+    ///     The search includes the base object and all its descendants.
+    /// </summary>  
     public const int Subtree = 2;
 }
 
-// Compatibility wrappers for LDAP results to keep existing parsing code unchanged
+/// <summary>
+///     Represents a search result entry from an LDAP query, containing the distinguished name and a collection of attributes. This class is used to encapsulate the results of LDAP queries performed by the ActiveDirectoryService, allowing for easier access to the attributes of each entry in a structured way. The Attributes property is a case-insensitive dictionary that maps attribute names to their corresponding DirectoryAttribute objects, which contain the values of the attributes. This structure allows the service methods to easily read and process the attributes of LDAP entries when determining elevation groups, available domains, and server information.
+/// </summary>
 internal class SearchResultEntry
 {
+    /// <summary>
+    ///    The distinguished name of the LDAP entry, which uniquely identifies the entry in the directory. This is typically used to reference the entry in LDAP queries and to extract information about its location in the directory hierarchy. The DistinguishedName property is expected to be a valid LDAP distinguished name string, and it is used by the service methods to perform further queries or to extract domain information when processing server entries.
+    /// </summary>
     public string DistinguishedName { get; set; } = string.Empty;
+    /// <summary>
+    ///   A collection of attributes associated with the LDAP entry, where each attribute is represented by a DirectoryAttribute object containing the attribute's name and its values. The Attributes property allows the service methods to access the various attributes of an LDAP entry, such as "cn", "name", "dNSHostName", etc., which are used to determine elevation groups, server names, and other relevant information based on the queries performed against Active Directory. The case-insensitive dictionary structure of the Attributes collection allows for flexible access to attributes without worrying about case sensitivity in attribute names.
+    /// </summary>
     public DirectoryAttributeCollection Attributes { get; set; } = new();
 }
 
+/// <summary>
+///    Represents a directory attribute with a name and a list of values. This class is used to encapsulate the attributes of LDAP entries returned from queries performed by the ActiveDirectoryService. Each DirectoryAttribute contains the name of the attribute (e.g. "cn", "name", "dNSHostName") and a list of values associated with that attribute, since LDAP attributes can have multiple values. The Name property is used to identify the attribute, while the list of values allows the service methods to access all values for that attribute when processing LDAP entries for elevation groups, server information, and other relevant data.
+/// </summary>
 internal class DirectoryAttributeCollection : Dictionary<string, DirectoryAttribute>
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public DirectoryAttributeCollection() : base(StringComparer.OrdinalIgnoreCase) { }
 }
 
+/// <summary>
+///    Represents a directory attribute with a name and a list of values. This class is used to encapsulate the attributes of LDAP entries returned from queries performed by the ActiveDirectoryService. Each DirectoryAttribute contains the name of the attribute (e.g. "cn", "name", "dNSHostName") and a list of values associated with that attribute, since LDAP attributes can have multiple values. The Name property is used to identify the attribute, while the list of values allows the service methods to access all values for that attribute when processing LDAP entries for elevation groups, server information, and other relevant data.
+/// </summary>
 internal class DirectoryAttribute : List<object>
 {
+    /// <summary>
+    ///     The name of the directory attribute, such as "cn", "name", "dNSHostName", etc. This property is used to identify the attribute and is typically set when creating instances of DirectoryAttribute to represent the attributes of LDAP entries. The Name property allows the service methods to access specific attributes by name when processing LDAP query results for elevation groups, server information, and other relevant data.
+    /// </summary>
     public string Name { get; set; } = string.Empty;
 }
 /// <summary>
@@ -50,18 +96,17 @@ internal class DirectoryAttribute : List<object>
 /// </example>
 public class ActiveDirectoryService : IActiveDirectoryService
 {
-    // LDAP error code 10 = LDAP_REFERRAL
-    private const int LdapReferralErrorCode = 10;
-    private readonly IConfiguration _configuration;
-    private readonly ILogger<ActiveDirectoryService> _logger;
-    private readonly string _domainLdapPath;
-    private readonly string _domainFqdn;
-    private readonly string? _groupOuDistinguishedName;
-    private readonly string _adminPreFix;
-    private readonly string _domainSeparator;
-    private readonly IReadOnlyList<string> _serverSearchBaseLdapPaths;
-    private readonly bool _delegationEnabled;
-    private readonly IReadOnlyList<DelegationRule> _delegationRules;
+    private const int LdapReferralErrorCode = 10; // LDAP error code 10 = LDAP_REFERRAL
+    private readonly IConfiguration _configuration; // The configuration instance is used to access application settings, particularly those related to JIT configuration and Active Directory parameters. It is injected into the service through the constructor and stored in a private readonly field for use in the service methods when performing LDAP queries and resolving configuration values.
+    private readonly ILogger<ActiveDirectoryService> _logger; // The logger instance is used for logging information, warnings, and errors within the ActiveDirectoryService. It is injected through the constructor and stored in a private readonly field, allowing the service methods to log relevant information about their operations, such as LDAP query results, configuration issues, and any exceptions that may occur during processing. This logging is crucial for troubleshooting and understanding the behavior of the service in different environments and scenarios.
+    private readonly string _domainLdapPath; // The domain LDAP path is a critical configuration value that specifies the base LDAP path for the domain against which the service will perform queries. It is resolved during the construction of the service, typically from the JIT configuration, and stored in a private readonly field for use in LDAP queries when determining elevation groups, available domains, and server information. The domain LDAP path is essential for correctly targeting the Active Directory environment and ensuring that queries are performed against the correct directory context.
+    private readonly string _domainFqdn; // The domain FQDN (Fully Qualified Domain Name) is a critical piece of information that represents the domain in a format like "example.com". It is resolved during the construction of the service, either by parsing it from the domain LDAP path or by using other configuration values. The domain FQDN is used in various parts of the service, such as when extracting domain information from UPNs or when filtering server results based on domain. Having the domain FQDN allows the service to perform accurate comparisons and formatting related to domains in Active Directory.
+    private readonly string? _groupOuDistinguishedName; // The group OU distinguished name is an optional configuration value that specifies the LDAP distinguished name of the organizational unit (OU) where elevation groups are located. If configured, it is used by the GetCurrentElevationGroups method to perform LDAP queries to find the groups that the authenticated user is a member of. This allows the service to determine the user's current elevation groups based on their group memberships in Active Directory. If this value is not configured, the service will not be able to retrieve elevation groups and will return an empty list instead.
+    private readonly string _adminPreFix; // The admin prefix is a configuration value that can be used to format the display names of elevation groups for better readability. It is typically a string that is prefixed to the group name when formatting the current elevation group names for display. This allows the application to present elevation groups in a more user-friendly way, especially if the actual group names in Active Directory are not easily readable or need additional context to be understood by end users. The admin prefix can be an empty string if no prefixing is desired.
+    private readonly string _domainSeparator; // The domain separator is a configuration value that defines the character used to separate the domain from the username in formats like "DOMAIN\username". It is used by the service when parsing or formatting user and group names that include domain information. This allows the service to correctly handle different naming conventions and ensure that comparisons and formatting of names are consistent with the expected format in the environment where it is deployed.
+    private readonly IReadOnlyList<string> _serverSearchBaseLdapPaths; // The server search base LDAP paths are critical configuration values that specify the base LDAP paths where the service will search for computer objects (servers) in Active Directory. These paths are resolved from the JIT configuration and stored in a private readonly list for use in the GetServerNames method when performing LDAP queries to retrieve server information. Having multiple search base paths allows the service to search across different parts of the directory, which can be useful in complex Active Directory environments where computer objects may be located in various OUs or containers.
+    private readonly bool _delegationEnabled; // The delegation enabled flag is a configuration value that indicates whether delegation rules should be applied when retrieving server names. If delegation is enabled, the service will resolve the effective search bases for the user based on their group memberships and the defined delegation rules, which can restrict the servers that are visible to the user based on their group memberships. This allows for more granular control over server visibility and can enhance security by ensuring that users only see servers they are allowed to access based on their roles in Active Directory.
+    private readonly IReadOnlyList<DelegationRule> _delegationRules; // The delegation rules are a collection of rules defined in the JIT configuration that specify how to determine the effective search bases for a user based on their group memberships. Each rule typically includes a group name and a corresponding search base LDAP path. If delegation is enabled, the service will evaluate these rules against the user's group memberships to determine which search bases should be used when retrieving server names. This allows for dynamic adjustment of server visibility based on the user's roles in Active Directory, enhancing security and ensuring that users only see servers they are authorized to access.
 
     
     // The constructor initializes the ActiveDirectoryService by loading configuration settings, 
@@ -75,14 +120,19 @@ public class ActiveDirectoryService : IActiveDirectoryService
     // it will log errors and throw exceptions to prevent the service from operating in a misconfigured state.
     // By performing this initialization logic in the constructor, we ensure that any issues with configuration are detected early, 
     // ideally during application startup, allowing for faster troubleshooting and preventing runtime errors when the service methods are called.
+    /// <summary>
+    ///     Initializes a new instance of the ActiveDirectoryService class by loading configuration settings, resolving critical parameters such as the domain LDAP path and server search bases, and preparing any necessary state for LDAP queries. It also loads delegation rules if delegation is enabled in the configuration. Any issues during initialization (e.g. missing or invalid configuration) will be logged and may cause exceptions to be thrown, which should be handled by the caller to ensure the application can respond appropriately to startup failures.
+    /// </summary>
+    /// <param name="configuration">The configuration instance used to access application settings.</param>
+    /// <param name="logger">The logger instance used for logging within the service.</param>
     public ActiveDirectoryService(IConfiguration configuration, ILogger<ActiveDirectoryService> logger)
     {
         _configuration = configuration; // Store the configuration instance for later use in service methods.
         _logger = logger; // Store the logger instance for logging within the service.  
-        var jitConfiguration = ResolveJitConfiguration(); //
-        _domainLdapPath = ResolveDomainLdapPath(jitConfiguration);
-        _domainFqdn = ParseDomainFqdnFromLdapPath(_domainLdapPath) ?? ResolveDomainFqdn();
-        _groupOuDistinguishedName = jitConfiguration.GroupOuDistinguishedName;
+        var jitConfiguration = ResolveJitConfiguration(); // Load the JIT configuration from the application's configuration settings. This typically involves reading a specific section of the configuration that contains settings related to JIT access and Active Directory parameters. The resolved JIT configuration will be used to extract critical values such as the domain LDAP path, group OU distinguished name, server search bases, and delegation rules.
+        _domainLdapPath = ResolveDomainLdapPath(jitConfiguration); // Resolve the domain LDAP path from the JIT configuration. This is a critical parameter that specifies the base LDAP path for the domain against which the service will perform queries. The method may involve validating the provided LDAP path and ensuring it is in a correct format. If the domain LDAP path cannot be resolved or is invalid, it may log an error and throw an exception, as this would prevent the service from functioning correctly.
+        _domainFqdn = ParseDomainFqdnFromLdapPath(_domainLdapPath) ?? ResolveDomainFqdn(); // Parse the domain FQDN from the resolved domain LDAP path. If parsing fails, attempt to resolve the domain FQDN through other means (e.g. using the current user's domain). The domain FQDN is used in various parts of the service for formatting and comparisons related to domains. If it cannot be resolved, it may log a warning and continue with an empty string, but this could lead to issues in other methods that rely on the domain FQDN.
+        _groupOuDistinguishedName = jitConfiguration.GroupOuDistinguishedName; // Load the group OU distinguished name from the JIT configuration, which specifies where elevation groups are located in Active Directory. This is used by the GetCurrentElevationGroups method to perform LDAP queries to find the groups that the authenticated user is a member of. If this value is not configured, the service will not be able to retrieve elevation groups and will return an empty list instead.
         _adminPreFix = jitConfiguration.AdminPreFix; // Load the admin prefix from the JIT configuration, which may be used to format elevation group names for display. This is optional and can be an empty string if not used.   
         _domainSeparator = jitConfiguration.DomainSeparator; // Load the domain separator from the JIT configuration, which may be used to parse or format domain-related information.
         _serverSearchBaseLdapPaths = ResolveServerSearchBasesFromJitConfiguration(jitConfiguration); // Resolve the LDAP paths for server search bases from the JIT configuration. These paths will be used to search for servers in the directory.
@@ -118,7 +168,6 @@ public class ActiveDirectoryService : IActiveDirectoryService
     ///     Console.WriteLine($"User is currently a member of elevation group: {group}");
     /// }
     /// </example>  
-
     public List<string> GetCurrentElevationGroups(ClaimsPrincipal? user)
     {
         // If the group OU is not configured, we cannot perform the query, so return an empty list. 
@@ -161,6 +210,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
                 .Select(ExtractGroupDisplayName)
                 .Where(name => !string.IsNullOrWhiteSpace(name))
                 .Select(name => FormatCurrentElevationGroupName(name!))
+                .Where(name => !string.IsNullOrWhiteSpace(name))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -611,7 +661,9 @@ public class ActiveDirectoryService : IActiveDirectoryService
         if (!string.IsNullOrWhiteSpace(cn))
             return cn;
 
-        var distinguishedName = ReadEntryAttribute(entry, "distinguishedName");
+        // Prefer the attribute value; fall back to the always-populated DistinguishedName property.
+        var distinguishedName = ReadEntryAttribute(entry, "distinguishedName")
+            ?? (string.IsNullOrWhiteSpace(entry.DistinguishedName) ? null : entry.DistinguishedName);
         return string.IsNullOrWhiteSpace(distinguishedName)
             ? null
             : ExtractCommonNameFromDn(distinguishedName);

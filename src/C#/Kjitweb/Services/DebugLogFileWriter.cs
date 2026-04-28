@@ -55,12 +55,21 @@ public sealed class DebugLogFileWriter
 
     private static string ResolveLogFilePath(IConfiguration configuration)
     {
+        // First, try environment variable (set by service installer).
+        var envVarPath = System.Environment.GetEnvironmentVariable("DebugLog__Path");
+        if (!string.IsNullOrWhiteSpace(envVarPath))
+        {
+            return envVarPath;
+        }
+
+        // Then try configuration hierarchy (appsettings.json).
         var configuredPath = configuration["DebugLog:Path"];
         if (!string.IsNullOrWhiteSpace(configuredPath))
         {
             return configuredPath;
         }
 
+        // Default: APPDATA
         var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         return Path.Combine(appDataPath, "KjitWeb", "debug.log");
     }

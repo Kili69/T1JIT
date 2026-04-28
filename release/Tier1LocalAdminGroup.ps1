@@ -69,6 +69,9 @@ possibility of such damages
         by Kili
         - New groups will be created on the PDC. If the PDC is not available the script will try to connect to any DC with ADWS enabled. 
             If no DC is available the script will terminate with an error 0x3EA
+    Version 0.1.20260428
+        by Kili
+        - fiex a bug while converting ActiveDirectoryObjectcollection to a string 
 
 
     Event ID
@@ -92,7 +95,7 @@ Param(
     $configurationFile = $env:JustInTimeConfig
 )
 #Script Version
-$_scriptVersion = "0.1.20260409"
+$_scriptVersion = "0.1.20260428"
 $MinConfigVersionBuild = 20240123
 Write-Debug "Script Version $_scriptVersion"
 $tcpAdwsPort = 9389
@@ -122,9 +125,9 @@ if ($configBuildVersion -lt $MinconfigVersionBuild) {
 
 #region Evaluate PDC
 try{
-    $workingDC = (Get-ADDomainController -Discover -Service "PrimaryDC").HostName
+    $workingDC = (Get-ADDomainController -Discover -Service "PrimaryDC").HostName[0].Tostring()
     if (!(Test-NetConnection -ComputerName $workingDC -Port $tcpAdwsPort -InformationLevel Quiet -ErrorAction SilentlyContinue)) {
-        $workingDC = (Get-ADDomainController -Discover -Service ADWS).HostName
+        $workingDC = (Get-ADDomainController -Discover -Service ADWS).HostName[0].Tostring()
     }
     if ([string]::IsNullOrEmpty($workingDC)) {
         Write-Error -Message "Can not connect to a DC  on ADWS port. Please check the connectivity and the availability of the AD Webservice"

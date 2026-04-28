@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("KjitWeb")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+954635f866802cb309fb79d471d833234df0f2bb")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+33b75011f08a2e023384cefb2560fd92d14f694a")]
 [assembly: System.Reflection.AssemblyProductAttribute("KjitWeb")]
 [assembly: System.Reflection.AssemblyTitleAttribute("KjitWeb")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

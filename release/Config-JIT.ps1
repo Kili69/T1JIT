@@ -101,6 +101,8 @@ possibility of such damages
 	- corrected minor bugs
     Version 0.1.20250830
         - The Just-In-Time configuration folder will be created if it doesn't exist
+    Version 0.1.20260428
+        - Updated the script to support the new Just-In-Time configuration module and the new delegation model. The script will now create a delegation configuration file based on the provided path and update the JIT.config with the delegation configuration path. The script also includes better validation of input parameters and supports enabling or disabling the delegation model during setup.
 
 .PARAMETER InstallationDirectory
     Optional base folder for the JIT configuration. The script uses this path to locate or create the JIT.config file.
@@ -324,26 +326,24 @@ if (!($InstallationDirectory)){
 #the quiet paramter required the configuration script or the Just-In-Time environment. 
 #   The configuration scirpt will terminate if the configuraiton file is not accessible
 if ($quiet){
-    if ($null -eq $env:JustInTimeConfig){
-        if ($configurationFile -eq ""){
-            Write-Host "The parameter silent requires the environment variable JustInTimeConfig or the -configurationFile parameter" -ForegroundColor Red
+    if (![string]::IsNullOrWhiteSpace($configurationFile)){
+        if (!(Test-Path $configurationFile)){
+            Write-Host "The configuration file $configurationFile doesn't exists" -ForegroundColor Red
             Write-Host "Just-In-Time configuration stopped"
             return
-        }else {
-            if (!(Test-Path $configurationFile)){
-                Write-Host "The configuration file $configurationFile doesn't exists" -ForegroundColor Red
-                Write-Host "Just-In-Time configuraiton stopped"
-            } else {
-                [Environment]::SetEnvironmentVariable("JustInTimeConfig", "$configurationFile", "Machine")
-                $env:JustInTimeConfig = $configurationFile            
-            }
         }
+        [Environment]::SetEnvironmentVariable("JustInTimeConfig", "$configurationFile", "Machine")
+        $env:JustInTimeConfig = $configurationFile
+    } elseif ($null -eq $env:JustInTimeConfig){
+        Write-Host "The parameter silent requires the environment variable JustInTimeConfig or the -configurationFile parameter" -ForegroundColor Red
+        Write-Host "Just-In-Time configuration stopped"
+        return
     } else {
         if ((Test-Path $env:JustInTimeConfig)){} else {
             Write-Host "Can't access configuration file $($env:JustInTimeConfig). Aborting configuration" -ForegroundColor Red
             Write-Host "Validate the Just-In-Time variable"
             return
-        } 
+        }
     }
 
 }
@@ -414,16 +414,25 @@ $config | Add-Member -MemberType NoteProperty -Name "MaxConcurrentServer"       
 
 #check for an existing configuration file and read the configuration
 try {
-    if ($null -ne $env:JustInTimeConfig){
-        if (Test-Path $env:JustInTimeConfig) {
-            $existingconfig = Get-Content $env:JustInTimeConfig | ConvertFrom-Json
+    $existingConfigPath = $null
+    if (![string]::IsNullOrWhiteSpace($configurationFile)){
+        $existingConfigPath = $configurationFile
+    } elseif (![string]::IsNullOrWhiteSpace($env:JustInTimeConfig)){
+        $existingConfigPath = $env:JustInTimeConfig
+    }
+
+    if (![string]::IsNullOrWhiteSpace($existingConfigPath)){
+        if (Test-Path $existingConfigPath) {
+            $existingconfig = Get-Content $existingConfigPath | ConvertFrom-Json
         } else {
-            Write-Host ($env:JustInTimeConfig+" does not exist ...") -ForegroundColor Yellow
+            if (![string]::IsNullOrWhiteSpace($configurationFile)){
+                Write-Host "The configuration file $configurationFile doesn't exists" -ForegroundColor Red
+                return
+            }
+            Write-Host ($existingConfigPath+" does not exist ...") -ForegroundColor Yellow
         }
     }
-    if ($configurationFile -ne ""){
-        $existingconfig = Get-Content $configurationFile | ConvertFrom-Json
-    }   
+
     if ($null -ne $existingconfig){
         if ((([regex]::Match($existingconfig.ConfigScriptVersion,"\d+$")).Value) -gt (([regex]::Match($_scriptVersion,"\d+$")).Value)){
             Write-Host "The configuration file is created with a newer configuration script. Please use the latest configuration file" -ForegroundColor Red
