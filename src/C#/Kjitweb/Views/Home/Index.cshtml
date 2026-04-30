@@ -1,0 +1,138 @@
+@model ServerSelectionViewModel
+@inject Microsoft.Extensions.Localization.IStringLocalizer<KjitWeb.SharedResource> L
+
+@{
+    ViewData["Title"] = L["PageTitle"];
+}
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <h1 class="h4 mb-3">@L["Heading"]</h1>
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <p class="text-muted mb-0">@L["SignedInAs"]: @User.Identity?.Name</p>
+            <a asp-action="SwitchUser" class="btn btn-outline-dark btn-sm">@L["SwitchUserButton"]</a>
+        </div>
+
+        @if (ViewBag.SuccessMessage != null)
+        {
+            <div class="alert alert-success">@ViewBag.SuccessMessage</div>
+        }
+
+        <form asp-action="Index" method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+            <div class="mb-3">
+                <label asp-for="SelectedDomain" class="form-label">@L["SelectDomain"]</label>
+                <select asp-for="SelectedDomain" class="form-select" id="selectedDomain">
+                    <option value="">@L["PleaseSelectOption"]</option>
+                    @foreach (var domain in Model.Domains)
+                    {
+                        <option value="@domain">@domain</option>
+                    }
+                </select>
+                <span asp-validation-for="SelectedDomain" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="SelectedServer" class="form-label">@L["SelectServer"]</label>
+                <select asp-for="SelectedServer" class="form-select">
+                    <option value="">@L["PleaseSelectOption"]</option>
+                    @foreach (var server in Model.Servers)
+                    {
+                        <option value="@server">@server</option>
+                    }
+                </select>
+                <span asp-validation-for="SelectedServer" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="ElevationDurationMinutes" class="form-label">@L["ElevationDurationMinutesLabel"]</label>
+                <input asp-for="ElevationDurationMinutes"
+                       type="number"
+                       class="form-control"
+                       min="@Model.MinElevationDurationMinutes"
+                       max="@Model.MaxElevationDurationMinutes"
+                       value="@Model.ElevationDurationMinutes" />
+                <div class="form-text">
+                    @L["MinLabel"]: @Model.MinElevationDurationMinutes @L["MinutesLabel"], @L["DefaultLabel"]: @Model.DefaultElevationDurationMinutes @L["MinutesLabel"], @L["MaxLabel"]: @Model.MaxElevationDurationMinutes @L["MinutesLabel"].
+                </div>
+                <span asp-validation-for="ElevationDurationMinutes" class="text-danger"></span>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">@L["RequestButton"]</button>
+                <button type="button" class="btn btn-outline-secondary" id="openCurrentElevations">@L["CurrentElevationsButton"]</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<dialog id="currentElevationsDialog" class="rounded border p-0" style="max-width: 640px; width: 90%;">
+    <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+        <h2 class="h5 mb-0">@L["CurrentElevationsDialogTitle"]</h2>
+        <button type="button" class="btn-close" id="closeCurrentElevationsTop" aria-label="Close"></button>
+    </div>
+    <div class="p-3">
+        @if (Model.CurrentElevationGroups.Count == 0)
+        {
+            <p class="text-muted mb-0">@L["CurrentElevationsEmpty"]</p>
+        }
+        else
+        {
+            <ul class="list-group list-group-flush">
+                @foreach (var group in Model.CurrentElevationGroups)
+                {
+                    <li class="list-group-item">@group</li>
+                }
+            </ul>
+        }
+    </div>
+    <div class="p-3 border-top text-end">
+        <button type="button" class="btn btn-secondary" id="closeCurrentElevationsBottom">@L["CloseButton"]</button>
+    </div>
+</dialog>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery-validation@1.19.5/dist/jquery.validate.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery-validation-unobtrusive@4.0.0/dist/jquery.validate.unobtrusive.min.js"></script>
+    <script>
+        (function () {
+            const domainSelect = document.getElementById('selectedDomain');
+            const currentElevationsDialog = document.getElementById('currentElevationsDialog');
+            const openCurrentElevations = document.getElementById('openCurrentElevations');
+            const closeCurrentElevationsTop = document.getElementById('closeCurrentElevationsTop');
+            const closeCurrentElevationsBottom = document.getElementById('closeCurrentElevationsBottom');
+
+            if (!domainSelect) {
+                return;
+            }
+
+            domainSelect.addEventListener('change', function () {
+                const selectedDomain = domainSelect.value || '';
+                const nextUrl = selectedDomain
+                    ? '@Url.Action("Index", "Home")' + '?selectedDomain=' + encodeURIComponent(selectedDomain)
+                    : '@Url.Action("Index", "Home")';
+                window.location.assign(nextUrl);
+            });
+
+            if (currentElevationsDialog && openCurrentElevations && typeof currentElevationsDialog.showModal === 'function') {
+                openCurrentElevations.addEventListener('click', function () {
+                    currentElevationsDialog.showModal();
+                });
+
+                const closeDialog = function () {
+                    currentElevationsDialog.close();
+                };
+
+                if (closeCurrentElevationsTop) {
+                    closeCurrentElevationsTop.addEventListener('click', closeDialog);
+                }
+
+                if (closeCurrentElevationsBottom) {
+                    closeCurrentElevationsBottom.addEventListener('click', closeDialog);
+                }
+            }
+        })();
+    </script>
+}

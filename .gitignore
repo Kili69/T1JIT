@@ -2,3 +2,7 @@
 .vscode/*
 #Local History
 .History/
+
+# Temporary runtime/log output under src
+src/C#/temp/
+src/C#/Kjitweb/temp/

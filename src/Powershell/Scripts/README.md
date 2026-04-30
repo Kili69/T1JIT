@@ -39,7 +39,7 @@ run the configuration config-jit.ps1. the configuration script asks for:
 - Elevation time for new server object: GroupManagementTaskRerun is the time how often a schedule task searches for new Tier 1 servers and removes permanent members
 - Name of the group managed service acocunt: This account maintains the groups in the organizational units
 3.	Create a group policy for local administrators
-Create a group policy with a group policy preferences who adds the <Admin-Prefix>%COMPUTERNAME% to the local administrators. Assing this group policy to the Tier 1 server OU
+Create a group policy with a group policy preferences who adds the <Admin-Prefix><Domain>%COMPUTERNAME% to the local administrators. Assing this group policy to the Tier 1 server OU
 - take care on localization OS languages (e.g.: on french systems, local administrators group is named "Administrateurs")
 - you might need to use WMI filter for different server OS', e.g.:
   
