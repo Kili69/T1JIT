@@ -348,36 +348,7 @@ if ($quiet){
 
 }
 #endregion
-#region Prepare system variable
-#creating the system variable if if doesn't exists
-<#
-try {
-    #Provide the environment variable as system variable. In the 2nd step validate the 
-    if ($Null -eq $env:JustInTimeConfig ){
-        [Environment]::SetEnvironmentVariable("JustInTimeConfig", "$InstallationDirectory\$configFileName", "Machine")
-        $env:JustInTimeConfig = "$InstallationDirectory\$configFileName"
-    }
-    if ($configurationFile -ne ""){
-        if (Test-Path $configurationFile){
-            $env:JustInTimeConfig = $configurationFile
-        } else {
-            Write-Host "Can't find configuration file $configurationFile. Installation terminated"
-            exit
-        }
-    }
-}
-catch [System.Management.Automation.MethodInvocationException] {
-    Write-Host "Local Administrator privileges required" -ForegroundColor Red
-    Write-Host "Configuration stopped"
-    exit
-}
-catch{
-    Write-Host "A unexpected error is occured while creating the environment" -ForegroundColor Red
-    Write-Host "configuration aborted"
-    exit
-}
-#endregion
-#>
+
 #Validate the Active Directory PAW feature is activated. If not the script will terminate
 if (!((Get-ADOptionalFeature -Filter "name -eq 'Privileged Access Management Feature'").EnabledScopes)){
     Write-Host "Active Directory PAM feature is not enables" -ForegroundColor Yellow
