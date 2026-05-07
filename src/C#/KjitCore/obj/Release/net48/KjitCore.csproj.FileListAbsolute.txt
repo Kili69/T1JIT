@@ -1,0 +1,12 @@
+C:\Repos\T1JIT\src\C#\KjitCore\bin\Release\net48\KjitCore.dll
+C:\Repos\T1JIT\src\C#\KjitCore\bin\Release\net48\KjitCore.pdb
+C:\Repos\T1JIT\src\C#\KjitCore\bin\Release\net48\KjitCore.xml
+C:\Repos\T1JIT\src\C#\KjitCore\obj\Release\net48\KjitCore.csproj.AssemblyReference.cache
+C:\Repos\T1JIT\src\C#\KjitCore\obj\Release\net48\KjitCore.GeneratedMSBuildEditorConfig.editorconfig
+C:\Repos\T1JIT\src\C#\KjitCore\obj\Release\net48\KjitCore.AssemblyInfoInputs.cache
+C:\Repos\T1JIT\src\C#\KjitCore\obj\Release\net48\KjitCore.AssemblyInfo.cs
+C:\Repos\T1JIT\src\C#\KjitCore\obj\Release\net48\KjitCore.csproj.CoreCompileInputs.cache
+C:\Repos\T1JIT\src\C#\KjitCore\obj\Release\net48\KjitCore.sourcelink.json
+C:\Repos\T1JIT\src\C#\KjitCore\obj\Release\net48\KjitCore.dll
+C:\Repos\T1JIT\src\C#\KjitCore\obj\Release\net48\KjitCore.xml
+C:\Repos\T1JIT\src\C#\KjitCore\obj\Release\net48\KjitCore.pdb

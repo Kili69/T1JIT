@@ -103,15 +103,8 @@ $tcpAdwsPort = 9389
 #Read configuration
 #if the configuration file doesnt exists or is malformed terminat the script
 try {
-    if (Test-Path $configurationFile) {
-        $config = Get-Content $configurationFile | ConvertFrom-Json
-    }
-    else {
-        
-        Write-Error -Message "configuration file $configurationFile missing"
-        exit 0x3E8
-    }
-        
+        $config = Get-JITconfig -configurationFile $configurationFile
+                
 } catch [System.ArgumentException]{
     Write-Error -Message "invalid JSON file $configurationFile"
     exist 0x3EA

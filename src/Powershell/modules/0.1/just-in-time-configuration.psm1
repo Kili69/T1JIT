@@ -371,42 +371,147 @@ function Get-JITconfig{
         [Parameter (Mandatory=$false, Position=0)]
         [string]$configurationFile
     )
-    #region parameter validation
-    #If the parameter configurationFile is null or empty, change the variable to the value of
-    #the system environment JustInTimeConfig 
-    if (!$configurationFile){
-        if (!$env:JustInTimeConfig){
-            $configurationFile = ".\jit.config"
-        } elseif ($env:JustInTimeConfig -eq ""){
-            $configurationFile = ".\jit.config"
-        } else {
-            $configurationFile = $env:JustInTimeConfig
+    function Resolve-KjitCoreAssemblyPath {
+        $candidates = @(
+            (Join-Path -Path $PSScriptRoot -ChildPath "KjitCore.dll"),
+            (Join-Path -Path $PSScriptRoot -ChildPath "..\KjitCore.dll"),
+            (Join-Path -Path $PSScriptRoot -ChildPath "..\..\..\C#\KjitCore\bin\Release\net48\KjitCore.dll"),
+            (Join-Path -Path $PSScriptRoot -ChildPath "..\..\..\C#\KjitCore\bin\Debug\net48\KjitCore.dll"),
+            (Join-Path -Path $PSScriptRoot -ChildPath "..\..\..\..\src\C#\KjitCore\bin\Release\net48\KjitCore.dll"),
+            (Join-Path -Path $PSScriptRoot -ChildPath "..\..\..\..\src\C#\KjitCore\bin\Debug\net48\KjitCore.dll"),
+            (Join-Path -Path $PSScriptRoot -ChildPath "..\..\..\C#\KjitCore\bin\Release\netstandard2.0\KjitCore.dll"),
+            (Join-Path -Path $PSScriptRoot -ChildPath "..\..\..\C#\KjitCore\bin\Debug\netstandard2.0\KjitCore.dll"),
+            (Join-Path -Path $PSScriptRoot -ChildPath "..\..\..\..\src\C#\KjitCore\bin\Release\netstandard2.0\KjitCore.dll"),
+            (Join-Path -Path $PSScriptRoot -ChildPath "..\..\..\..\src\C#\KjitCore\bin\Debug\netstandard2.0\KjitCore.dll")
+        )
+
+        foreach ($candidate in $candidates) {
+            if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+                return (Resolve-Path -LiteralPath $candidate -ErrorAction Stop).ProviderPath
+            }
+        }
+
+        throw "KjitCore.dll not found. Build KjitCore and ensure the DLL is available."
+    }
+
+    function Resolve-JitConfigurationSource {
+        param(
+            [string]$InputValue
+        )
+
+        if (-not [string]::IsNullOrWhiteSpace($InputValue)) {
+            $trimmed = $InputValue.Trim()
+            if (Test-Path -LiteralPath $trimmed -PathType Leaf) {
+                return (Resolve-Path -LiteralPath $trimmed -ErrorAction Stop).ProviderPath
+            }
+
+            return $trimmed
+        }
+
+        if ([string]::IsNullOrWhiteSpace($env:JustInTimeConfig)) {
+            return "Jit-Configuration"
+        }
+
+        $envSource = $env:JustInTimeConfig.Trim()
+        if ($envSource -eq "") {
+            return "Jit-Configuration"
+        }
+
+        if (Test-Path -LiteralPath $envSource -PathType Leaf) {
+            return (Resolve-Path -LiteralPath $envSource -ErrorAction Stop).ProviderPath
+        }
+
+        return $envSource
+    }
+
+    function Import-KjitCoreDependencies {
+        param(
+            [Parameter(Mandatory = $true)]
+            [string]$KjitCoreAssemblyPath
+        )
+
+        $assemblyDirectory = Split-Path -Path $KjitCoreAssemblyPath -Parent
+        $dependencyOrder = @(
+            "System.Runtime.CompilerServices.Unsafe.dll",
+            "System.Buffers.dll",
+            "System.Memory.dll",
+            "System.Text.Encodings.Web.dll",
+            "System.Threading.Tasks.Extensions.dll",
+            "Microsoft.Bcl.AsyncInterfaces.dll",
+            "System.Text.Json.dll"
+        )
+
+        foreach ($dependency in $dependencyOrder) {
+            $dependencyPath = Join-Path -Path $assemblyDirectory -ChildPath $dependency
+            if (Test-Path -LiteralPath $dependencyPath -PathType Leaf) {
+                try {
+                    Add-Type -Path $dependencyPath -ErrorAction SilentlyContinue
+                }
+                catch {
+                    # Best-effort preload; main assembly load returns the final actionable error.
+                }
+            }
         }
     }
-    #endregion
 
+    function Register-KjitAssemblyResolver {
+        param(
+            [Parameter(Mandatory = $true)]
+            [string]$KjitCoreAssemblyPath
+        )
 
-    if (!(Test-Path $configurationFile))
-    {
-        throw "Configuration $configurationFile missing"
-        Return
+        if ($script:KjitAssemblyResolveHandler) {
+            return
+        }
+
+        $assemblyDirectory = Split-Path -Path $KjitCoreAssemblyPath -Parent
+        $script:KjitAssemblyResolveHandler = [System.ResolveEventHandler]{
+            param($sender, $args)
+
+            try {
+                $requestedAssemblyName = New-Object System.Reflection.AssemblyName($args.Name)
+                $candidatePath = Join-Path -Path $assemblyDirectory -ChildPath ($requestedAssemblyName.Name + ".dll")
+                if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
+                    return [System.Reflection.Assembly]::LoadFrom($candidatePath)
+                }
+            }
+            catch {
+                return $null
+            }
+
+            return $null
+        }
+
+        [System.AppDomain]::CurrentDomain.add_AssemblyResolve($script:KjitAssemblyResolveHandler)
     }
-    try{
-        $config = Get-Content $configurationFile | ConvertFrom-Json
+
+    $assemblyPath = Resolve-KjitCoreAssemblyPath
+    $alreadyLoadedAssembly = [AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { $_.GetName().Name -eq "KjitCore" } | Select-Object -First 1
+    if ($null -ne $alreadyLoadedAssembly -and -not [string]::IsNullOrWhiteSpace($alreadyLoadedAssembly.Location)) {
+        $loadedPath = (Resolve-Path -LiteralPath $alreadyLoadedAssembly.Location -ErrorAction SilentlyContinue).ProviderPath
+        $targetPath = (Resolve-Path -LiteralPath $assemblyPath -ErrorAction SilentlyContinue).ProviderPath
+        if ($loadedPath -and $targetPath -and ($loadedPath -ne $targetPath)) {
+            throw "KjitCore is already loaded from '$loadedPath'. The module needs '$targetPath'. Start a new PowerShell session and import the module again."
+        }
     }
-    catch{
-        throw "Invalid configuration file $configurationFile"
-        return
+
+    if (-not ("KjitCore.KjitCore" -as [type])) {
+        try {
+            Register-KjitAssemblyResolver -KjitCoreAssemblyPath $assemblyPath
+            Import-KjitCoreDependencies -KjitCoreAssemblyPath $assemblyPath
+            Add-Type -Path $assemblyPath -ErrorAction Stop
+        }
+        catch {
+            throw "KjitCore.dll was found at '$assemblyPath' but could not be loaded in this PowerShell host. Use a compatible host/runtime for the current KjitCore build. Details: $($_.Exception.Message)"
+        }
     }
-    #extracting and converting the build version of the script and the configuration file
-    $configFileBuildVersion = [int]([regex]::Matches($config.ConfigScriptVersion,"[^\.]*$")).Groups[0].Value 
-    #Validate the build version of the jit.config file is equal or higher then the tested jit.config file version
-    if ($_configBuildVersion -gt $configFileBuildVersion)
-    {
-        throw "Invalid configuration file version"
-        return
+
+    if (-not ("KjitCore.KjitCore" -as [type])) {
+        throw "KjitCore type was not loaded successfully."
     }
-    return $config
+
+    $source = Resolve-JitConfigurationSource -InputValue $configurationFile
+    return [KjitCore.KjitCore]::LoadJitConfiguration($source)
 }
 
 

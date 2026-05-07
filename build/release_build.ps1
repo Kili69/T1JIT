@@ -23,6 +23,9 @@ possibility of such damages
     The resulting structure is ready for distribution.
 .NOTES
     Script Version 0.1.20260427
+    Script Version 0.1.20260507
+        changed the Get-Config command from Get-JITConfig to Get-JitConfiguration to match the new function name in the module.
+        The new function now support the configuration from the AD or JSON file
 #>
 
 Set-StrictMode -Version Latest
@@ -34,6 +37,11 @@ $kjitWebRoot = Join-Path $repoRoot "src/C#/Kjitweb"
 $csprojPath = Join-Path $kjitWebRoot "KjitWeb.csproj"
 $publishOutputDir = Join-Path $kjitWebRoot "publish-service"
 
+$kjitCoreRoot = Join-Path $repoRoot "src/C#/KjitCore"
+$kjitCoreProjPath = Join-Path $kjitCoreRoot "KjitCore.csproj"
+$kjitCoreNet48BuildDir = Join-Path $kjitCoreRoot "bin/Release/net48"
+$kjitCoreDllSource = Join-Path $kjitCoreNet48BuildDir "KjitCore.dll"
+
 $psSourceRoot = Join-Path $repoRoot "src/PowerShell"
 $psModulesSourceDir = Join-Path $psSourceRoot "modules"
 $psScriptsSourceDir = Join-Path $psSourceRoot "Scripts"
@@ -43,6 +51,7 @@ $releaseRoot = Join-Path $repoRoot "release"
 $releaseKjibwebDir = Join-Path $releaseRoot "kjibweb"
 $releasePublishDir = Join-Path $releaseKjibwebDir "publish-service"
 $releaseModulesDir = Join-Path $releaseRoot "modules"
+$releaseModulesVersionDir = Join-Path $releaseModulesDir "0.1"
 
 $installScriptSource = Join-Path $kjitWebRoot "install-kjitweb.ps1"
 $logoSource = Join-Path $kjitWebRoot "kjitlogo.png"
@@ -106,6 +115,20 @@ New-Item -Path $releaseRoot -ItemType Directory -Force | Out-Null
 New-Item -Path $releaseModulesDir -ItemType Directory -Force | Out-Null
 Copy-Item (Join-Path $psScriptsSourceDir "*.ps1") $releaseRoot -Force
 Copy-Item (Join-Path $psModulesSourceDir "*") $releaseModulesDir -Recurse -Force
+
+Write-Host "Building KjitCore (net48)..."
+dotnet build $kjitCoreProjPath -c Release -f net48
+if ($LASTEXITCODE -ne 0) {
+    throw "KjitCore build failed (dotnet build exit code: $LASTEXITCODE)."
+}
+
+if (-not (Test-Path $kjitCoreDllSource)) {
+    throw "KjitCore.dll not found after build: $kjitCoreDllSource"
+}
+
+Write-Host "Copying KjitCore.dll to release modules..."
+New-Item -Path $releaseModulesVersionDir -ItemType Directory -Force | Out-Null
+Copy-Item $kjitCoreDllSource (Join-Path $releaseModulesVersionDir "KjitCore.dll") -Force
 
 Write-Host "Building KjitWeb service..."
 dotnet publish $csprojPath -c Release -r win-x64 --self-contained false -o $publishOutputDir

@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "1nu7gfH1WO8=",
+  "success": true,
+  "projectFilePath": "C:\\Repos\\T1JIT\\src\\C#\\KjitCore.DebugHost\\KjitCore.DebugHost.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\aa\\.nuget\\packages\\system.directoryservices.protocols\\8.0.1\\system.directoryservices.protocols.8.0.1.nupkg.sha512",
+    "C:\\Users\\aa\\.nuget\\packages\\system.text.json\\8.0.5\\system.text.json.8.0.5.nupkg.sha512"
+  ],
+  "logs": []
+}

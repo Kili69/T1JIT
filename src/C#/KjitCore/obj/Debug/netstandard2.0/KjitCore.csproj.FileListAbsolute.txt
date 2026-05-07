@@ -1,0 +1,13 @@
+C:\Repos\T1JIT\src\C#\KjitCore\bin\Debug\netstandard2.0\KjitCore.deps.json
+C:\Repos\T1JIT\src\C#\KjitCore\bin\Debug\netstandard2.0\KjitCore.dll
+C:\Repos\T1JIT\src\C#\KjitCore\bin\Debug\netstandard2.0\KjitCore.pdb
+C:\Repos\T1JIT\src\C#\KjitCore\bin\Debug\netstandard2.0\KjitCore.xml
+C:\Repos\T1JIT\src\C#\KjitCore\obj\Debug\netstandard2.0\KjitCore.csproj.AssemblyReference.cache
+C:\Repos\T1JIT\src\C#\KjitCore\obj\Debug\netstandard2.0\KjitCore.GeneratedMSBuildEditorConfig.editorconfig
+C:\Repos\T1JIT\src\C#\KjitCore\obj\Debug\netstandard2.0\KjitCore.AssemblyInfoInputs.cache
+C:\Repos\T1JIT\src\C#\KjitCore\obj\Debug\netstandard2.0\KjitCore.AssemblyInfo.cs
+C:\Repos\T1JIT\src\C#\KjitCore\obj\Debug\netstandard2.0\KjitCore.csproj.CoreCompileInputs.cache
+C:\Repos\T1JIT\src\C#\KjitCore\obj\Debug\netstandard2.0\KjitCore.sourcelink.json
+C:\Repos\T1JIT\src\C#\KjitCore\obj\Debug\netstandard2.0\KjitCore.dll
+C:\Repos\T1JIT\src\C#\KjitCore\obj\Debug\netstandard2.0\KjitCore.xml
+C:\Repos\T1JIT\src\C#\KjitCore\obj\Debug\netstandard2.0\KjitCore.pdb
