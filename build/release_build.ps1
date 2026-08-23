@@ -33,6 +33,9 @@ $ErrorActionPreference = "Stop"
 
 #region variable definitions
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
+$versionScriptPath = Join-Path $PSScriptRoot "Update-Version.ps1"
+$versionPath = Join-Path $repoRoot "VERSION"
+$fileVersionsPath = Join-Path $repoRoot "file-versions.json"
 $kjitWebRoot = Join-Path $repoRoot "src/C#/Kjitweb"
 $csprojPath = Join-Path $kjitWebRoot "KjitWeb.csproj"
 $publishOutputDir = Join-Path $kjitWebRoot "publish-service"
@@ -101,6 +104,9 @@ function Copy-SanitizedJsonConfig {
 
 # Main script execution starts here
 
+& $versionScriptPath -Check
+$releaseVersion = (Get-Content $versionPath -Raw).Trim()
+
 Remove-Item $releaseRoot -Recurse -Force -ErrorAction SilentlyContinue # Clean up any existing release folder to ensure a fresh start.
 
 Write-Host "Copying PowerShell scripts and modules to release..."
@@ -113,6 +119,8 @@ if (-not (Test-Path $psModulesSourceDir)) {
 
 New-Item -Path $releaseRoot -ItemType Directory -Force | Out-Null
 New-Item -Path $releaseModulesDir -ItemType Directory -Force | Out-Null
+Copy-Item $versionPath $releaseRoot -Force
+Copy-Item $fileVersionsPath $releaseRoot -Force
 Copy-Item (Join-Path $psScriptsSourceDir "*.ps1") $releaseRoot -Force
 Copy-Item (Join-Path $psModulesSourceDir "*") $releaseModulesDir -Recurse -Force
 
@@ -131,7 +139,7 @@ New-Item -Path $releaseModulesVersionDir -ItemType Directory -Force | Out-Null
 Copy-Item $kjitCoreDllSource (Join-Path $releaseModulesVersionDir "KjitCore.dll") -Force
 
 Write-Host "Building KjitWeb service..."
-dotnet publish $csprojPath -c Release -r win-x64 --self-contained false -o $publishOutputDir
+dotnet publish $csprojPath -c Release -r win-x64 --self-contained false -o $publishOutputDir "-p:InformationalVersion=$releaseVersion"
 if ($LASTEXITCODE -ne 0) {
     throw "KjitWeb build failed (dotnet publish exit code: $LASTEXITCODE)."
 }

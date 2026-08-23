@@ -22,7 +22,7 @@ possibility of such damages
     This script install the Just-IN-Time Solution. The purpose of this script is to copy scripts into
     program files folder,the modules into the modules and start the configuration script
 Version 0.1.20240918
-    Inital Version
+    Initial Version
 Version 0.1.20241006
     Overwrites existing versions
     change the working folder to program folder
@@ -37,18 +37,19 @@ param(
     [string]$JitProgramFolder,
     [Parameter (Mandatory = $false)]
     [string]$JitConfigFile,
-    [switch]$silient
+    [switch]$silent
 )
-if ($null -ne $JitProgramFolder){
-    $JitProgramFolder = $env:ProgramFiles +"\Just-In-Time"
+if ([string]::IsNullOrWhiteSpace($JitProgramFolder)) {
+    $JitProgramFolder = Join-Path $env:ProgramFiles "Just-In-Time"
 }
 
-if (!$silient){
-    Write-Host "Welcome the the Just-In-Time administration programm installation"
-    $TargetDir = Read-Host "Installation Directory ($JitProgramFolder)"
-} 
-if ($TargetDir -eq ""){
 $TargetDir = $JitProgramFolder
+if (!$silent) {
+    Write-Host "Welcome the the Just-In-Time administration program installation"
+    $requestedTargetDir = Read-Host "Installation Directory ($JitProgramFolder)"
+    if (![string]::IsNullOrWhiteSpace($requestedTargetDir)) {
+        $TargetDir = $requestedTargetDir
+    }
 }
 try {
     if (!(Test-Path -Path $TargetDir)) {
@@ -65,17 +66,21 @@ try {
     }
     Copy-Item .\modules\* -Destination "$($env:ProgramFiles)\WindowsPowerShell\Modules\Just-In-time" -Recurse -ErrorAction Stop -Force 
     Set-Location -Path $TargetDir
-    if ($silient){
-        Start-Process -FilePath "$TargetDir\config-JIT.ps1" -ArgumentList "silient","configurationFile $JitconfigFile" 
+    if ($silent) {
+        $configArguments = @("-quiet")
+        if (![string]::IsNullOrWhiteSpace($JitConfigFile)) {
+            $configArguments += @("-configurationFile", "`"$JitConfigFile`"")
+        }
+        Start-Process -FilePath "$TargetDir\config-JIT.ps1" -ArgumentList $configArguments
     } else {
         Write-Host "Start the configuration: $TargetDir\config-JIT.ps1"
     }
 } 
 catch [System.UnauthorizedAccessException] {
-    Write-Host "A access denied error occured" -ForegroundColor Red
+    Write-Host "A access denied error occurred" -ForegroundColor Red
     Write-Host "Run the installation as administrator"
 }
 catch{
-    Write-Host "A unexpected error is occured" -ForegroundColor Red
+    Write-Host "An unexpected error occurred" -ForegroundColor Red
     $Error[0] 
 }

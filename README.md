@@ -4,38 +4,59 @@
 ## Project Description
 
 This project provides a Just-In-Time (JIT) solution for managing local administrator rights on Active Directory member servers. The goal is to reduce the risk of lateral movement in case of server compromise by ensuring that users are only temporarily granted elevated privileges.
-This project is based on Active Directory features and do not required agents oder high privileged users on the target systems. 
+This project is based on Active Directory features and do not required agents oder high privileged users on the target systems.
 
 ## Problem Statement
 
-In many IT environments, users are members of the local administrators group on multiple servers. If one server is compromised, an attacker can exploit these privileges to move laterally across the network. Many existing solution requires Agents, high privileged or using privileged accounts in the background. 
-All ot those solutions provides a lateral movement attack path, because there is one high privileged identitiy on the target system. 
+In many IT environments, users are members of the local administrators group on multiple servers. If one server is compromised, an attacker can exploit these privileges to move laterally across the network. Many existing solution requires Agents, high privileged or using privileged accounts in the background.
+All ot those solutions provides a lateral movement attack path, because there is one high privileged identitiy on the target system.
 This soultion works without a privileged identitiy on teh target computers.
 
 ## How does T1JIT works
 
-T1JiT works with Active Directory groups and group polices. A user can connect to the KJIT-Web Service and select a target server and the elevation time. With the "request access" access button a request message is written to the Just-In-Time event log. 
-The event log is consumed from a group managed service account, who reads the event log and validate the user is allowed to request the access. If the user is allowed, the user object if time-bound added to the group who is member of the local administrator on the target server. 
+T1JiT works with Active Directory groups and group polices. A user can connect to the KJIT-Web Service and select a target server and the elevation time. With the "request access" access button a request message is written to the Just-In-Time event log.
+The event log is consumed from a group managed service account, who reads the event log and validate the user is allowed to request the access. If the user is allowed, the user object if time-bound added to the group who is member of the local administrator on the target server.
 While the group where the user is added contains the target server in the name,only one group policy with a variable is required to assign the local administrator rights on the target server.
 The user is automatically removed from the local administrator group after the time is expired.
 The groups will be automatically created by the JIT-Solution, if a computer oject exists in the configured target OU.
 
-
-## Solution Structure 
+## Solution Structure
 
 - `src`: contains all source code
-- `Release`: contains all files required for the installation of the JIT-Solution. 
+- `Release`: contains all files required for the installation of the JIT-Solution.
 - `docs`: documentation
 - `build`: scripts to build a new release version
 
+## Versioning
+
+Every change uses the version format `<Major>.<Minor>.<yyyyMMdd>.<counter>`, for example
+`0.1.20260823.1`. The counter starts at `1` each day and increases for every additional
+version created on that day. All files in one change share the same version.
+
+Before committing changes, update `VERSION` and `file-versions.json`:
+
+```powershell
+./build/Update-Version.ps1
+```
+
+For a branch that already contains commits, include every change since the target branch:
+
+```powershell
+./build/Update-Version.ps1 -BaseRef origin/main
+```
+
+Use `-Major` or `-Minor` only when intentionally changing those version components. The
+release build and the GitHub workflow reject invalid versions or changed files missing from
+`file-versions.json`. Generated .NET output below `bin` and `obj` is excluded.
+
 ## Quick-start Installation
 
-Download all files from the relase directory and run the install-JIT.ps1. If the PIM feature in Active Directory is not enabled, Enterprise-Administrator privileges are required. 
+Download all files from the relase directory and run the install-JIT.ps1. If the PIM feature in Active Directory is not enabled, Enterprise-Administrator privileges are required.
 If you installing this JIT-Solution not as a Domain Administrator the following pre-requisites are required:
 - Validate Active Directory root-key from group managed service account exists
 - Folder \\<domain>\\SYSVOL\<domain>\JUST-IN-TIME
 - OU for the Just-In-Time groups e.g. OU=JIT-Administrator Groups,OU=Tier 1,OU=Admin,DC=<domain>
-- Group Managed Service Account 
+- Group Managed Service Account
     - Allow to retrieve password on the JIT server
     - Create group object in the JIT-Administrator Groups OU
 
@@ -45,7 +66,7 @@ required installation permission:
 
 ### Install Just-In-Time
 
-1. Run the install-JIT.ps1 script. This script will install the JIT-Solution on the current computer. 
+1. Run the install-JIT.ps1 script. This script will install the JIT-Solution on the current computer.
 2. Move to the %ProgramFiles%\Just-IN-time folder and the config-Jit.ps1 script to configure the JIT-Solution. This script will ask for the required configuration parameters and write them to the config file.
 3. COnfigure the group policy to assign the local administrator rights on the target servers. The group policy should contain a preference to add the <AdminPrefix>%AD-DNSdomainname%<DomainSeparator>%<ComputerName>% to the local administrator group.
 4. (optional) Install the KJIT-Web service with the install-kjitweb.ps1 script. This script will install the KJIT-Web service on the current computer.
@@ -54,7 +75,7 @@ required installation permission:
 
 The configuration of the JIT-Solution is done with the config-JIT.ps1 script. This script will ask for the required configuration parameters and write them to the config file. The configuration parameters are:
 - Admin Prefix: The prefix for the group name who is member of the local administrator group on the target server. The group name will be in the format <AdminPrefix>%AD-DNSdomainname%<DomainSeparator>%<ComputerName>%. The default value is "Admin_".
-- GMSAccount: The name of the group managed service account who will read the event log and add the users to the local administrator group on the target server. The format should be <domain>\<gmsaccountname>$.   
+- GMSAccount: The name of the group managed service account who will read the event log and add the users to the local administrator group on the target server. The format should be <domain>\<gmsaccountname>$.
 - OU for local Administrator groups: The OU where the groups who are member of the local administrator group on the target server are located. Take care onyl the GMSA and domain administrators should have permissions to create groups in this OU. The groups will be automatically created by the JIT-Solution, if a computer oject exists in the configured target OU.
 - Maximum elevation time: The maximum time for the elevation. The user will be automatically removed from the local administrator group after the time is expired. The default value is 60 minutes.
 - searchbase: The searchbase for the computer objects of the target servers. The JIT-Solution will only work for computer objects who are located in this OU or its child OUs.
@@ -78,14 +99,13 @@ add-jitdelegation -Identity "domain\SQLAdmins" -OU "OU=SQLServer,OU=Server,DC=do
 A user can now request administrator privielges via Powershell withou any privilege in active directory. To request administrator privileges for a target server the user can use the New-AdminRequest command. This command should be run with the following parameters:
 - Server: The name of the target server. The format should be <computername>
 - Duration: The duration for the elevation. The default value is 60 minutes. The maximum value is the value configured in the configuration of the JIT-Solution.
-e.g.   
-    New-AdminRequest -Server myserver.domain.local 
+e.g.
+    New-AdminRequest -Server myserver.domain.local
         This will request administrator privileges for the "myserver" server for 60 minutes. The user will be automatically removed from the local administrator group after 60 minutes.
-    New-AdminRequest -Server myserver.domain.local -Duration 30 
+    New-AdminRequest -Server myserver.domain.local -Duration 30
         This will request administrator privileges for the "myserver" server for 30 minutes. The user will be automatically removed from the local administrator group after 30 minutes.
     New-AdminRequest -Server myserver.domain.local -Duration 120 -User anotheruser
         This will request administrator privileges for the "myserver" server for 120 minutes on behalf of the user "anotheruser@
-
 
 ## Using the Web Interface
 
@@ -108,8 +128,8 @@ The KJIT-Web service can be configured with the appsettings.json file. The confi
 
 ## Setup addtional JIT servers
 
-TO add a addtional JIT server to the environment, the JIT-Solution must be installed on the additional server. The additional server must be joined to the same domain as the first server. 
-to install the program files run the install-jit.ps1 script on the additional server. then run the config-jit.ps1 script to configure the JIT-Solution on the additional server. Use the -quiet parameter and the -configurationfile parameter to use the same configuration as the first server. e.g. 
+TO add a addtional JIT server to the environment, the JIT-Solution must be installed on the additional server. The additional server must be joined to the same domain as the first server.
+to install the program files run the install-jit.ps1 script on the additional server. then run the config-jit.ps1 script to configure the JIT-Solution on the additional server. Use the -quiet parameter and the -configurationfile parameter to use the same configuration as the first server. e.g.
     config-jit.ps1 -quiet -configurationfile \\<domain>\SYSVOL\<domain>\JUST-IN-TIME\config.json
 
 ## Security Considerations
@@ -138,7 +158,7 @@ The Get-AdminStatus command can be used to retrieve the current status of the ad
 
 #### Example
 
-    Get-AdminStatus 
+    Get-AdminStatus
         This will return the current elevation status for the current user.
     Get-AdminStatus -User anotheruser
         This will return the current elevation status for the user "anotheruser".
@@ -152,10 +172,10 @@ The Get-UserElevationStatus command can be used to retrieve the current elevatio
 #### Example
 
     Get-UserElevationStatus -Server myserver
-        This will return the current elevation status for the "myserver" server. The output will be an object with the current elevation status for the "myserver" server.  
+        This will return the current elevation status for the "myserver" server. The output will be an object with the current elevation status for the "myserver" server.
 
 ### Get-JITDelegation
-The Get-JITDelegation command can be used to retrieve the current delegations for the JIT-Solution. This command will return an object with the current delegations for the JIT-Solution.   
+The Get-JITDelegation command can be used to retrieve the current delegations for the JIT-Solution. This command will return an object with the current delegations for the JIT-Solution.
 
 #### Example
 
@@ -191,7 +211,7 @@ The Remove-JITServerOU command can be used to remove the server OU for the JIT-S
     Remove-JITServerOU
         This will remove the server OU for the JIT-Solution. The JIT-Solution will no longer work for any target servers, because the server OU is required for the JIT-Solution to function.
 ### Add-jitdelegation
-The Add-JITDelegation command can be used to add a delegation for the JIT-Solution. This command will add the specified delegation for the JIT-Solution.    
+The Add-JITDelegation command can be used to add a delegation for the JIT-Solution. This command will add the specified delegation for the JIT-Solution.
 
 #### Parameters
 - Identity: The identity of the user or group who should be allowed to request administrators privileges on the target servers. The format should be <domain>\<username> or <domain>\<groupname>.
@@ -213,14 +233,10 @@ The Add-JITServerOU command can be used to add a server OU for the JIT-Solution.
     Add-JITServerOU -OU "OU=Server,DC=domain,DC=local"
         This will add the "OU=Server,DC=domain,DC=local" OU for the JIT-Solution. Any computer objects located in this OU or its child OUs will be considered as target servers for the JIT-Solution.
 
-
-
-
 ## Contributing
 
 github\Kili69
 github\Bulgwei
-
 
 ## 📄 License
 

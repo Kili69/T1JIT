@@ -1,0 +1,41 @@
+﻿{
+    "version":  "0.1.20260823.8",
+    "files":  [
+                  {
+                      "path":  ".github/workflows/version-policy.yml",
+                      "sha256":  "ac77345114736243aa13b92f274064887f1375ebaf879039965400ed93a1f62a"
+                  },
+                  {
+                      "path":  ".gitignore",
+                      "sha256":  "8beae90ff8af06255e9a60fd65631d803f17a6f0c906a67118357f67d307f503"
+                  },
+                  {
+                      "path":  ".markdownlint.json",
+                      "sha256":  "32ebcbeceeaccd910ec73fd9945df463bd7d18c5cbfca3e7379d34b221fe7b07"
+                  },
+                  {
+                      "path":  "build/release_build.ps1",
+                      "sha256":  "bd155c0b0b2608ddff50c2832fd8d921a5ec7678b7d3594a3368d56a52a4df75"
+                  },
+                  {
+                      "path":  "build/Update-Version.ps1",
+                      "sha256":  "e32a7dc27388fb11a552f5a46b3008b1b2ac2d0e119ffe89aeb446a655186c03"
+                  },
+                  {
+                      "path":  "README.md",
+                      "sha256":  "1ec70ded3d647802c770a9c1b879c4b8358b145839a356abfd4716c7bc40c45a"
+                  },
+                  {
+                      "path":  "src/Powershell/Scripts/install-JIT.ps1",
+                      "sha256":  "6b5d467bf97ca0c3c8da098a68e08e3089f626f13b4a78078f39a23415727bfe"
+                  },
+                  {
+                      "path":  "src/Powershell/TestEnvironment/New-T1JitTestEnvironment.ps1",
+                      "sha256":  "c0a6455e76819b6047c226046eb5640f3c4175120fcdb922832c316258288752"
+                  },
+                  {
+                      "path":  "src/Powershell/TestEnvironment/Test-Environment.md",
+                      "sha256":  "f6f4a1e60505f08ed99b0992f13dda764a0f474f6eba88909b15c851c0264ebd"
+                  }
+              ]
+}

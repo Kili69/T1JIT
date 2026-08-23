@@ -6,3 +6,7 @@
 # Temporary runtime/log output under src
 src/C#/temp/
 src/C#/Kjitweb/temp/
+
+# Generated .NET build output
+**/bin/
+**/obj/
