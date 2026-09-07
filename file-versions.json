@@ -1,65 +1,10 @@
 {
-  "version": "0.1.20260907.45",
+  "version": "0.1.20260907.46",
   "files": [
     {
-      "path": ".githooks/pre-push.ps1",
-      "version": "0.1.20260907.45",
-      "sha256": "6cc8b4142c6e7ca2afa1e2ac570053dfcc21ed5c13fac59541ae999b837086d4"
-    },
-    {
-      "path": ".github/workflows/version-policy.yml",
-      "version": "0.1.20260907.45",
-      "sha256": "8094029298f94d5045c3b15eb255bdcbd1bca841c255679ce4128522a682e2e6"
-    },
-    {
-      "path": "build/Update-Version.ps1",
-      "version": "0.1.20260907.45",
-      "sha256": "1abb7fb3864502f27a10e0c9154d5125c5a7f54b6de116951ab41c372444cb37"
-    },
-    {
-      "path": "release/Config-JIT.ps1",
-      "version": "0.1.20260907.45",
-      "sha256": "f26e2e74771b84bcbd990d3e66b2a9f5c81c7ad7b4b730e03468658c3e327b75"
-    },
-    {
-      "path": "release/install-JIT.ps1",
-      "version": "0.1.20260907.45",
-      "sha256": "c279956b8e68862a9685b382919b5b314ea3193e90696cd26adeddee0e4bb46f"
-    },
-    {
-      "path": "release/kjibweb/install-kjitweb.ps1",
-      "version": "0.1.20260907.45",
-      "sha256": "846f99443e83c4623a1e59c0ff13de1fd4b18aca60dfd388a97d02748c7fe859"
-    },
-    {
-      "path": "src/C#/Kjitweb/install-kjitweb.ps1",
-      "version": "0.1.20260907.45",
-      "sha256": "846f99443e83c4623a1e59c0ff13de1fd4b18aca60dfd388a97d02748c7fe859"
-    },
-    {
-      "path": "src/Powershell/Scripts/Config-JIT.ps1",
-      "version": "0.1.20260907.45",
-      "sha256": "f26e2e74771b84bcbd990d3e66b2a9f5c81c7ad7b4b730e03468658c3e327b75"
-    },
-    {
-      "path": "src/Powershell/Scripts/install-JIT.ps1",
-      "version": "0.1.20260907.45",
-      "sha256": "c279956b8e68862a9685b382919b5b314ea3193e90696cd26adeddee0e4bb46f"
-    },
-    {
-      "path": "src/Powershell/TestEnvironment/Install-T1JitTestInstallation.ps1",
-      "version": "0.1.20260907.45",
-      "sha256": "51edb00f4c63bac4b663f1041050c8bfa722b7cc5d224917a78325ee5cccc76a"
-    },
-    {
-      "path": "src/Powershell/TestEnvironment/Remove-T1JitInstallation.ps1",
-      "version": "0.1.20260907.45",
-      "sha256": "0b13ea0ba1b66fa9f9590464346c1b12f0e177bff9eb882f3083063a2eda7ba8"
-    },
-    {
-      "path": "src/Powershell/TestEnvironment/Test-Environment.md",
-      "version": "0.1.20260907.45",
-      "sha256": "0fc397da6034a971806ad583ce753e88c600cf7060ce27ae6453cfa75d506556"
+      "path": "History.md",
+      "version": "0.1.20260907.46",
+      "sha256": "46b0e480fb15332d642aa01bbf88434f614f562b911bab6f95cf4a8d97c4c01c"
     }
   ]
 }

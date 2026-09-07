@@ -6,6 +6,30 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-09-07 22:53:51 +02:00 - `dev` to `origin/dev`
+
+Commits:
+
+<!-- commit:351d80bb2fdecbaa375116bc84d5614ef8ef9305 -->
+- `351d80b` Add repeatable JIT installation testing
+
+Changed files:
+
+- `M -> .githooks/pre-push.ps1`
+- `M -> .github/workflows/version-policy.yml`
+- `M -> VERSION`
+- `M -> build/Update-Version.ps1`
+- `M -> file-versions.json`
+- `M -> release/Config-JIT.ps1`
+- `M -> release/install-JIT.ps1`
+- `M -> release/kjibweb/install-kjitweb.ps1`
+- `M -> src/C#/Kjitweb/install-kjitweb.ps1`
+- `M -> src/Powershell/Scripts/Config-JIT.ps1`
+- `M -> src/Powershell/Scripts/install-JIT.ps1`
+- `A -> src/Powershell/TestEnvironment/Install-T1JitTestInstallation.ps1`
+- `A -> src/Powershell/TestEnvironment/Remove-T1JitInstallation.ps1`
+- `M -> src/Powershell/TestEnvironment/Test-Environment.md`
+
 ## 2026-09-07 21:49:14 +02:00 - `dev` to `origin/dev`
 
 Commits:
@@ -90,6 +114,7 @@ Changes:
 - Added a full-page processing lock that prevents duplicate elevation requests.
 - Extended Active Directory queries and web models for active elevation information.
 - Updated installation documentation, release scripts, modules, and published KjitWeb artifacts.
+
 
 
 
