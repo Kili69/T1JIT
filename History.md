@@ -6,6 +6,19 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-09-07 15:46:13 +02:00 - `dev` to `origin/dev`
+
+Commits:
+
+<!-- commit:04d0b12477ed30b90e4989b93db5820badc97a4c -->
+- `04d0b12` Improve installation and architecture documentation
+
+Changed files:
+
+- `M -> README.md`
+- `M -> VERSION`
+- `M -> file-versions.json`
+
 ## 2026-09-07 09:57:46 +02:00 - `dev` to `origin/dev`
 
 Commits:
@@ -44,4 +57,5 @@ Changes:
 - Added a full-page processing lock that prevents duplicate elevation requests.
 - Extended Active Directory queries and web models for active elevation information.
 - Updated installation documentation, release scripts, modules, and published KjitWeb artifacts.
+
 
