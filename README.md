@@ -1,6 +1,43 @@
 
 # Just-In-Time Solution for Active Directory Member Servers
 
+## Table of Contents
+
+- [Project Description](#project-description)
+- [Problem Statement](#problem-statement)
+- [How does T1JIT works](#how-does-t1jit-works)
+    - [AD group enumeration and provisioning](#ad-group-enumeration-and-provisioning)
+    - [Temporary privilege assignment](#temporary-privilege-assignment)
+- [Using T1JIT with PowerShell](#using-t1jit-with-powershell)
+- [Quick-start Installation](#quick-start-installation)
+    - [Install Just-In-Time](#install-just-in-time)
+    - [Configure Just-In-Time](#configure-just-in-time)
+    - [Configure elevation privileges](#configure-elevation-privileges)
+    - [Useage of JIT](#useage-of-jit)
+- [Using the Web Interface](#using-the-web-interface)
+    - [Installation of the KJIT-Web service](#installation-of-the-kjit-web-service)
+        - [Publish KjitWeb as a Microsoft Entra Enterprise Application](#publish-kjitweb-as-a-microsoft-entra-enterprise-application)
+    - [Using the KJIT-Web service](#using-the-kjit-web-service)
+    - [Configuration of the KJIT-Web service](#configuration-of-the-kjit-web-service)
+- [Setup addtional JIT servers](#setup-addtional-jit-servers)
+- [Security Considerations](#security-considerations)
+- [Configuration and Customization](#configuration-and-customization)
+    - [Get-JITConfig](#get-jitconfig)
+    - [Get-AdminStatus](#get-adminstatus)
+    - [Get-UserElevationStatus](#get-userelevationstatus)
+    - [Get-JITDelegation](#get-jitdelegation)
+    - [Get-JITServerOU](#get-jitserverou)
+    - [Remove-JITDelegation](#remove-jitdelegation)
+    - [Remove-JITServerOU](#remove-jitserverou)
+    - [Add-jitdelegation](#add-jitdelegation)
+    - [Add-JITServerOU](#add-jitserverou)
+- [Developer information](#developer-information)
+    - [Solution Structure](#solution-structure)
+    - [Versioning](#versioning)
+- [Contributing](#contributing)
+- [License](#-license)
+- [Updates](#updates)
+
 ## Project Description
 
 This project provides a Just-In-Time (JIT) solution for managing local administrator rights on Active Directory member servers. The goal is to reduce the risk of lateral movement in case of server compromise by ensuring that users are only temporarily granted elevated privileges.
@@ -72,6 +109,25 @@ flowchart TD
     LocalAdmin --> Expire[TTL expires and AD removes the membership automatically]
 ```
 
+## Using T1JIT with PowerShell
+
+Administrators can request temporary local administrator privileges directly from PowerShell. The T1JIT PowerShell module must be installed on the computer, and the user or one of their groups must have a JIT delegation for the organizational unit that contains the target server. No permission to modify Active Directory groups is required.
+
+Import the module and request access to a server for a specific number of minutes:
+
+```powershell
+Import-Module Just-In-time
+New-AdminRequest -Server "server01.contoso.com" -Minutes 30
+```
+
+If `-Minutes` is omitted, the configured default elevation time is used. Values outside the configured limits are adjusted to the allowed minimum or maximum. To display the current user's active elevations and their remaining time, run:
+
+```powershell
+Get-AdminStatus
+```
+
+After the request has been processed, start a new sign-in session on the target server so that the temporary group membership is included in the user's access token. The Active Directory TTL automatically removes the membership when the approved time expires.
+
 ## Quick-start Installation
 
 Download all files from the relase directory and run the install-JIT.ps1. If the PIM feature in Active Directory is not enabled, Enterprise-Administrator privileges are required.
@@ -132,11 +188,30 @@ e.g.
 
 ## Using the Web Interface
 
+> [!IMPORTANT]
+> KjitWeb can request privileged access and must only be reachable from trusted, managed computers or through a trusted access proxy. Do not expose the KjitWeb service or port `5240` directly to the Internet. Restrict the Windows Firewall rule and all network security controls to the required management clients or proxy connectors, and use HTTPS for every connection that can carry credentials.
+>
+> In Microsoft Azure environments, publish KjitWeb through Microsoft Entra Application Proxy as an Enterprise Application. Require Microsoft Entra pre-authentication and apply Conditional Access policies such as MFA and a compliant or managed device. Block direct client access to the internal KjitWeb URL; otherwise, users could bypass Conditional Access and MFA.
+
 The KJIT-Web service provides a web interface for users to request administrator privileges on the target servers. The web interface is accessible via http://<server>.<domain>:5240. The user can select the target server and the duration for the elevation. The user can also see the status of their requests and the remaining time for the elevation.
 
 ### Installation of the KJIT-Web service
 
 The KJIT-Web service can be installed with the install-kjitweb.ps1 script. This script will install the KJIT-Web service on the current computer. The KJIT-Web Service must be installed on a server where the JIT-Solution is installed.
+
+#### Publish KjitWeb as a Microsoft Entra Enterprise Application
+
+For Azure-connected environments, use Microsoft Entra Application Proxy to publish the internally hosted KjitWeb service:
+
+1. Install a Microsoft Entra private network connector on a domain-joined Windows server that can reach the internal KjitWeb URL. For production, use a dedicated connector group with at least two connectors.
+2. In the Microsoft Entra admin center, open **Enterprise applications**, create a new **on-premises application**, and enter the internal KjitWeb URL, for example `http://kjitweb.contoso.com:5240`.
+3. Select **Microsoft Entra ID** as the pre-authentication method, choose the dedicated connector group, and enable **User assignment required**. Assign only the administrator groups that are allowed to use KjitWeb.
+4. For seamless sign-on, configure **Integrated Windows Authentication**. Register the internal `HTTP/kjitweb.contoso.com` SPN for the identity that runs KjitWeb and configure Kerberos constrained delegation from the connector computer accounts only to this SPN. Verify the SPN and delegation configuration before enabling access.
+5. Create a Conditional Access policy that targets the KjitWeb Enterprise Application and requires MFA. Restrict access further to compliant or Microsoft Entra hybrid joined management devices and approved locations as required by the organization.
+6. Restrict inbound access to the KjitWeb port to the private network connector servers, test sign-in and JIT requests through the external Application Proxy URL, and confirm that the internal URL is not reachable from user networks.
+
+Use HTTPS for the internal connector-to-KjitWeb connection whenever possible. Microsoft Entra Application Proxy protects the external endpoint, but it does not remove the need to secure the internal network path. Microsoft Entra Application Proxy and Conditional Access require suitable Microsoft Entra licensing.
+
 ### Using the KJIT-Web service
 
 To use the KJIT-Web service, the user can open a web browser and navigate to http://<server>.<domain>:5240. The user can then select the target server and the duration for the elevation. The user can also see the status of their requests and the remaining time for the elevation.
