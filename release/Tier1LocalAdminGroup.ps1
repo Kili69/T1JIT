@@ -72,6 +72,10 @@ possibility of such damages
     Version 0.1.20260428
         by Kili
         - fiex a bug while converting ActiveDirectoryObjectcollection to a string 
+    Version 0.1.20260907
+        - Write an Application event with the per-run debug transcript path at startup.
+        - Write computer-search failures to the Application log and debug transcript.
+        - Support a global debug directory and one-generation 1 MB log rotation.
 
 
     Event ID
@@ -81,6 +85,8 @@ possibility of such damages
     1003 Error removing permanent user
     1004 Warning The Organizational unit doesn't exists
     1100 Error configuration file missing 
+    3100 Information Script started; message contains the debug log path
+    3101 Error Computer search failed; message contains the debug log path
     
     exit code 
     0x3E8 configuratin file missing
@@ -95,10 +101,67 @@ Param(
     $configurationFile = $env:JustInTimeConfig
 )
 #Script Version
-$_scriptVersion = "0.1.20260428"
+$_scriptVersion = "0.1.20260907"
 $MinConfigVersionBuild = 20240123
 Write-Debug "Script Version $_scriptVersion"
 $tcpAdwsPort = 9389
+
+function Resolve-DebugLogDirectory {
+    param([string]$ConfigurationSource)
+
+    $defaultPath = [IO.Path]::GetTempPath()
+    if ([string]::IsNullOrWhiteSpace($ConfigurationSource) -or
+        -not (Test-Path -LiteralPath $ConfigurationSource -PathType Leaf)) {
+        return $defaultPath
+    }
+
+    try {
+        $rawConfiguration = Get-Content -LiteralPath $ConfigurationSource -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        $debugLogPathProperty = $rawConfiguration.PSObject.Properties["DebugLogPath"]
+        if ($null -eq $debugLogPathProperty -or [string]::IsNullOrWhiteSpace([string]$debugLogPathProperty.Value)) {
+            return $defaultPath
+        }
+
+        $expandedPath = [Environment]::ExpandEnvironmentVariables([string]$debugLogPathProperty.Value)
+        if ([string]::IsNullOrWhiteSpace($expandedPath) -or -not [IO.Path]::IsPathRooted($expandedPath)) {
+            return $defaultPath
+        }
+
+        return $expandedPath
+    }
+    catch {
+        return $defaultPath
+    }
+}
+
+function Exit-Tier1LocalAdminGroup {
+    param([int]$ExitCode)
+
+    Stop-Transcript -ErrorAction SilentlyContinue | Out-Null
+    exit $ExitCode
+}
+
+$applicationEventSource = "T1JIT Tier1LocalAdminGroup"
+$debugLogDirectory = Resolve-DebugLogDirectory -ConfigurationSource $configurationFile
+if (-not (Test-Path -LiteralPath $debugLogDirectory -PathType Container)) {
+    $null = New-Item -Path $debugLogDirectory -ItemType Directory -Force -ErrorAction Stop
+}
+$debugLogFile = Join-Path $debugLogDirectory "Tier1LocalAdminGroup-$env:COMPUTERNAME.log"
+$savedDebugLogFile = [IO.Path]::ChangeExtension($debugLogFile, ".sav")
+$maxDebugLogFileSize = 1MB
+Get-ChildItem -LiteralPath $debugLogDirectory -Filter "Tier1LocalAdminGroup-$env:COMPUTERNAME*" -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.FullName -ne $debugLogFile -and $_.FullName -ne $savedDebugLogFile } |
+    Remove-Item -Force -ErrorAction SilentlyContinue
+Get-ChildItem -LiteralPath $debugLogDirectory -Filter "Tier1LocalAdminGroup-*.log" -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -match '^Tier1LocalAdminGroup-\d{8}-\d{6}-\d+\.log$' } |
+    Remove-Item -Force -ErrorAction SilentlyContinue
+if ((Test-Path -LiteralPath $debugLogFile -PathType Leaf) -and
+    (Get-Item -LiteralPath $debugLogFile).Length -ge $maxDebugLogFileSize) {
+    Remove-Item -LiteralPath $savedDebugLogFile -Force -ErrorAction SilentlyContinue
+    Move-Item -LiteralPath $debugLogFile -Destination $savedDebugLogFile -Force -ErrorAction Stop
+}
+Start-Transcript -Path $debugLogFile -Append -Force -ErrorAction Stop | Out-Null
+Write-EventLog -LogName Application -Source $applicationEventSource -EventId 3100 -EntryType Information -Message "Tier1LocalAdminGroup.ps1 started. Detailed logging: $debugLogFile"
 
 #Read configuration
 #if the configuration file doesnt exists or is malformed terminat the script
@@ -107,12 +170,12 @@ try {
                 
 } catch [System.ArgumentException]{
     Write-Error -Message "invalid JSON file $configurationFile"
-    exist 0x3EA
+    Exit-Tier1LocalAdminGroup -ExitCode 0x3EA
 }
 [int]$configBuildVersion = [regex]::Match($config.ConfigScriptVersion, "[^\.]+$").Value
 if ($configBuildVersion -lt $MinconfigVersionBuild) {
     Write-Output "invalid config version $($config.ConfigScriptVersion)). Configuration build $MinConfigVersionBuild or higher required"
-    exit 0x3E9
+    Exit-Tier1LocalAdminGroup -ExitCode 0x3E9
 }
 #endregion
 
@@ -124,12 +187,12 @@ try{
     }
     if ([string]::IsNullOrEmpty($workingDC)) {
         Write-Error -Message "Can not connect to a DC  on ADWS port. Please check the connectivity and the availability of the AD Webservice"
-        exit 0x3EB
+        Exit-Tier1LocalAdminGroup -ExitCode 0x3EB
     }
 } 
 catch {
     Write-Error -Message "a unexpected error occured while evaluating the ADWS service $Error"    
-    exit 0x3EC
+    Exit-Tier1LocalAdminGroup -ExitCode 0x3EC
 }
 #end region
 #region Group creation
@@ -165,7 +228,15 @@ Foreach ($Domain in $aryDomainList) {
         #Validate the OU exists. It is not mandatory to have the same Tier 1 OU structure in all domains
         if ($SearchBase -like "*$((Get-ADDomain -Server $Domain).DistinguishedName)") {
             #Search for computer object in the OU and based on the LDAP filter. While the LDAP filter doesn't support DistinguishedNames the query must work again s the $searchbase
-            $serverList = Get-ADComputer -LDAPFilter $config.LDAPT1Computers -Properties memberof -SearchBase $Searchbase -Server $Domain | Where-Object { $_.DistinguishedName -notlike "*$($config.LDAPT0ComputerPath)*" }
+            try {
+                $serverList = @(Get-ADComputer -LDAPFilter $config.LDAPT1Computers -Properties memberof -SearchBase $Searchbase -Server $Domain -ErrorAction Stop | Where-Object { $_.DistinguishedName -notlike "*$($config.LDAPT0ComputerPath)*" })
+            }
+            catch {
+                $computerSearchError = "Computer search failed for '$SearchBase' in domain '$Domain': $($_.Exception.Message). Detailed logging: $debugLogFile"
+                Write-EventLog -LogName Application -Source $applicationEventSource -EventId 3101 -EntryType Error -Message $computerSearchError
+                Write-Error $computerSearchError
+                continue
+            }
             $GroupCount += $serverList.count #Display parameter to show the amount of computer object currently working on.
 #            $NBDomain = (Get-ADDomain -Server $Domain).NetbiosName
             $DnsDomain = (Get-ADDomain -Server $Domain).DnsRoot
@@ -223,3 +294,4 @@ Foreach ($Domain in $aryDomainList) {
 }
 #endregion
 Write-Output "working on $GroupCount in $((Get-Date)-$Starttime)"
+Stop-Transcript | Out-Null

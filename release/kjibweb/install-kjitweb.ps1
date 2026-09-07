@@ -407,6 +407,33 @@ function Get-AllowedHostsFromAllowedClient {
 .RETURNS
     The required .NET major version.
 #>
+function Test-DotnetApplicationSelfContained {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$BinaryPath
+    )
+
+    $runtimeConfigPath = [System.IO.Path]::ChangeExtension($BinaryPath, ".runtimeconfig.json")
+    if (-not (Test-Path -LiteralPath $runtimeConfigPath -PathType Leaf)) {
+        return $false
+    }
+
+    try {
+        $runtimeConfig = Get-Content -LiteralPath $runtimeConfigPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        $runtimeOptionsProperty = $runtimeConfig.PSObject.Properties["runtimeOptions"]
+        if ($null -eq $runtimeOptionsProperty) {
+            return $false
+        }
+
+        $includedFrameworksProperty = $runtimeOptionsProperty.Value.PSObject.Properties["includedFrameworks"]
+        return $null -ne $includedFrameworksProperty -and @($includedFrameworksProperty.Value).Count -gt 0
+    }
+    catch {
+        Write-Warning "Could not inspect runtime config '$runtimeConfigPath' for self-contained deployment: $($_.Exception.Message)"
+        return $false
+    }
+}
+
 function Get-RequiredDotnetMajorVersion {
     param(
         [Parameter(Mandatory = $true)]
@@ -533,6 +560,11 @@ function Test-RequiredDotnetRuntime {
         [Parameter(Mandatory = $true)]
         [string]$BinaryPath
     )
+
+    if (Test-DotnetApplicationSelfContained -BinaryPath $BinaryPath) {
+        Write-Host ".NET runtime is included in the self-contained KjitWeb package."
+        return
+    }
 
     $requiredMajor = Get-RequiredDotnetMajorVersion -BinaryPath $BinaryPath # Determine the required .NET major version based on the binary's runtime configuration. This allows the installer to automatically handle different runtime requirements for different versions of KJITweb, and ensures that we check for the correct runtime before attempting to start the service.
     $netCoreInstalled = Test-DotnetRuntimeInstalled -MajorVersion $requiredMajor -FrameworkName "Microsoft.NETCore.App" # We check for both the .NET runtime and the ASP.NET Core runtime, as KJITweb depends on both. If either one is missing, we will attempt to install them automatically.

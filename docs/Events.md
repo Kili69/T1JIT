@@ -29,5 +29,10 @@
 
 ## Application Event Log
 
-<!-- Ergänze hier weitere Events für das Application Event Log, falls vorhanden -->
+`Tier1LocalAdminGroup.ps1` writes these events using source `T1JIT Tier1LocalAdminGroup`:
+
+| Event ID | Severity    | Message |
+|----------|-------------|---------|
+| 3100     | Information | Script started; includes the path to `Tier1LocalAdminGroup-<server>.log` in the globally configured `DebugLogPath` directory |
+| 3101     | Error       | Computer search failed; includes the search base, domain, error, and debug transcript path |
 

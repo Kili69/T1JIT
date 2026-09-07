@@ -140,7 +140,7 @@ Copy-Item $kjitCoreDllSource (Join-Path $releaseModulesVersionDir "KjitCore.dll"
 
 Write-Host "Building KjitWeb service..."
 Remove-Item $publishOutputDir -Recurse -Force -ErrorAction SilentlyContinue
-dotnet publish $csprojPath -c Release -r win-x64 --self-contained false -o $publishOutputDir "-p:InformationalVersion=$releaseVersion"
+dotnet publish $csprojPath -c Release -r win-x64 --self-contained true -o $publishOutputDir "-p:InformationalVersion=$releaseVersion"
 if ($LASTEXITCODE -ne 0) {
     throw "KjitWeb build failed (dotnet publish exit code: $LASTEXITCODE)."
 }

@@ -306,6 +306,12 @@ public sealed class JitConfigurationObject
     }
 
     /// <summary>
+    /// Gets or sets the directory used for PowerShell debug log files.
+    /// Environment variables are expanded by the consuming process at runtime.
+    /// </summary>
+    public string DebugLogPath { get; set; } = "%TEMP%";
+
+    /// <summary>
     /// Gets or sets a value indicating whether delegation support is enabled.
     /// </summary>
     public bool EnableDelegation

@@ -9,7 +9,7 @@ functional and delegation tests. It is not part of the release package and must
 only be used in a disposable test domain.
 
 The script prints its version immediately after startup. The current script
-version is `0.1.20260824`.
+version is `0.1.20260907`.
 
 ## Created Structure
 
@@ -25,9 +25,11 @@ child OUs are then created:
 - `Terminal-Server`
 - `SQL`
 
-By default, each child OU contains three disabled computer accounts. Computer
-names use the role prefix and a sequence number, for example `APP1-SRV01`,
-`FILE-SRV01`, `TERM-SRV01`, and `SQL-SRV01`. Each account receives:
+By default, the script distributes exactly 100 disabled computer accounts as
+evenly as possible across the 13 role OUs. The first nine role OUs receive eight
+accounts and the remaining four receive seven. Computer names use the role
+prefix and a sequence number, for example `APP1-SRV01`, `FILE-SRV01`,
+`TERM-SRV01`, and `SQL-SRV01`. Each account receives:
 
 - `OperatingSystem`: `Windows Server 2022`
 - `DNSHostName`: `<computer-name>.<domain-dns-name>`
@@ -56,12 +58,17 @@ Create the default environment through a specific domain controller:
 .\New-T1JitTestEnvironment.ps1 -DomainController dc01.contoso.com
 ```
 
-Create five computers per OU with a different Windows Server version:
+Create the default 100 computers with a different Windows Server version:
+
+```powershell
+.\New-T1JitTestEnvironment.ps1 -WindowsServerVersion 2025
+```
+
+Alternatively, create five computers per OU:
 
 ```powershell
 .\New-T1JitTestEnvironment.ps1 `
-    -ComputerCountPerOU 5 `
-    -WindowsServerVersion 2025
+    -ComputerCountPerOU 5
 ```
 
 The script is idempotent. Existing OUs and groups are reused. Existing computer

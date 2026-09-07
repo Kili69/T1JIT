@@ -263,6 +263,11 @@ internal static class JitConfigurationReader
             configuration.EventSource = eventSource;
         }
 
+        if (TryReadString(root, out var debugLogPath, "DebugLogPath"))
+        {
+            configuration.DebugLogPath = debugLogPath;
+        }
+
         if (TryReadBoolean(root, out var enableDelegation, "EnableDelegation"))
         {
             configuration.EnableDelegation = enableDelegation;
@@ -394,6 +399,11 @@ internal static class JitConfigurationReader
         if (TryReadString(root, out var eventSource, "EventSource"))
         {
             configuration.EventSource = eventSource;
+        }
+
+        if (TryReadString(root, out var debugLogPath, "DebugLogPath"))
+        {
+            configuration.DebugLogPath = debugLogPath;
         }
 
         if (TryReadBoolean(root, out var enableDelegation, "EnableDelegation"))

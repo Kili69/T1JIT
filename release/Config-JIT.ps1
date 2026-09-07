@@ -179,6 +179,7 @@ function Get-JitDefaultConfiguration {
         LDAPT1Computers                = "(&(OperatingSystem=*Windows*)(ObjectClass=Computer)(!(ObjectClass=msDS-GroupManagedServiceAccount))(!(PrimaryGroupID=516))(!(PrimaryGroupID=521)))"
         EventSource                    = "T1Mgmt"
         EventLog                       = "Tier 1 Management"
+        DebugLogPath                   = "%TEMP%"
         GroupManagementTaskRerun       = 5
         GroupManagedServiceAccountName = "T1GroupMgmt"
         Domain                         = $DomainDns
@@ -293,13 +294,16 @@ function Set-JitDelegationFile {
         return
     }
 
-    if (-not $PSCmdlet.ShouldProcess($Path, "Create delegation configuration file")) {
-        return
-    }
-
     $parentPath = Split-Path -Path $Path -Parent
     if (-not (Test-Path -LiteralPath $parentPath -PathType Container)) {
-        throw "The delegation configuration directory '$parentPath' does not exist."
+        if (-not $PSCmdlet.ShouldProcess($parentPath, "Create delegation configuration directory")) {
+            return
+        }
+        $null = New-Item -Path $parentPath -ItemType Directory -Force -ErrorAction Stop
+    }
+
+    if (-not $PSCmdlet.ShouldProcess($Path, "Create delegation configuration file")) {
+        return
     }
 
     $null = New-Item -Path $Path -ItemType File -ErrorAction Stop
@@ -352,6 +356,20 @@ function Read-JitIdentityConfiguration {
             Write-Warning "Unable to create delegation file '$delegationFile': $($_.Exception.Message)"
         }
     }
+
+    do {
+        $debugLogPath = Read-Host -Prompt "Debug log directory [$($Configuration.DebugLogPath)]"
+        if ([string]::IsNullOrWhiteSpace($debugLogPath)) {
+            $debugLogPath = $Configuration.DebugLogPath
+        }
+
+        $expandedDebugLogPath = [Environment]::ExpandEnvironmentVariables($debugLogPath)
+        if (-not [IO.Path]::IsPathRooted($expandedDebugLogPath)) {
+            Write-Warning "The debug log directory must be an absolute local or UNC path. Environment variables such as %TEMP% are supported."
+            $debugLogPath = $null
+        }
+    } while ([string]::IsNullOrWhiteSpace($debugLogPath))
+    $Configuration.DebugLogPath = $debugLogPath
 
     return $Configuration
 }
@@ -595,13 +613,16 @@ function Set-JitEventLog {
     )
 
     $eventLogExists = Get-EventLog -List | Where-Object { $_.LogDisplayName -eq $Configuration.EventLog }
-    if ($null -ne $eventLogExists) {
-        return
-    }
-
-    if ($PSCmdlet.ShouldProcess($Configuration.EventLog, "Create event log with source '$($Configuration.EventSource)'")) {
+    if ($null -eq $eventLogExists -and $PSCmdlet.ShouldProcess($Configuration.EventLog, "Create event log with source '$($Configuration.EventSource)'")) {
         New-EventLog -LogName $Configuration.EventLog -Source $Configuration.EventSource
         Write-EventLog -LogName $Configuration.EventLog -Source $Configuration.EventSource -EventId 1 -Message "JIT configuration created"
+    }
+
+    $groupManagementEventSource = "T1JIT Tier1LocalAdminGroup"
+    $groupManagementEventSourcePath = "HKLM:\SYSTEM\CurrentControlSet\Services\EventLog\Application\$groupManagementEventSource"
+    if (-not (Test-Path -LiteralPath $groupManagementEventSourcePath) -and
+        $PSCmdlet.ShouldProcess("Application", "Register event source '$groupManagementEventSource'")) {
+        New-EventLog -LogName Application -Source $groupManagementEventSource
     }
 }
 

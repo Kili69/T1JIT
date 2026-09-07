@@ -28,20 +28,31 @@ possibility of such damages
     Optional domain controller used for all Active Directory operations.
 .PARAMETER BaseOUName
     Name of the base OU created below the domain root.
+.PARAMETER TotalComputerCount
+    Total number of computer accounts distributed as evenly as possible across
+    all role OUs. The default is 100.
 .PARAMETER ComputerCountPerOU
-    Number of computer accounts created in each role OU.
+    Optional compatibility mode that creates the specified number of computer
+    accounts in every role OU instead of using TotalComputerCount.
 .PARAMETER WindowsServerVersion
     Windows Server year used for the OperatingSystem attribute.
 .EXAMPLE
     .\New-T1JitTestEnvironment.ps1 -WhatIf
 .EXAMPLE
     .\New-T1JitTestEnvironment.ps1 -DomainController dc01.contoso.com
+
+    Creates 100 computer accounts distributed across the default OU structure.
+.EXAMPLE
+    .\New-T1JitTestEnvironment.ps1 -ComputerCountPerOU 5 -WindowsServerVersion 2025
+
+    Creates five computer accounts in each role OU and sets the operating system
+    to Windows Server 2025.
 .NOTES
-    Script version: 0.1.20260824
+    Script version: 0.1.20260907
     Requires the ActiveDirectory PowerShell module and permissions to create or
     update organizational units, groups, and computer accounts.
 #>
-[CmdletBinding(SupportsShouldProcess, ConfirmImpact = "Medium")]
+[CmdletBinding(DefaultParameterSetName = "Total", SupportsShouldProcess, ConfirmImpact = "Medium")]
 param(
     [Parameter()]
     [string]$DomainController,
@@ -50,18 +61,22 @@ param(
     [ValidateNotNullOrEmpty()]
     [string]$BaseOUName = "Server",
 
-    [Parameter()]
+    [Parameter(ParameterSetName = "Total")]
+    [ValidateRange(1, 10000)]
+    [int]$TotalComputerCount = 100,
+
+    [Parameter(Mandatory = $true, ParameterSetName = "PerOU")]
     [ValidateRange(1, 99)]
-    [int]$ComputerCountPerOU = 3,
+    [int]$ComputerCountPerOU,
 
     [Parameter()]
-    [ValidatePattern('^20\d{2}$')]
+    [ValidatePattern('^202\d$')]
     [string]$WindowsServerVersion = "2022"
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
-$scriptVersion = "0.1.20260824"
+$scriptVersion = "0.1.20260907"
 
 Write-Host "New-T1JitTestEnvironment script version $scriptVersion"
 
@@ -181,12 +196,31 @@ Initialize-OrganizationalUnit -Name $BaseOUName -Path $domainDistinguishedName |
 Initialize-OrganizationalUnit -Name "Groups" -Path $baseOUDistinguishedName | Out-Null
 Initialize-SecurityGroup -Name "Server-Administrator" -Path $groupsOUDistinguishedName | Out-Null
 
-foreach ($ouDefinition in $ouDefinitions) {
+$baseComputerCount = if ($PSCmdlet.ParameterSetName -eq "Total") {
+    [math]::Floor($TotalComputerCount / $ouDefinitions.Count)
+}
+else {
+    $ComputerCountPerOU
+}
+$additionalComputerOuCount = if ($PSCmdlet.ParameterSetName -eq "Total") {
+    $TotalComputerCount % $ouDefinitions.Count
+}
+else {
+    0
+}
+
+for ($ouIndex = 0; $ouIndex -lt $ouDefinitions.Count; $ouIndex++) {
+    $ouDefinition = $ouDefinitions[$ouIndex]
     $ouDistinguishedName = "OU=$($ouDefinition.Name),$baseOUDistinguishedName"
     Initialize-OrganizationalUnit -Name $ouDefinition.Name -Path $baseOUDistinguishedName | Out-Null
     Initialize-SecurityGroup -Name "Server-Administrator-$($ouDefinition.Name)" -Path $groupsOUDistinguishedName | Out-Null
 
-    foreach ($computerNumber in 1..$ComputerCountPerOU) {
+    $computerCountForOu = $baseComputerCount
+    if ($ouIndex -lt $additionalComputerOuCount) {
+        $computerCountForOu++
+    }
+
+    for ($computerNumber = 1; $computerNumber -le $computerCountForOu; $computerNumber++) {
         $computerName = "{0}-SRV{1:D2}" -f $ouDefinition.ComputerPrefix, $computerNumber
         $dnsHostName = "$computerName.$domainDnsName".ToLowerInvariant()
         $computer = Get-ADComputer -Filter "SamAccountName -eq '$computerName`$'" @adParameters -Properties DNSHostName, OperatingSystem -ErrorAction SilentlyContinue
@@ -202,4 +236,10 @@ foreach ($ouDefinition in $ouDefinitions) {
     }
 }
 
-Write-Host "T1JIT test environment created below $baseOUDistinguishedName." -ForegroundColor Green
+$configuredComputerCount = if ($PSCmdlet.ParameterSetName -eq "Total") {
+    $TotalComputerCount
+}
+else {
+    $ComputerCountPerOU * $ouDefinitions.Count
+}
+Write-Host "T1JIT test environment with $configuredComputerCount computer accounts created below $baseOUDistinguishedName." -ForegroundColor Green

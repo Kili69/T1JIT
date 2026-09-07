@@ -20,7 +20,11 @@ possibility of such damages
     Installation of just in time solution
 .DESCRIPTION
     This script install the Just-IN-Time Solution. The purpose of this script is to copy scripts into
-    program files folder,the modules into the modules and start the configuration script
+    program files folder,the modules into the modules and run the configuration script. The resulting
+    JIT configuration path is passed to the optional KjitWeb installation.
+.PARAMETER JitConfigFile
+    Existing JIT.config path used for unattended configuration. When omitted during an interactive
+    installation, the path saved by Config-JIT.ps1 is used automatically.
 .PARAMETER InstallWeb
     Installs KjitWeb after the PowerShell configuration completes. In silent mode,
     provide the web parameters to avoid interactive prompts.
@@ -65,6 +69,47 @@ Start-Transcript -Path $logPath -Force -ErrorAction Stop | Out-Null
 $transcriptStarted = $true
 Write-Host "Installation log: $logPath" -ForegroundColor Cyan
 
+function Test-ActiveDirectoryRsat {
+    $activeDirectoryModule = Get-Module -ListAvailable -Name ActiveDirectory |
+        Select-Object -First 1
+    if ($null -eq $activeDirectoryModule) {
+        return $false
+    }
+
+    try {
+        Import-Module ActiveDirectory -ErrorAction Stop -Verbose:$false
+    }
+    catch {
+        Write-Warning "The Active Directory module was found but could not be loaded: $($_.Exception.Message)"
+        return $false
+    }
+
+    $requiredCommands = @(
+        "Get-ADComputer",
+        "Get-ADDomain",
+        "Get-ADForest",
+        "Get-ADGroup",
+        "Get-ADOptionalFeature",
+        "Get-ADOrganizationalUnit",
+        "Get-ADServiceAccount",
+        "Install-ADServiceAccount",
+        "New-ADOrganizationalUnit",
+        "New-ADServiceAccount",
+        "Set-ADServiceAccount",
+        "Test-ADServiceAccount"
+    )
+    $missingCommands = @($requiredCommands | Where-Object {
+        $null -eq (Get-Command -Name $_ -Module ActiveDirectory -ErrorAction SilentlyContinue)
+    })
+
+    if ($missingCommands.Count -gt 0) {
+        Write-Warning "The Active Directory module is incomplete. Missing commands: $($missingCommands -join ', ')"
+        return $false
+    }
+
+    return $true
+}
+
 if ([string]::IsNullOrWhiteSpace($JitProgramFolder)) {
     $JitProgramFolder = Join-Path $env:ProgramFiles "Just-In-Time"
 }
@@ -78,6 +123,14 @@ if (!$silent) {
     }
 }
 try {
+    if (-not (Test-ActiveDirectoryRsat)) {
+        Write-Host "The Active Directory RSAT PowerShell module is required but is not installed or usable." -ForegroundColor Red
+        Write-Host "Windows Server: Install-WindowsFeature RSAT-AD-PowerShell" -ForegroundColor Cyan
+        Write-Host "Windows 10/11: Add-WindowsCapability -Online -Name Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0" -ForegroundColor Cyan
+        Write-Host "Installation aborted." -ForegroundColor Red
+        return
+    }
+
     if (!(Test-Path -Path $TargetDir)) {
         New-Item -Path $TargetDir -ItemType Directory -ErrorAction Stop
     }
@@ -92,18 +145,23 @@ try {
     }
     Copy-Item .\modules\* -Destination "$($env:ProgramFiles)\WindowsPowerShell\Modules\Just-In-time" -Recurse -ErrorAction Stop -Force 
     Set-Location -Path $TargetDir
+    $configArguments = @{}
     if ($silent) {
-        $configArguments = @{ quiet = $true }
-        if (![string]::IsNullOrWhiteSpace($JitConfigFile)) {
-            $configArguments.configurationFile = $JitConfigFile
-        }
+        $configArguments.quiet = $true
+    }
+    if (![string]::IsNullOrWhiteSpace($JitConfigFile)) {
+        $configArguments.configurationFile = $JitConfigFile
+    }
+    if (!$silent) {
+        Write-Host "Start the configuration: $TargetDir\config-JIT.ps1"
+    }
 
-        $configuration = & "$TargetDir\config-JIT.ps1" @configArguments
-        if ($null -eq $configuration) {
+    $configuration = & "$TargetDir\config-JIT.ps1" @configArguments
+    if ($null -eq $configuration) {
+        if ($silent) {
             throw "JIT configuration did not complete successfully. Review the preceding errors."
         }
-    } else {
-        Write-Host "Start the configuration: $TargetDir\config-JIT.ps1"
+        return
     }
 
     $installWebRequested = $InstallWeb
@@ -125,10 +183,19 @@ try {
                 throw "KjitWeb installer not found. Expected: $($webInstallerCandidates -join ', ')"
             }
 
-            $webInstallerArguments = @{}
-            if (![string]::IsNullOrWhiteSpace($JitConfigFile)) {
-                $webInstallerArguments.JitConfig = $JitConfigFile
+            $effectiveJitConfigFile = $JitConfigFile
+            if ([string]::IsNullOrWhiteSpace($effectiveJitConfigFile)) {
+                $effectiveJitConfigFile = $env:JustInTimeConfig
             }
+            if ([string]::IsNullOrWhiteSpace($effectiveJitConfigFile)) {
+                $effectiveJitConfigFile = [Environment]::GetEnvironmentVariable("JustInTimeConfig", [EnvironmentVariableTarget]::Machine)
+            }
+            if ([string]::IsNullOrWhiteSpace($effectiveJitConfigFile) -or
+                -not (Test-Path -LiteralPath $effectiveJitConfigFile -PathType Leaf)) {
+                throw "KjitWeb installation requires the JIT configuration file created by Config-JIT.ps1. Run the configuration again or provide -JitConfigFile."
+            }
+
+            $webInstallerArguments = @{ JitConfig = $effectiveJitConfigFile }
             if (![string]::IsNullOrWhiteSpace($AllowedClient)) {
                 $webInstallerArguments.AllowedClient = $AllowedClient
             }

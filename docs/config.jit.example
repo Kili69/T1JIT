@@ -11,6 +11,7 @@
     "LDAPT1Computers":  "(\u0026(OperatingSystem=*Windows*)(ObjectClass=Computer)(!(ObjectClass=msDS-GroupManagedServiceAccount))(!(PrimaryGroupID=516))(!(PrimaryGroupID=521)))",
     "EventSource":  "T1Mgmt",
     "EventLog":  "Tier 1 Management",
+    "DebugLogPath":  "%TEMP%",
     "GroupManagementTaskRerun":  10,
     "GroupManagedServiceAccountName":  "T1GroupMgmt",
     "Domain":  "fabrikam.com",
