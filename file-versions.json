@@ -1,165 +1,40 @@
 {
-  "version": "0.1.20260907.20",
+  "version": "0.1.20260907.23",
   "files": [
     {
-      "path": ".githooks/pre-commit",
-      "version": "0.1.20260907.20",
-      "sha256": "59a4f2b88e02242b287acd196d2b0962cb04772d65949bbb9762e6e181b840e5"
+      "path": ".githooks/pre-push",
+      "version": "0.1.20260907.23",
+      "sha256": "67a29e57e8adb592014ea9503ab50e755fbf6e1ed42c2a038ca7636c6998c9a3"
     },
     {
-      "path": ".githooks/pre-commit.ps1",
-      "version": "0.1.20260907.20",
-      "sha256": "ca30e43aeceb75712cd1d9c877f314b1d1c2f47abed514ab4664578b2cfd7a49"
+      "path": ".githooks/pre-push.ps1",
+      "version": "0.1.20260907.23",
+      "sha256": "d47e9b2def6759f51fb1586148bd5fd0d9df0919f5003aa43e5802f91a71d05c"
     },
     {
-      "path": "build/Update-Version.ps1",
-      "version": "0.1.20260907.20",
-      "sha256": "d134a5057ca73498bddd620289b9aa7bd30f99f3b3b074985cbdce7163a3ad94"
+      "path": ".gitignore",
+      "version": "0.1.20260907.23",
+      "sha256": "b5b7779916e236989ed699727e4bf2028546a4b72dca6b2f3029997aa1063887"
     },
     {
-      "path": "docs/Installation.md",
-      "version": "0.1.20260907.20",
-      "sha256": "c189edcd6d6a7a3969b8d133eeefa2ae18bd4eae3c478c2d99a536ab9e8ea0f5"
+      "path": "build/New-InstallationPackage.ps1",
+      "version": "0.1.20260907.23",
+      "sha256": "1478a6e5037b4009cb20c9d36c0510def19be70a6dd3f8dbb9dcbbc635b7f8fb"
+    },
+    {
+      "path": "build/Push-GitHub.ps1",
+      "version": "0.1.20260907.23",
+      "sha256": "d2082150f993067d3b178d1daf6b25849f3b586e4967054f344797db8676f612"
+    },
+    {
+      "path": "History.md",
+      "version": "0.1.20260907.23",
+      "sha256": "5f200e1ecd5478a27825f4631e2ffdf7111e189c055b26db55340827611f1330"
     },
     {
       "path": "README.md",
-      "version": "0.1.20260907.20",
-      "sha256": "00f555aca038ca3d9127a8c07e1c7dbba24889bb0e7b8cd0a65290a3b72f2d8f"
-    },
-    {
-      "path": "release/file-versions.json",
-      "version": "0.1.20260907.20",
-      "sha256": "60630b905f38efb0ea20620c2938df6a02dd3905338200c1cb524d8abc2fbca1"
-    },
-    {
-      "path": "release/install-JIT.ps1",
-      "version": "0.1.20260907.20",
-      "sha256": "59ed7c865c369b969c88b8a7f7b6bc0650807f51ed45b5437a4c37bf42949d01"
-    },
-    {
-      "path": "release/kjibweb/install-kjitweb.ps1",
-      "version": "0.1.20260907.20",
-      "sha256": "78eb4a25b0463535c983ea6fb06a610eca719f857d5bf4fb94cc6061d6e7bcab"
-    },
-    {
-      "path": "release/kjibweb/publish-service/de/KjitWeb.resources.dll",
-      "version": "0.1.20260907.20",
-      "sha256": "14b8b6f0ced26e8e1ffec42cebfaa10e1fdd1057ef49f87c3f30ca7be076f761"
-    },
-    {
-      "path": "release/kjibweb/publish-service/en/KjitWeb.resources.dll",
-      "version": "0.1.20260907.20",
-      "sha256": "402d74606c7f72256cbb800b7b0536aa1569c24c148787fe7c5d88d7a77c018c"
-    },
-    {
-      "path": "release/kjibweb/publish-service/KjitWeb.dll",
-      "version": "0.1.20260907.20",
-      "sha256": "eef3a5678d5998ab028dd03e486ae8ca4766c21faddd1417303cd378f01f45b6"
-    },
-    {
-      "path": "release/kjibweb/publish-service/KjitWeb.exe",
-      "version": "0.1.20260907.20",
-      "sha256": "19a3e47d670414f44d01d00d9c226cbf509c2892762ed75358edfb37b2b927b3"
-    },
-    {
-      "path": "release/kjibweb/publish-service/KjitWeb.pdb",
-      "version": "0.1.20260907.20",
-      "sha256": "ba2b18bf8aafb87730a21ecf5692825c89d0e6c22b118f588b6887c46756cf8a"
-    },
-    {
-      "path": "release/modules/0.1/KjitCore.dll",
-      "version": "0.1.20260907.20",
-      "sha256": "903bf0c3766f77b3874e228da33a53a90dad8b7267006dff1b3b594a9b263346"
-    },
-    {
-      "path": "release/VERSION",
-      "version": "0.1.20260907.20",
-      "sha256": "abb99a68dcd212a78f44427aa55187eb1fb272a1eb706e6dc8fff0d1dca42310"
-    },
-    {
-      "path": "src/C#/Kjitweb/Controllers/HomeController.cs",
-      "version": "0.1.20260907.20",
-      "sha256": "b8694635199aa4f5f2093854fbaeca77c5641f8ef9da130ca60957991d795c77"
-    },
-    {
-      "path": "src/C#/Kjitweb/install-kjitweb.ps1",
-      "version": "0.1.20260907.20",
-      "sha256": "78eb4a25b0463535c983ea6fb06a610eca719f857d5bf4fb94cc6061d6e7bcab"
-    },
-    {
-      "path": "src/C#/Kjitweb/Models/ElevatedComputerViewModel.cs",
-      "version": "0.1.20260907.20",
-      "sha256": "14abcdaba34ce4a7b22bbfb5e8e84ae54440697141ce03c55332cf50ee831a29"
-    },
-    {
-      "path": "src/C#/Kjitweb/Models/ServerSelectionViewModel.cs",
-      "version": "0.1.20260907.20",
-      "sha256": "2d5fbc1e7a2e068853fbdff0b074755eca877d200c33f6ed6496fd37acc7550b"
-    },
-    {
-      "path": "src/C#/Kjitweb/Program.cs",
-      "version": "0.1.20260907.20",
-      "sha256": "4abec265d0373e8ce750fb66a444282ee7ec3d962beaea346af59bd29a9e49ee"
-    },
-    {
-      "path": "src/C#/Kjitweb/publish-service/de/KjitWeb.resources.dll",
-      "version": "0.1.20260907.20",
-      "sha256": "14b8b6f0ced26e8e1ffec42cebfaa10e1fdd1057ef49f87c3f30ca7be076f761"
-    },
-    {
-      "path": "src/C#/Kjitweb/publish-service/en/KjitWeb.resources.dll",
-      "version": "0.1.20260907.20",
-      "sha256": "402d74606c7f72256cbb800b7b0536aa1569c24c148787fe7c5d88d7a77c018c"
-    },
-    {
-      "path": "src/C#/Kjitweb/publish-service/KjitWeb.dll",
-      "version": "0.1.20260907.20",
-      "sha256": "eef3a5678d5998ab028dd03e486ae8ca4766c21faddd1417303cd378f01f45b6"
-    },
-    {
-      "path": "src/C#/Kjitweb/publish-service/KjitWeb.exe",
-      "version": "0.1.20260907.20",
-      "sha256": "19a3e47d670414f44d01d00d9c226cbf509c2892762ed75358edfb37b2b927b3"
-    },
-    {
-      "path": "src/C#/Kjitweb/publish-service/KjitWeb.pdb",
-      "version": "0.1.20260907.20",
-      "sha256": "ba2b18bf8aafb87730a21ecf5692825c89d0e6c22b118f588b6887c46756cf8a"
-    },
-    {
-      "path": "src/C#/Kjitweb/Resources/SharedResource.de.resx",
-      "version": "0.1.20260907.20",
-      "sha256": "33f68f9e30c05825d5a01d2c4512e993041fb7886f97c5bb6fdcc20aba4723f9"
-    },
-    {
-      "path": "src/C#/Kjitweb/Resources/SharedResource.en.resx",
-      "version": "0.1.20260907.20",
-      "sha256": "8df77ff0b90d832c7a72a91cdf2902cc1a4869aa2dd36888fbea3fa16bb8a147"
-    },
-    {
-      "path": "src/C#/Kjitweb/Services/ActiveDirectoryService.cs",
-      "version": "0.1.20260907.20",
-      "sha256": "65c1b1bebd7c0c7ab1ab3ec27d8ada22e670295b01c8e73579bd2495d1fb1c24"
-    },
-    {
-      "path": "src/C#/Kjitweb/Services/IActiveDirectoryService.cs",
-      "version": "0.1.20260907.20",
-      "sha256": "1d970ec5f85d2895b2892ae129af7aa0fc5dc425861ed2c7c68d13c84e5d3c23"
-    },
-    {
-      "path": "src/C#/Kjitweb/Views/Home/Index.cshtml",
-      "version": "0.1.20260907.20",
-      "sha256": "86a9f4eae66727113f134fc152b495a386fa67c5042b104f3f9b1faba00ab5eb"
-    },
-    {
-      "path": "src/C#/Kjitweb/Views/Shared/_Layout.cshtml",
-      "version": "0.1.20260907.20",
-      "sha256": "f9989a8cc3653fa1a4a588afeac66776266ddef6b3adb0e0fc493b807344912b"
-    },
-    {
-      "path": "src/Powershell/Scripts/install-JIT.ps1",
-      "version": "0.1.20260907.20",
-      "sha256": "59ed7c865c369b969c88b8a7f7b6bc0650807f51ed45b5437a4c37bf42949d01"
+      "version": "0.1.20260907.23",
+      "sha256": "fc6408c5c4ad2799b3959b45debf52c140f47f5ed1977bb6675f773d0ea3e518"
     }
   ]
 }

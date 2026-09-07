@@ -10,3 +10,6 @@ src/C#/Kjitweb/temp/
 # Generated .NET build output
 **/bin/
 **/obj/
+
+# Generated installation package
+Installationspackage/

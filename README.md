@@ -44,6 +44,16 @@ git config core.hooksPath .githooks
 The pre-commit hook runs `Update-Version.ps1 -Staged`, creates the next version for
 the files staged in that commit, and stages `VERSION` and `file-versions.json`.
 
+Use the repository push script for GitHub pushes:
+
+```powershell
+./build/Push-GitHub.ps1
+```
+
+It records every outgoing commit and changed file in `History.md`, creates a versioned
+history commit, and then pushes the current branch. The pre-push hook rejects direct
+GitHub pushes when outgoing commits have not been documented.
+
 Before committing changes, update `VERSION` and `file-versions.json`:
 
 ```powershell
@@ -63,6 +73,15 @@ release build and the GitHub workflow reject invalid versions or changed files m
 Every `.ps1` file must contain the standard `Script Info` disclaimer used in
 `build/Update-Version.ps1`. The version update and GitHub workflow reject existing or new
 PowerShell scripts when any required disclaimer line is missing.
+
+Create a complete installation package in `Installationspackage` with:
+
+```powershell
+./build/New-InstallationPackage.ps1
+```
+
+The script copies all required installation files from `release` to the package directory.
+Use `-BuildRelease` when `release` must be rebuilt before creating the package.
 
 ## Quick-start Installation
 
