@@ -1,40 +1,10 @@
 {
-  "version": "0.1.20260907.23",
+  "version": "0.1.20260907.24",
   "files": [
     {
-      "path": ".githooks/pre-push",
-      "version": "0.1.20260907.23",
-      "sha256": "67a29e57e8adb592014ea9503ab50e755fbf6e1ed42c2a038ca7636c6998c9a3"
-    },
-    {
-      "path": ".githooks/pre-push.ps1",
-      "version": "0.1.20260907.23",
-      "sha256": "d47e9b2def6759f51fb1586148bd5fd0d9df0919f5003aa43e5802f91a71d05c"
-    },
-    {
-      "path": ".gitignore",
-      "version": "0.1.20260907.23",
-      "sha256": "b5b7779916e236989ed699727e4bf2028546a4b72dca6b2f3029997aa1063887"
-    },
-    {
-      "path": "build/New-InstallationPackage.ps1",
-      "version": "0.1.20260907.23",
-      "sha256": "1478a6e5037b4009cb20c9d36c0510def19be70a6dd3f8dbb9dcbbc635b7f8fb"
-    },
-    {
-      "path": "build/Push-GitHub.ps1",
-      "version": "0.1.20260907.23",
-      "sha256": "d2082150f993067d3b178d1daf6b25849f3b586e4967054f344797db8676f612"
-    },
-    {
       "path": "History.md",
-      "version": "0.1.20260907.23",
-      "sha256": "5f200e1ecd5478a27825f4631e2ffdf7111e189c055b26db55340827611f1330"
-    },
-    {
-      "path": "README.md",
-      "version": "0.1.20260907.23",
-      "sha256": "fc6408c5c4ad2799b3959b45debf52c140f47f5ed1977bb6675f773d0ea3e518"
+      "version": "0.1.20260907.24",
+      "sha256": "7cd57f0ba32b4c2add50eedf66fa2e7393472be6d0ce8ffe18033a41610eafcd"
     }
   ]
 }

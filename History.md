@@ -6,6 +6,24 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-09-07 09:57:46 +02:00 - `dev` to `origin/dev`
+
+Commits:
+
+<!-- commit:6fd798b0ef469dea38a1afd1119aab6f13eaae7c -->
+- `6fd798b` Add push history and installation packaging
+
+Changed files:
+
+- `A -> .githooks/pre-push`
+- `A -> .githooks/pre-push.ps1`
+- `M -> .gitignore`
+- `M -> README.md`
+- `M -> VERSION`
+- `A -> build/New-InstallationPackage.ps1`
+- `A -> build/Push-GitHub.ps1`
+- `M -> file-versions.json`
+
 
 ## 2026-09-07 - `dev` to `origin/dev`
 
@@ -26,3 +44,4 @@ Changes:
 - Added a full-page processing lock that prevents duplicate elevation requests.
 - Extended Active Directory queries and web models for active elevation information.
 - Updated installation documentation, release scripts, modules, and published KjitWeb artifacts.
+
