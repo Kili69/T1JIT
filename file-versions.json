@@ -1,40 +1,55 @@
 {
-  "version": "0.1.20260907.42",
+  "version": "0.1.20260907.43",
   "files": [
     {
-      "path": "docs/Installation.md",
-      "version": "0.1.20260907.42",
-      "sha256": "7b75fa1ebfc763e0e74045ec8af0f303d6efc0979a8066fec29ca2dfb1c9fe75"
+      "path": "release/modules/0.1/just-in-time-configuration.psm1",
+      "version": "0.1.20260907.43",
+      "sha256": "153fe477a7e7796fa519f32c996dd46a89605624ce5cdb0d583908bf8c25ebed"
     },
     {
-      "path": "src/C#/KjitCore/README.md",
-      "version": "0.1.20260907.42",
-      "sha256": "045dee8e46d8ccbe237f1c33faa4853e22d95c74be9663f6941172e487dd95f0"
+      "path": "release/modules/0.1/just-in-Time-DelegationConfig.psm1",
+      "version": "0.1.20260907.43",
+      "sha256": "0366d77f4fc9449c91f02206698107e53aa9f9225c05c3fdd2fb626de9a5e250"
+    },
+    {
+      "path": "release/modules/0.1/just-in-Time-GUIs.psm1",
+      "version": "0.1.20260907.43",
+      "sha256": "3549a56f29fc9d96b5e516f52e76bcdef17ad2bad258e5b6d85e181f43133426"
+    },
+    {
+      "path": "release/modules/0.1/just-in-time-request.psm1",
+      "version": "0.1.20260907.43",
+      "sha256": "6f04d4bb0d453d4d162db9c74a9779d51f3c8bdf31529775c7288b5a1ec58b28"
+    },
+    {
+      "path": "release/modules/Just-In-time.psd1",
+      "version": "0.1.20260907.43",
+      "sha256": "6e605d044190578e5d9775b42157ed7c8d2414322ffdbacd72c8be0d5ec922c1"
     },
     {
       "path": "src/Powershell/modules/0.1/just-in-time-configuration.psm1",
-      "version": "0.1.20260907.42",
-      "sha256": "c1ad86a10b61b89089968ea810e5d11012a697fc3f9ccbf694a8b947742e2002"
+      "version": "0.1.20260907.43",
+      "sha256": "9126ac4924ce106fcba2fe4c65c12657f95a8a4026a19171c795c969b99ee1aa"
     },
     {
       "path": "src/Powershell/modules/0.1/just-in-Time-DelegationConfig.psm1",
-      "version": "0.1.20260907.42",
-      "sha256": "c12ead050e8d53bd80da9a251444c3b2b83d101b18ceaf453f815f7bd475e556"
+      "version": "0.1.20260907.43",
+      "sha256": "1da8f6ef6fc311b5f9fb5b43a9b9e9aa154da0c3ec3c9e7b4551cc8215debc03"
+    },
+    {
+      "path": "src/Powershell/modules/0.1/just-in-Time-GUIs.psm1",
+      "version": "0.1.20260907.43",
+      "sha256": "3549a56f29fc9d96b5e516f52e76bcdef17ad2bad258e5b6d85e181f43133426"
     },
     {
       "path": "src/Powershell/modules/0.1/just-in-time-request.psm1",
-      "version": "0.1.20260907.42",
-      "sha256": "e8261380abaec7563fd7edefb378efdde387de43cbbadb4ddae3efcba1dc7e2c"
+      "version": "0.1.20260907.43",
+      "sha256": "6568d401ac986f123fc05e13a4a6511c28661c8bf4055803fc820f9d9dce2592"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.1.20260907.42",
-      "sha256": "832c9afe6240d394c57d0b21c6a8568cef7477c74eec05c0da0c2934d2dd06c6"
-    },
-    {
-      "path": "src/Powershell/Scripts/ElevateUser.ps1",
-      "version": "0.1.20260907.42",
-      "sha256": "a717d8eb66b4ae59f4d29a26c2da7689070d9d731b771a1bf0750cdf57a33c49"
+      "version": "0.1.20260907.43",
+      "sha256": "9d7724320226a38b715f7e10eecef2962b720e4a27b418c45d8e8620237d26e6"
     }
   ]
 }

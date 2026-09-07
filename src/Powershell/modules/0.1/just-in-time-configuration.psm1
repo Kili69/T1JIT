@@ -1,3 +1,5 @@
+#requires -PSEdition Desktop
+
 <#
 Module Info
 
@@ -373,51 +375,6 @@ function Get-JITconfig{
         }
     }
 
-    function Register-KjitAssemblyResolver {
-        <#
-        .SYNOPSIS
-            Registers a resolver for assemblies stored beside KjitCore.
-        .DESCRIPTION
-            Adds one AssemblyResolve event handler per PowerShell session. The handler
-            resolves missing assemblies from the KjitCore directory and returns null
-            when no matching file can be loaded. This is a private helper for
-            Get-JITconfig.
-        .PARAMETER KjitCoreAssemblyPath
-            Absolute path to KjitCore.dll. Its parent directory is searched.
-        .OUTPUTS
-            None.
-        #>
-
-        param(
-            [Parameter(Mandatory = $true)]
-            [string]$KjitCoreAssemblyPath
-        )
-
-        if ($script:KjitAssemblyResolveHandler) {
-            return
-        }
-
-        $assemblyDirectory = Split-Path -Path $KjitCoreAssemblyPath -Parent
-        $script:KjitAssemblyResolveHandler = [System.ResolveEventHandler]{
-            param($eventSender, $eventArgs)
-
-            try {
-                $requestedAssemblyName = New-Object System.Reflection.AssemblyName($eventArgs.Name)
-                $candidatePath = Join-Path -Path $assemblyDirectory -ChildPath ($requestedAssemblyName.Name + ".dll")
-                if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
-                    return [System.Reflection.Assembly]::LoadFrom($candidatePath)
-                }
-            }
-            catch {
-                return $null
-            }
-
-            return $null
-        }
-
-        [System.AppDomain]::CurrentDomain.add_AssemblyResolve($script:KjitAssemblyResolveHandler)
-    }
-
     # Reject a conflicting KjitCore version that cannot be unloaded from this session.
     $assemblyPath = Resolve-KjitCoreAssemblyPath
     $alreadyLoadedAssembly = [AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { $_.GetName().Name -eq "KjitCore" } | Select-Object -First 1
@@ -429,10 +386,9 @@ function Get-JITconfig{
         }
     }
 
-    # Register local resolution support and load KjitCore only once per session.
+    # Load KjitCore only once per session.
     if (-not ("KjitCore.KjitCore" -as [type])) {
         try {
-            Register-KjitAssemblyResolver -KjitCoreAssemblyPath $assemblyPath
             Import-KjitCoreDependencies -KjitCoreAssemblyPath $assemblyPath
             Add-Type -Path $assemblyPath -ErrorAction Stop
         }

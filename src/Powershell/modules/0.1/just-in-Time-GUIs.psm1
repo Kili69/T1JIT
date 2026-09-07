@@ -1,4 +1,6 @@
-﻿<#
+﻿#requires -PSEdition Desktop
+
+<#
 Module Info
 
 Author: Andreas Luy [MSFT]

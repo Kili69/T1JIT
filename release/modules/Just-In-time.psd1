@@ -56,7 +56,7 @@ Implemented commands:
 ModuleVersion = '0.1.20241014'
 
 # Supported PSEditions
-# CompatiblePSEditions = @()
+CompatiblePSEditions = @('Desktop')
 
 # ID used to uniquely identify this module
 GUID = '852ae4b3-a649-44db-86de-e2798f7d24bc'
@@ -74,7 +74,7 @@ Copyright = '(c) 2024 Andreas Lucas (aka Kili). All rights reserved.'
 Description = 'Just-In-time Administration module. '
 
 # Minimum version of the Windows PowerShell engine required by this module
-# PowerShellVersion = ''
+PowerShellVersion = '5.1'
 
 # Name of the Windows PowerShell host required by this module
 # PowerShellHostName = ''

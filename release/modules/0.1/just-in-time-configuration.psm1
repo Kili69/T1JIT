@@ -1,3 +1,5 @@
+#requires -PSEdition Desktop
+
 <#
 Module Info
 
@@ -454,37 +456,6 @@ function Get-JITconfig{
         }
     }
 
-    function Register-KjitAssemblyResolver {
-        param(
-            [Parameter(Mandatory = $true)]
-            [string]$KjitCoreAssemblyPath
-        )
-
-        if ($script:KjitAssemblyResolveHandler) {
-            return
-        }
-
-        $assemblyDirectory = Split-Path -Path $KjitCoreAssemblyPath -Parent
-        $script:KjitAssemblyResolveHandler = [System.ResolveEventHandler]{
-            param($sender, $args)
-
-            try {
-                $requestedAssemblyName = New-Object System.Reflection.AssemblyName($args.Name)
-                $candidatePath = Join-Path -Path $assemblyDirectory -ChildPath ($requestedAssemblyName.Name + ".dll")
-                if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
-                    return [System.Reflection.Assembly]::LoadFrom($candidatePath)
-                }
-            }
-            catch {
-                return $null
-            }
-
-            return $null
-        }
-
-        [System.AppDomain]::CurrentDomain.add_AssemblyResolve($script:KjitAssemblyResolveHandler)
-    }
-
     $assemblyPath = Resolve-KjitCoreAssemblyPath
     $alreadyLoadedAssembly = [AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { $_.GetName().Name -eq "KjitCore" } | Select-Object -First 1
     if ($null -ne $alreadyLoadedAssembly -and -not [string]::IsNullOrWhiteSpace($alreadyLoadedAssembly.Location)) {
@@ -497,7 +468,6 @@ function Get-JITconfig{
 
     if (-not ("KjitCore.KjitCore" -as [type])) {
         try {
-            Register-KjitAssemblyResolver -KjitCoreAssemblyPath $assemblyPath
             Import-KjitCoreDependencies -KjitCoreAssemblyPath $assemblyPath
             Add-Type -Path $assemblyPath -ErrorAction Stop
         }
