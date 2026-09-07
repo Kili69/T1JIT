@@ -6,6 +6,22 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-09-07 23:55:03 +02:00 - `dev` to `origin/dev`
+
+Commits:
+
+<!-- commit:4c3754475610a98d10a1db135dc6c2264942bb06 -->
+- `4c37544` Improve multi-domain search diagnostics
+
+Changed files:
+
+- `M -> VERSION`
+- `M -> docs/Events.md`
+- `M -> file-versions.json`
+- `M -> release/Tier1LocalAdminGroup.ps1`
+- `M -> src/Powershell/Scripts/README.md`
+- `M -> src/Powershell/Scripts/Tier1LocalAdminGroup.ps1`
+
 ## 2026-09-07 23:37:47 +02:00 - `dev` to `origin/dev`
 
 Commits:
@@ -837,6 +853,7 @@ Changes:
 - Added a full-page processing lock that prevents duplicate elevation requests.
 - Extended Active Directory queries and web models for active elevation information.
 - Updated installation documentation, release scripts, modules, and published KjitWeb artifacts.
+
 
 
 

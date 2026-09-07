@@ -1,25 +1,10 @@
 {
-  "version": "0.1.20260907.49",
+  "version": "0.1.20260907.50",
   "files": [
     {
-      "path": "docs/Events.md",
-      "version": "0.1.20260907.49",
-      "sha256": "f48865468229643ff8e656f5e01ee8ae43185c06ae55d637dfab508365dcf7c0"
-    },
-    {
-      "path": "release/Tier1LocalAdminGroup.ps1",
-      "version": "0.1.20260907.49",
-      "sha256": "f4e62f90bbfc6dd7f5765c93865f9bdd779d7b428f347fe6e5e03d4c09412de9"
-    },
-    {
-      "path": "src/Powershell/Scripts/README.md",
-      "version": "0.1.20260907.49",
-      "sha256": "0445fb7be92248bb9ddc19416afd824ea31dc49b3d32394d061e4e55bd6432b8"
-    },
-    {
-      "path": "src/Powershell/Scripts/Tier1LocalAdminGroup.ps1",
-      "version": "0.1.20260907.49",
-      "sha256": "f4e62f90bbfc6dd7f5765c93865f9bdd779d7b428f347fe6e5e03d4c09412de9"
+      "path": "History.md",
+      "version": "0.1.20260907.50",
+      "sha256": "895d20354d18777f068b4ab54919a9966260310ae4bb4ed01c0a22fa98043d3c"
     }
   ]
 }
