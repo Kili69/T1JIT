@@ -1,55 +1,10 @@
 {
-  "version": "0.1.20260907.43",
+  "version": "0.1.20260907.44",
   "files": [
     {
-      "path": "release/modules/0.1/just-in-time-configuration.psm1",
-      "version": "0.1.20260907.43",
-      "sha256": "153fe477a7e7796fa519f32c996dd46a89605624ce5cdb0d583908bf8c25ebed"
-    },
-    {
-      "path": "release/modules/0.1/just-in-Time-DelegationConfig.psm1",
-      "version": "0.1.20260907.43",
-      "sha256": "0366d77f4fc9449c91f02206698107e53aa9f9225c05c3fdd2fb626de9a5e250"
-    },
-    {
-      "path": "release/modules/0.1/just-in-Time-GUIs.psm1",
-      "version": "0.1.20260907.43",
-      "sha256": "3549a56f29fc9d96b5e516f52e76bcdef17ad2bad258e5b6d85e181f43133426"
-    },
-    {
-      "path": "release/modules/0.1/just-in-time-request.psm1",
-      "version": "0.1.20260907.43",
-      "sha256": "6f04d4bb0d453d4d162db9c74a9779d51f3c8bdf31529775c7288b5a1ec58b28"
-    },
-    {
-      "path": "release/modules/Just-In-time.psd1",
-      "version": "0.1.20260907.43",
-      "sha256": "6e605d044190578e5d9775b42157ed7c8d2414322ffdbacd72c8be0d5ec922c1"
-    },
-    {
-      "path": "src/Powershell/modules/0.1/just-in-time-configuration.psm1",
-      "version": "0.1.20260907.43",
-      "sha256": "9126ac4924ce106fcba2fe4c65c12657f95a8a4026a19171c795c969b99ee1aa"
-    },
-    {
-      "path": "src/Powershell/modules/0.1/just-in-Time-DelegationConfig.psm1",
-      "version": "0.1.20260907.43",
-      "sha256": "1da8f6ef6fc311b5f9fb5b43a9b9e9aa154da0c3ec3c9e7b4551cc8215debc03"
-    },
-    {
-      "path": "src/Powershell/modules/0.1/just-in-Time-GUIs.psm1",
-      "version": "0.1.20260907.43",
-      "sha256": "3549a56f29fc9d96b5e516f52e76bcdef17ad2bad258e5b6d85e181f43133426"
-    },
-    {
-      "path": "src/Powershell/modules/0.1/just-in-time-request.psm1",
-      "version": "0.1.20260907.43",
-      "sha256": "6568d401ac986f123fc05e13a4a6511c28661c8bf4055803fc820f9d9dce2592"
-    },
-    {
-      "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.1.20260907.43",
-      "sha256": "9d7724320226a38b715f7e10eecef2962b720e4a27b418c45d8e8620237d26e6"
+      "path": "History.md",
+      "version": "0.1.20260907.44",
+      "sha256": "7cd6c2584f5169b135c57383f6e25c238cfbb0e77f97f353aed66619213d9c4f"
     }
   ]
 }

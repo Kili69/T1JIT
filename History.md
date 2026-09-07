@@ -6,6 +6,28 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-09-07 21:49:14 +02:00 - `dev` to `origin/dev`
+
+Commits:
+
+<!-- commit:d5fcd9267054d85196da0d3a55931a0abfe7e719 -->
+- `d5fcd92` Fix PowerShell module runtime compatibility
+
+Changed files:
+
+- `M -> VERSION`
+- `M -> file-versions.json`
+- `M -> release/modules/0.1/just-in-Time-DelegationConfig.psm1`
+- `M -> release/modules/0.1/just-in-Time-GUIs.psm1`
+- `M -> release/modules/0.1/just-in-time-configuration.psm1`
+- `M -> release/modules/0.1/just-in-time-request.psm1`
+- `M -> release/modules/Just-In-time.psd1`
+- `M -> src/Powershell/modules/0.1/just-in-Time-DelegationConfig.psm1`
+- `M -> src/Powershell/modules/0.1/just-in-Time-GUIs.psm1`
+- `M -> src/Powershell/modules/0.1/just-in-time-configuration.psm1`
+- `M -> src/Powershell/modules/0.1/just-in-time-request.psm1`
+- `M -> src/Powershell/modules/Just-In-time.psd1`
+
 ## 2026-09-07 16:10:16 +02:00 - `dev` to `origin/dev`
 
 Commits:
@@ -68,6 +90,7 @@ Changes:
 - Added a full-page processing lock that prevents duplicate elevation requests.
 - Extended Active Directory queries and web models for active elevation information.
 - Updated installation documentation, release scripts, modules, and published KjitWeb artifacts.
+
 
 
 
