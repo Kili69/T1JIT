@@ -103,6 +103,8 @@ possibility of such damages
         - The Just-In-Time configuration folder will be created if it doesn't exist
     Version 0.1.20260428
         - Updated the script to support the new Just-In-Time configuration module and the new delegation model. The script will now create a delegation configuration file based on the provided path and update the JIT.config with the delegation configuration path. The script also includes better validation of input parameters and supports enabling or disabling the delegation model during setup.
+    Version 0.1.20260824
+        - Added startup version output and improved the PAM feature warning.
 
 .PARAMETER InstallationDirectory
     Optional base folder for the JIT configuration. The script uses this path to locate or create the JIT.config file.
@@ -125,6 +127,10 @@ param (
     [Parameter (Mandatory=$false)]
     [string]$configurationFile
 )
+
+[string]$_scriptVersion = "0.1.20260824"
+Write-Host "Config-JIT script version $_scriptVersion"
+
 #region Functions
 function New-ADDGuidMap
 {
@@ -299,7 +305,6 @@ if (!(New-Object Security.Principal.WindowsPrincipal([Security.Principal.Windows
 }
 
 #region global variables 
-[string]$_scriptVersion = "0.1.20250830" #the current script version
 #region Default values
 $configFileName = "JIT.config" #The default name of the configuration file
 $STGroupManagementTaskName = "Tier 1 Local Group Management" #Name of the Schedule tasl to enumerate servers
@@ -351,11 +356,12 @@ if ($quiet){
 
 #Validate the Active Directory PAW feature is activated. If not the script will terminate
 if (!((Get-ADOptionalFeature -Filter "name -eq 'Privileged Access Management Feature'").EnabledScopes)){
-    Write-Host "Active Directory PAM feature is not enables" -ForegroundColor Yellow
-    Write-Host "Run:"
-    Write-Host "Enable-ADOptionalFeature ""Privileged Access Management Feature"" -Scope ForestOrConfigurationSet -Target $((Get-ADForest).Name)"
-    Write-Host "Before continuing with JIT"
-    Write-Host "Aborting!"
+    $enablePamCommand = "Enable-ADOptionalFeature ""Privileged Access Management Feature"" -Scope ForestOrConfigurationSet -Target $((Get-ADForest).Name)"
+    Write-Host "Active Directory PAM feature is not enabled" -ForegroundColor Red
+    Write-Host "Run:" -ForegroundColor Red
+    Write-Host $enablePamCommand -ForegroundColor Cyan
+    Write-Host "Before continuing with JIT" -ForegroundColor Red
+    Write-Host "Aborting!" -ForegroundColor Red
     return 0x1
 }
 #region Creating the configuratin object with default values and read the existing configuration file it it exists. 
@@ -781,6 +787,5 @@ If (!((Get-ScheduledTask).URI -contains "$StGroupManagementTaskPath\$STGroupMana
 if ($config.EnableDelegation){
     Write-Host "do not forget to configure your OU delegation"
     Write-Host "to allow the group Server-Admins on OU=Server,OU=contoso,OU=com use the command"
-    #Write-Host ".\DelegationConfig.ps1 -action AddDelegation -OU ""OU=Server,DC=contoso,DC=com"" -AdUserOrGroup ""contoso\Server-Admins"" "
-    Write-Host " To add a delegation use the command: Add-JitDelegation -OU ""OU=Server,DC=contoso,DC=com"" -AdUserOrGroup ""contoso\Server-Admins"" "
+    Write-Host "To add a delegation use the command: Add-JitDelegation -OU ""OU=Server,DC=contoso,DC=com"" -AdObject ""contoso\Server-Admins"""
 }

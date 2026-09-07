@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "vEpVqnIBRyI=",
+  "dgSpecHash": "c3aYzlXnJ04=",
   "success": true,
   "projectFilePath": "C:\\Repos\\T1JIT\\src\\C#\\Kjitweb\\KjitWeb.csproj",
   "expectedPackageFiles": [
@@ -43,7 +43,36 @@
     "C:\\Users\\aa\\.nuget\\packages\\system.io.pipelines\\8.0.0\\system.io.pipelines.8.0.0.nupkg.sha512",
     "C:\\Users\\aa\\.nuget\\packages\\system.serviceprocess.servicecontroller\\8.0.0\\system.serviceprocess.servicecontroller.8.0.0.nupkg.sha512",
     "C:\\Users\\aa\\.nuget\\packages\\system.text.encodings.web\\8.0.0\\system.text.encodings.web.8.0.0.nupkg.sha512",
-    "C:\\Users\\aa\\.nuget\\packages\\system.text.json\\8.0.0\\system.text.json.8.0.0.nupkg.sha512"
+    "C:\\Users\\aa\\.nuget\\packages\\system.text.json\\8.0.0\\system.text.json.8.0.0.nupkg.sha512",
+    "C:\\Users\\aa\\.nuget\\packages\\microsoft.netcore.app.ref\\8.0.27\\microsoft.netcore.app.ref.8.0.27.nupkg.sha512",
+    "C:\\Users\\aa\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\8.0.27\\microsoft.windowsdesktop.app.ref.8.0.27.nupkg.sha512",
+    "C:\\Users\\aa\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\8.0.27\\microsoft.aspnetcore.app.ref.8.0.27.nupkg.sha512",
+    "C:\\Users\\aa\\.nuget\\packages\\microsoft.netcore.app.host.win-x64\\8.0.27\\microsoft.netcore.app.host.win-x64.8.0.27.nupkg.sha512"
   ],
-  "logs": []
+  "logs": [
+    {
+      "code": "NU1903",
+      "level": "Warning",
+      "message": "Package 'Microsoft.AspNetCore.Authentication.Negotiate' 8.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-2p3q-h3hg-jcqq",
+      "projectPath": "C:\\Repos\\T1JIT\\src\\C#\\Kjitweb\\KjitWeb.csproj",
+      "warningLevel": 1,
+      "filePath": "C:\\Repos\\T1JIT\\src\\C#\\Kjitweb\\KjitWeb.csproj",
+      "libraryId": "Microsoft.AspNetCore.Authentication.Negotiate",
+      "targetGraphs": [
+        "net8.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1903",
+      "level": "Warning",
+      "message": "Package 'Microsoft.AspNetCore.Authentication.Negotiate' 8.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-8prm-248r-h957",
+      "projectPath": "C:\\Repos\\T1JIT\\src\\C#\\Kjitweb\\KjitWeb.csproj",
+      "warningLevel": 1,
+      "filePath": "C:\\Repos\\T1JIT\\src\\C#\\Kjitweb\\KjitWeb.csproj",
+      "libraryId": "Microsoft.AspNetCore.Authentication.Negotiate",
+      "targetGraphs": [
+        "net8.0-windows7.0"
+      ]
+    }
+  ]
 }

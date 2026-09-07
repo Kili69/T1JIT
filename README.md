@@ -49,6 +49,10 @@ Use `-Major` or `-Minor` only when intentionally changing those version componen
 release build and the GitHub workflow reject invalid versions or changed files missing from
 `file-versions.json`. Generated .NET output below `bin` and `obj` is excluded.
 
+Every `.ps1` file must contain the standard `Script Info` disclaimer used in
+`build/Update-Version.ps1`. The version update and GitHub workflow reject existing or new
+PowerShell scripts when any required disclaimer line is missing.
+
 ## Quick-start Installation
 
 Download all files from the relase directory and run the install-JIT.ps1. If the PIM feature in Active Directory is not enabled, Enterprise-Administrator privileges are required.

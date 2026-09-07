@@ -1,3 +1,19 @@
+<#
+Script Info
+
+Disclaimer:
+This sample script is not supported under any Microsoft standard support program or service.
+The sample script is provided AS IS without warranty of any kind. Microsoft further disclaims
+all implied warranties including, without limitation, any implied warranties of merchantability
+or of fitness for a particular purpose. The entire risk arising out of the use or performance of
+the sample scripts and documentation remains with you. In no event shall Microsoft, its authors,
+or anyone else involved in the creation, production, or delivery of the scripts be liable for any
+damages whatsoever (including, without limitation, damages for loss of business profits, business
+interruption, loss of business information, or other pecuniary loss) arising out of the use of or
+inability to use the sample scripts or documentation, even if Microsoft has been advised of the
+possibility of such damages
+#>
+
 [CmdletBinding(DefaultParameterSetName = "Update")]
 param(
     [Parameter(ParameterSetName = "Update")]
@@ -24,6 +40,20 @@ $versionPath = Join-Path $repoRoot "VERSION"
 $manifestPath = Join-Path $repoRoot "file-versions.json"
 $versionPattern = '^(?<major>\d+)\.(?<minor>\d+)\.(?<date>\d{8})\.(?<counter>[1-9]\d*)$'
 $metadataFiles = @("VERSION", "file-versions.json")
+$requiredScriptDisclaimerLines = @(
+    "Script Info",
+    "Disclaimer:",
+    "This sample script is not supported under any Microsoft standard support program or service.",
+    "The sample script is provided AS IS without warranty of any kind. Microsoft further disclaims",
+    "all implied warranties including, without limitation, any implied warranties of merchantability",
+    "or of fitness for a particular purpose. The entire risk arising out of the use or performance of",
+    "the sample scripts and documentation remains with you. In no event shall Microsoft, its authors,",
+    "or anyone else involved in the creation, production, or delivery of the scripts be liable for any",
+    "damages whatsoever (including, without limitation, damages for loss of business profits, business",
+    "interruption, loss of business information, or other pecuniary loss) arising out of the use of or",
+    "inability to use the sample scripts or documentation, even if Microsoft has been advised of the",
+    "possibility of such damages"
+)
 
 function Get-ChangedFiles {
     $trackedFiles = @(git -C $repoRoot diff --name-only $BaseRef)
@@ -72,6 +102,34 @@ function Get-FileHashValue {
 
     (Get-FileHash -LiteralPath $absolutePath -Algorithm SHA256).Hash.ToLowerInvariant()
 }
+
+function Assert-ScriptDisclaimers {
+    $trackedScripts = @(git -C $repoRoot ls-files -- "*.ps1")
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to determine tracked PowerShell scripts with git."
+    }
+
+    $untrackedScripts = @(git -C $repoRoot ls-files --others --exclude-standard -- "*.ps1")
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to determine untracked PowerShell scripts with git."
+    }
+
+    $invalidScripts = @()
+    foreach ($script in @($trackedScripts + $untrackedScripts | Sort-Object -Unique)) {
+        $scriptPath = Join-Path $repoRoot $script
+        $scriptLines = @(Get-Content -LiteralPath $scriptPath | ForEach-Object { $_.TrimEnd() })
+        $missingLines = @($requiredScriptDisclaimerLines | Where-Object { $_ -notin $scriptLines })
+        if ($missingLines.Count -gt 0) {
+            $invalidScripts += $script.Replace('\', '/')
+        }
+    }
+
+    if ($invalidScripts.Count -gt 0) {
+        throw "PowerShell scripts are missing the required Script Info disclaimer: $($invalidScripts -join ', ')"
+    }
+}
+
+Assert-ScriptDisclaimers
 
 if ($Check) {
     if (-not (Test-Path $versionPath) -or -not (Test-Path $manifestPath)) {

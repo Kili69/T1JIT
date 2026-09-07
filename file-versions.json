@@ -1,41 +1,121 @@
-﻿{
-    "version":  "0.1.20260823.8",
-    "files":  [
-                  {
-                      "path":  ".github/workflows/version-policy.yml",
-                      "sha256":  "ac77345114736243aa13b92f274064887f1375ebaf879039965400ed93a1f62a"
-                  },
-                  {
-                      "path":  ".gitignore",
-                      "sha256":  "8beae90ff8af06255e9a60fd65631d803f17a6f0c906a67118357f67d307f503"
-                  },
-                  {
-                      "path":  ".markdownlint.json",
-                      "sha256":  "32ebcbeceeaccd910ec73fd9945df463bd7d18c5cbfca3e7379d34b221fe7b07"
-                  },
-                  {
-                      "path":  "build/release_build.ps1",
-                      "sha256":  "bd155c0b0b2608ddff50c2832fd8d921a5ec7678b7d3594a3368d56a52a4df75"
-                  },
-                  {
-                      "path":  "build/Update-Version.ps1",
-                      "sha256":  "e32a7dc27388fb11a552f5a46b3008b1b2ac2d0e119ffe89aeb446a655186c03"
-                  },
-                  {
-                      "path":  "README.md",
-                      "sha256":  "1ec70ded3d647802c770a9c1b879c4b8358b145839a356abfd4716c7bc40c45a"
-                  },
-                  {
-                      "path":  "src/Powershell/Scripts/install-JIT.ps1",
-                      "sha256":  "6b5d467bf97ca0c3c8da098a68e08e3089f626f13b4a78078f39a23415727bfe"
-                  },
-                  {
-                      "path":  "src/Powershell/TestEnvironment/New-T1JitTestEnvironment.ps1",
-                      "sha256":  "c0a6455e76819b6047c226046eb5640f3c4175120fcdb922832c316258288752"
-                  },
-                  {
-                      "path":  "src/Powershell/TestEnvironment/Test-Environment.md",
-                      "sha256":  "f6f4a1e60505f08ed99b0992f13dda764a0f474f6eba88909b15c851c0264ebd"
-                  }
-              ]
+{
+  "version": "0.1.20260824.13",
+  "files": [
+    {
+      "path": "build/Update-Version.ps1",
+      "sha256": "ade54406db7b48cb60236e165056c0df2891df7b54954ec2b5a8b34a191dac05"
+    },
+    {
+      "path": "README.md",
+      "sha256": "f6a676c20024e3ca4f9c562c685f15e8cef3bac8b8df55f23abdb75d6c422536"
+    },
+    {
+      "path": "release/Config-JIT.ps1",
+      "sha256": "363d4d5b142bea06282ef6f8e16a9c93eb1445c45d2339915cff51c0c42b11c1"
+    },
+    {
+      "path": "release/file-versions.json",
+      "sha256": "c9c90f7384bb20c72211b92c71ce2bdf0a14a725e8a98fd5c57ad5be65e0da22"
+    },
+    {
+      "path": "release/install-JIT.ps1",
+      "sha256": "6b5d467bf97ca0c3c8da098a68e08e3089f626f13b4a78078f39a23415727bfe"
+    },
+    {
+      "path": "release/kjibweb/appsettings.json",
+      "sha256": "1400f0d2edf81685fba15723faf53605789e550aa7fa95967d662efb96447eca"
+    },
+    {
+      "path": "release/kjibweb/appsettings.Production.json",
+      "sha256": "6e3112bac2cec75fe2af2e7f7d404b68e90745959e89e3e27dcdb874de587a29"
+    },
+    {
+      "path": "release/kjibweb/publish-service/de/KjitWeb.resources.dll",
+      "sha256": "298789f37df06f4b22321ca321579dfc35db02ee890fe765105f27e8d6e7113b"
+    },
+    {
+      "path": "release/kjibweb/publish-service/en/KjitWeb.resources.dll",
+      "sha256": "d99e822ee9c0fbf9d4404655b00d4bdedb26c7a04462029dd473644e0bdcf72e"
+    },
+    {
+      "path": "release/kjibweb/publish-service/KjitWeb.dll",
+      "sha256": "e2dd693936585e6fd4f8e88f28c06278e4feadd26efab5b0c403bf72c5d00ad6"
+    },
+    {
+      "path": "release/kjibweb/publish-service/KjitWeb.exe",
+      "sha256": "cf1188da66f1ea9ab4ec9beb6e6f3abef11605bbb5e514a2634946b9b1f3c02f"
+    },
+    {
+      "path": "release/kjibweb/publish-service/KjitWeb.pdb",
+      "sha256": "40894451b43a9e5cea8c795d8d8a4cf916787343ebaa4a6f5c60a88da0f06c20"
+    },
+    {
+      "path": "release/modules/0.1/KjitCore.dll",
+      "sha256": "f629e9a878a415c4889c5e1a9d579dc39bd926f3f24b86ffdb510ea6a2ee1009"
+    },
+    {
+      "path": "release/RequestAdminAccessUI.ps1",
+      "sha256": "e33c6303247d7d2e64a01667099c06869f6401f5191514a2bf2bc8334e5c385b"
+    },
+    {
+      "path": "release/Show-KjitConfiguration.ps1",
+      "sha256": "613fb6585457e8728da2b761f06e364ee3aca86016a86ac5420f2a7698ede82c"
+    },
+    {
+      "path": "release/VERSION",
+      "sha256": "8935d728f3afdd9455626854559df44e8e8244f3f31970779262ab83d34c4b26"
+    },
+    {
+      "path": "src/C#/Kjitweb/publish-service/de/KjitWeb.resources.dll",
+      "sha256": "298789f37df06f4b22321ca321579dfc35db02ee890fe765105f27e8d6e7113b"
+    },
+    {
+      "path": "src/C#/Kjitweb/publish-service/en/KjitWeb.resources.dll",
+      "sha256": "d99e822ee9c0fbf9d4404655b00d4bdedb26c7a04462029dd473644e0bdcf72e"
+    },
+    {
+      "path": "src/C#/Kjitweb/publish-service/KjitWeb.dll",
+      "sha256": "e2dd693936585e6fd4f8e88f28c06278e4feadd26efab5b0c403bf72c5d00ad6"
+    },
+    {
+      "path": "src/C#/Kjitweb/publish-service/KjitWeb.exe",
+      "sha256": "cf1188da66f1ea9ab4ec9beb6e6f3abef11605bbb5e514a2634946b9b1f3c02f"
+    },
+    {
+      "path": "src/C#/Kjitweb/publish-service/KjitWeb.pdb",
+      "sha256": "40894451b43a9e5cea8c795d8d8a4cf916787343ebaa4a6f5c60a88da0f06c20"
+    },
+    {
+      "path": "src/C#/Kjitweb/uninstall-service.ps1",
+      "sha256": "c04adbf73692362e8587393225a91cb17380acacf0740c209d0ec3cec77c2243"
+    },
+    {
+      "path": "src/Powershell/Scripts/Config-JIT.ps1",
+      "sha256": "363d4d5b142bea06282ef6f8e16a9c93eb1445c45d2339915cff51c0c42b11c1"
+    },
+    {
+      "path": "src/Powershell/Scripts/RequestAdminAccessUI.ps1",
+      "sha256": "e33c6303247d7d2e64a01667099c06869f6401f5191514a2bf2bc8334e5c385b"
+    },
+    {
+      "path": "src/Powershell/Scripts/Show-KjitConfiguration.ps1",
+      "sha256": "613fb6585457e8728da2b761f06e364ee3aca86016a86ac5420f2a7698ede82c"
+    },
+    {
+      "path": "src/Powershell/TestEnvironment/New-T1JitTestEnvironment.ps1",
+      "sha256": "10f87b50612edaf42c2698bea59c9a1ac413a4f056c43412312d5b78ec7c2f5d"
+    },
+    {
+      "path": "src/Powershell/TestEnvironment/Test-Environment.md",
+      "sha256": "07ebcdd8dfeaf947c798c0d3436f3f83907e7574452a7e3a3ad5372321315ab3"
+    },
+    {
+      "path": "tmp_ps51_test.ps1",
+      "sha256": "cde2014dc341379c22af144412540c7c128759b310e43887a3a2d4e9480a5f5c"
+    },
+    {
+      "path": "tmp_release_test.ps1",
+      "sha256": "efdc88f78b4692e5128b50e54dacd8ec4fe4a7772e880bb9adb7197d8eb2e9f7"
+    }
+  ]
 }

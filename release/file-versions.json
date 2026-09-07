@@ -1,0 +1,49 @@
+{
+  "version": "0.1.20260824.10",
+  "files": [
+    {
+      "path": "build/Update-Version.ps1",
+      "sha256": "ade54406db7b48cb60236e165056c0df2891df7b54954ec2b5a8b34a191dac05"
+    },
+    {
+      "path": "README.md",
+      "sha256": "f6a676c20024e3ca4f9c562c685f15e8cef3bac8b8df55f23abdb75d6c422536"
+    },
+    {
+      "path": "release/RequestAdminAccessUI.ps1",
+      "sha256": "e33c6303247d7d2e64a01667099c06869f6401f5191514a2bf2bc8334e5c385b"
+    },
+    {
+      "path": "release/Show-KjitConfiguration.ps1",
+      "sha256": "613fb6585457e8728da2b761f06e364ee3aca86016a86ac5420f2a7698ede82c"
+    },
+    {
+      "path": "src/C#/Kjitweb/uninstall-service.ps1",
+      "sha256": "c04adbf73692362e8587393225a91cb17380acacf0740c209d0ec3cec77c2243"
+    },
+    {
+      "path": "src/Powershell/Scripts/RequestAdminAccessUI.ps1",
+      "sha256": "e33c6303247d7d2e64a01667099c06869f6401f5191514a2bf2bc8334e5c385b"
+    },
+    {
+      "path": "src/Powershell/Scripts/Show-KjitConfiguration.ps1",
+      "sha256": "613fb6585457e8728da2b761f06e364ee3aca86016a86ac5420f2a7698ede82c"
+    },
+    {
+      "path": "src/Powershell/TestEnvironment/New-T1JitTestEnvironment.ps1",
+      "sha256": "10f87b50612edaf42c2698bea59c9a1ac413a4f056c43412312d5b78ec7c2f5d"
+    },
+    {
+      "path": "src/Powershell/TestEnvironment/Test-Environment.md",
+      "sha256": "07ebcdd8dfeaf947c798c0d3436f3f83907e7574452a7e3a3ad5372321315ab3"
+    },
+    {
+      "path": "tmp_ps51_test.ps1",
+      "sha256": "cde2014dc341379c22af144412540c7c128759b310e43887a3a2d4e9480a5f5c"
+    },
+    {
+      "path": "tmp_release_test.ps1",
+      "sha256": "efdc88f78b4692e5128b50e54dacd8ec4fe4a7772e880bb9adb7197d8eb2e9f7"
+    }
+  ]
+}
