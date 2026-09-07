@@ -34,4 +34,3 @@ $config = [KjitCore.KjitCore]::LoadJitConfiguration("C:\Repos\T1JIT\docs\config.
 - `ConvertFrom-DN2Dns`
 - `Get-UserElevationStatus`
 - `Get-JitDelegation`, `Add-JitDelegation`, `Remove-JitDelegation`
-- `Read-JIT.Configuration`, `Write-JIT.Configuration`

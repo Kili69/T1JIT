@@ -1,10 +1,40 @@
 {
-  "version": "0.1.20260907.35",
+  "version": "0.1.20260907.42",
   "files": [
     {
-      "path": "src/C#/Kjitweb/Views/Shared/_Layout.cshtml",
-      "version": "0.1.20260907.35",
-      "sha256": "6a7de4d24ff9fef7432dfdfe1166ededc5d19b058e19109d432889fdc8cb3802"
+      "path": "docs/Installation.md",
+      "version": "0.1.20260907.42",
+      "sha256": "7b75fa1ebfc763e0e74045ec8af0f303d6efc0979a8066fec29ca2dfb1c9fe75"
+    },
+    {
+      "path": "src/C#/KjitCore/README.md",
+      "version": "0.1.20260907.42",
+      "sha256": "045dee8e46d8ccbe237f1c33faa4853e22d95c74be9663f6941172e487dd95f0"
+    },
+    {
+      "path": "src/Powershell/modules/0.1/just-in-time-configuration.psm1",
+      "version": "0.1.20260907.42",
+      "sha256": "c1ad86a10b61b89089968ea810e5d11012a697fc3f9ccbf694a8b947742e2002"
+    },
+    {
+      "path": "src/Powershell/modules/0.1/just-in-Time-DelegationConfig.psm1",
+      "version": "0.1.20260907.42",
+      "sha256": "c12ead050e8d53bd80da9a251444c3b2b83d101b18ceaf453f815f7bd475e556"
+    },
+    {
+      "path": "src/Powershell/modules/0.1/just-in-time-request.psm1",
+      "version": "0.1.20260907.42",
+      "sha256": "e8261380abaec7563fd7edefb378efdde387de43cbbadb4ddae3efcba1dc7e2c"
+    },
+    {
+      "path": "src/Powershell/modules/Just-In-time.psd1",
+      "version": "0.1.20260907.42",
+      "sha256": "832c9afe6240d394c57d0b21c6a8568cef7477c74eec05c0da0c2934d2dd06c6"
+    },
+    {
+      "path": "src/Powershell/Scripts/ElevateUser.ps1",
+      "version": "0.1.20260907.42",
+      "sha256": "a717d8eb66b4ae59f4d29a26c2da7689070d9d731b771a1bf0750cdf57a33c49"
     }
   ]
 }

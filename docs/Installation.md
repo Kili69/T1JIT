@@ -127,14 +127,27 @@ On every OU who ist listed in the JIT configruation apply a Group Policy In this
 
 #### Get the current configured OU
 
-With the *Get-JITServerOU* command you will retrieve a list of OU who are currently configured
- 
+`Get-JITServerOU` displays the currently configured OUs as a readable list and
+returns the complete configuration object to the pipeline. For example, the search
+bases can be processed separately with:
+
+```powershell
+$searchBases = (Get-JITServerOU).T1Searchbase
+```
+
 To add a new OU for member servers use the *Add-JITServerOU*. This command adds a new searchbase to the configuration
 Add-JITServerOU -OU "<DistringuishedName>"
 Example: Add-JITServerOU -OU "OU=MyOrg,DC=contoso,DC=com"
 Within this command, any computer object in the OU OU=MyOrg,DC=contoso,DC=com is now part of the JIT Administation 
 
-To remove a OU from the configuration use the Remove-JITServerOU command. e.g. Remove-JITServer -OU "OU=MyOrg,DC=contoso,DC=com"
+To remove an OU from the configuration, including all delegation references to that
+OU, use `Remove-JITServerOU`. The command returns an object containing the removed OU
+and delegation entries:
+
+```powershell
+$removed = Remove-JITServerOU -OU "OU=MyOrg,DC=contoso,DC=com"
+$removed.RemovedDelegations
+```
 
 ### Delegation configuration
 

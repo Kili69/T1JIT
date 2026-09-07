@@ -21,29 +21,6 @@ inability to use the sample scripts or documentation, even if Microsoft has been
 possibility of such damages
 
 This module file contains the user functions to request the administrator privileges
-
-Version 0.1.20241014
-    New commands added to manage the server search base
-
-Implemented commands:
-    Add-JitDelegation
-        Add a new ACL to a OU
-    Add-JitserverOU
-        Add a new OU / container as search base for Tier 1 computers
-    Get-JITconfig
-        Displays the current configuration
-    Get-JitDelegation
-        Display the current assinged ACL
-    Get-JitServerOU
-        Displays the current Tier 1 member server search base
-    Get-UserElevationStatus
-        Show the elevation of a user
-    New-AdminRequest
-        requesting a new elevation for a user
-    Remove-JITDelegation
-        deletes a ACL from a OU
-    Remove-JITserverOU
-        Deletes a Tier 1 Meber server searchbase
 #>
 
 @{
@@ -53,7 +30,7 @@ Implemented commands:
 
 
 # Version number of this module.
-ModuleVersion = '0.1.20241014'
+ModuleVersion = '0.1.20260907.42'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -71,7 +48,7 @@ Author = 'Andreas Lucas (aka Kili)'
 Copyright = '(c) 2024 Andreas Lucas (aka Kili). All rights reserved.'
 
 # Description of the functionality provided by this module
-Description = 'Just-In-time Administration module. '
+Description = 'Just-in-time administration commands for requesting, configuring, and delegating temporary server access.'
 
 # Minimum version of the Windows PowerShell engine required by this module
 # PowerShellVersion = ''
@@ -92,7 +69,7 @@ Description = 'Just-In-time Administration module. '
 # ProcessorArchitecture = ''
 
 # Modules that must be imported into the global environment prior to importing this module
- RequiredModules = @("ActiveDirectory")
+RequiredModules = @('ActiveDirectory')
 
 # Assemblies that must be loaded prior to importing this module
 # RequiredAssemblies = @()
@@ -107,22 +84,27 @@ Description = 'Just-In-time Administration module. '
 # FormatsToProcess = @()
 
 # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
-NestedModules = @('0.1\just-in-time-request.psm1','0.1\just-in-time-delegationconfig.psm1','0.1\just-in-time-configuration.psm1','0.1\just-in-time-GUIs.psm1')
+NestedModules = @(
+    '0.1\just-in-time-request.psm1'
+    '0.1\just-in-Time-DelegationConfig.psm1'
+    '0.1\just-in-time-configuration.psm1'
+    '0.1\just-in-Time-GUIs.psm1'
+)
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
 FunctionsToExport = @(
-    "New-AdminRequest"
-    "Get-AdminStatus"
-    "Get-UserElevationStatus"
-    "Get-JITconfig"
-    "Get-JitDelegation"
-    "Get-JitserverOU"
-    "Remove-JitDelegation"
-    "Remove-JitServerOU"
-    "Add-JitDelegation"
-    "Add-JITServerOU"
-    "New-BreakMsgBox"
-    "New-WarningMsgBox"
+    'New-AdminRequest'
+    'Get-AdminStatus'
+    'Get-UserElevationStatus'
+    'Get-JITconfig'
+    'Get-JitDelegation'
+    'Get-JitServerOU'
+    'Remove-JitDelegation'
+    'Remove-JITServerOU'
+    'Add-JitDelegation'
+    'Add-JitServerOU'
+    'New-BreakMsgBox'
+    'New-WarningMsgBox'
 )
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
@@ -131,7 +113,7 @@ CmdletsToExport = @(
 )
 
 # Variables to export from this module
-#VariablesToExport = '*'
+VariablesToExport = @()
 
 # Aliases to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no aliases to export.
 AliasesToExport = @(

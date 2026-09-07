@@ -318,7 +318,7 @@ try{
             Write-ScriptMessage -EventID 2109 -Severity Error -Message "Invalid path $($config.DelegationConfigPath)"
             return
         }
-        if (!(Get-UserElevationStatus -ServerName $oServer.DNSHostName -UserName $oUser.UserPrincipalName -DelegationConfig $config.DelegationConfigPath -AllowManagebyAttribute $config.UseManagedByforDelegation)){
+        if (!(Get-UserElevationStatus -ServerName $oServer.DNSHostName -UserName $oUser.UserPrincipalName -DelegationConfig $config.DelegationConfigPath -AllowManagedByAttribute $config.UseManagedByforDelegation)){
             Write-ScriptMessage -EventID 2103 -Message "User $($oUser.DistinguishedName) is not allowed to request privileged access on $($oServer.DistinguishedName) " -Severity Warning
             return
         }
