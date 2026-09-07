@@ -76,6 +76,8 @@ possibility of such damages
         - Write an Application event with the per-run debug transcript path at startup.
         - Write computer-search failures to the Application log and debug transcript.
         - Support a global debug directory and one-generation 1 MB log rotation.
+        - Register a missing Application event source when permitted and otherwise continue with transcript logging.
+        - Ignore configured search-base paths that do not exist in an individual domain.
 
 
     Event ID
@@ -142,6 +144,35 @@ function Exit-Tier1LocalAdminGroup {
 }
 
 $applicationEventSource = "T1JIT Tier1LocalAdminGroup"
+$applicationEventLoggingUnavailable = $false
+function Write-Tier1ApplicationEvent {
+    param (
+        [Parameter(Mandatory)]
+        [int]$EventId,
+        [Parameter(Mandatory)]
+        [ValidateSet("Error", "Information", "Warning")]
+        [string]$EntryType,
+        [Parameter(Mandatory)]
+        [string]$Message
+    )
+
+    if ($script:applicationEventLoggingUnavailable) {
+        return
+    }
+
+    try {
+        if (-not [Diagnostics.EventLog]::SourceExists($script:applicationEventSource)) {
+            New-EventLog -LogName Application -Source $script:applicationEventSource -ErrorAction Stop
+        }
+
+        Write-EventLog -LogName Application -Source $script:applicationEventSource -EventId $EventId -EntryType $EntryType -Message $Message -ErrorAction Stop
+    }
+    catch {
+        $script:applicationEventLoggingUnavailable = $true
+        Write-Warning "Application event logging is unavailable for source '$script:applicationEventSource': $($_.Exception.Message) Detailed logging remains available in '$script:debugLogFile'."
+    }
+}
+
 $debugLogDirectory = Resolve-DebugLogDirectory -ConfigurationSource $configurationFile
 if (-not (Test-Path -LiteralPath $debugLogDirectory -PathType Container)) {
     $null = New-Item -Path $debugLogDirectory -ItemType Directory -Force -ErrorAction Stop
@@ -161,7 +192,8 @@ if ((Test-Path -LiteralPath $debugLogFile -PathType Leaf) -and
     Move-Item -LiteralPath $debugLogFile -Destination $savedDebugLogFile -Force -ErrorAction Stop
 }
 Start-Transcript -Path $debugLogFile -Append -Force -ErrorAction Stop | Out-Null
-Write-EventLog -LogName Application -Source $applicationEventSource -EventId 3100 -EntryType Information -Message "Tier1LocalAdminGroup.ps1 started. Detailed logging: $debugLogFile"
+Write-Verbose "Detailed logging: $debugLogFile"
+Write-Tier1ApplicationEvent -EventId 3100 -EntryType Information -Message "Tier1LocalAdminGroup.ps1 started. Detailed logging: $debugLogFile"
 
 #Read configuration
 #if the configuration file doesnt exists or is malformed terminat the script
@@ -216,24 +248,44 @@ Foreach ($Domain in $aryDomainList) {
     #Woring on every domain in the Forest
     Write-Debug "Working on Domain $Domain"
     #The searchbase parameter defines the OU where the script is looking for computer objects. if the value is <DomainRoot> the script searches in the entrie domain from computer objects
-    Foreach ($SearchBase in $config.T1Searchbase) {
-        if ($SearchBase -notlike "*DC=*"){
-            if ($SearchBase -eq "<DomainRoot>") {
-                $SearchBase = (Get-ADDomain -Server $Domain).DistinguishedName
+    Foreach ($ConfiguredSearchBase in $config.T1Searchbase) {
+        $domainDistinguishedName = (Get-ADDomain -Server $Domain).DistinguishedName
+        $searchBaseIsFullDn = $ConfiguredSearchBase -like "*DC=*"
+        if ($searchBaseIsFullDn) {
+            $searchBaseDomain = @($ConfiguredSearchBase -split "," | Where-Object { $_ -match "^\s*DC=" } | ForEach-Object { $_ -replace "(?i)^\s*DC=", "" }) -join "."
+            if ($Domain -ine $searchBaseDomain) {
+                Write-Verbose "Skipping fully qualified search base '$ConfiguredSearchBase' while processing domain '$Domain'; it belongs to '$searchBaseDomain'."
+                continue
+            }
+            $SearchBase = $ConfiguredSearchBase
+        }
+        else {
+            if ($ConfiguredSearchBase -eq "<DomainRoot>") {
+                $SearchBase = $domainDistinguishedName
             }
             else {
-                $SearchBase += ",$((Get-ADDomain -Server $Domain).DistinguishedName)"
+                $SearchBase = "$ConfiguredSearchBase,$domainDistinguishedName"
             }
         }
         #Validate the OU exists. It is not mandatory to have the same Tier 1 OU structure in all domains
-        if ($SearchBase -like "*$((Get-ADDomain -Server $Domain).DistinguishedName)") {
+        if ($SearchBase -like "*$domainDistinguishedName") {
             #Search for computer object in the OU and based on the LDAP filter. While the LDAP filter doesn't support DistinguishedNames the query must work again s the $searchbase
             try {
+                Write-Verbose "Searching computers in domain '$Domain' with search base '$SearchBase' and LDAP filter '$($config.LDAPT1Computers)'."
                 $serverList = @(Get-ADComputer -LDAPFilter $config.LDAPT1Computers -Properties memberof -SearchBase $Searchbase -Server $Domain -ErrorAction Stop | Where-Object { $_.DistinguishedName -notlike "*$($config.LDAPT0ComputerPath)*" })
+            }
+            catch [Microsoft.ActiveDirectory.Management.ADIdentityNotFoundException] {
+                if ($searchBaseIsFullDn) {
+                    Write-Verbose "Skipping fully qualified search base '$SearchBase' because it does not exist in its domain '$Domain'."
+                }
+                else {
+                    Write-Verbose "Skipping relative search base '$ConfiguredSearchBase' because '$SearchBase' does not exist in domain '$Domain'; remaining domains will still be searched."
+                }
+                continue
             }
             catch {
                 $computerSearchError = "Computer search failed for '$SearchBase' in domain '$Domain': $($_.Exception.Message). Detailed logging: $debugLogFile"
-                Write-EventLog -LogName Application -Source $applicationEventSource -EventId 3101 -EntryType Error -Message $computerSearchError
+                Write-Tier1ApplicationEvent -EventId 3101 -EntryType Error -Message $computerSearchError
                 Write-Error $computerSearchError
                 continue
             }

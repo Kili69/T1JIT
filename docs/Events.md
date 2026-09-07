@@ -31,8 +31,10 @@
 
 `Tier1LocalAdminGroup.ps1` writes these events using source `T1JIT Tier1LocalAdminGroup`:
 
+`Config-JIT.ps1` registers the source during installation. For upgraded installations, `Tier1LocalAdminGroup.ps1` attempts to register a missing source when it starts with administrative privileges. If registration is not permitted, execution continues and one warning is written to the debug transcript instead of emitting repeated `Write-EventLog` errors.
+
 | Event ID | Severity    | Message |
 |----------|-------------|---------|
 | 3100     | Information | Script started; includes the path to `Tier1LocalAdminGroup-<server>.log` in the globally configured `DebugLogPath` directory |
-| 3101     | Error       | Computer search failed; includes the search base, domain, error, and debug transcript path |
+| 3101     | Error       | Computer search failed for a reason other than a missing search-base path; includes the search base, domain, error, and debug transcript path |
 
