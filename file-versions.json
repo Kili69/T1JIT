@@ -1,15 +1,10 @@
 {
-  "version": "0.1.20260907.34",
+  "version": "0.1.20260907.35",
   "files": [
     {
-      "path": "build/release_build.ps1",
-      "version": "0.1.20260907.34",
-      "sha256": "42d8dadbd8991ab4e29aa4caa07b940fb8dbd0f516fd15cc2a274aa895189984"
-    },
-    {
-      "path": "src/C#/Kjitweb/KjitWeb.csproj",
-      "version": "0.1.20260907.34",
-      "sha256": "5e10cfbbf0bdb95338bc12b7f70b933808c6e252bed235aa05736a1470695496"
+      "path": "src/C#/Kjitweb/Views/Shared/_Layout.cshtml",
+      "version": "0.1.20260907.35",
+      "sha256": "6a7de4d24ff9fef7432dfdfe1166ededc5d19b058e19109d432889fdc8cb3802"
     }
   ]
 }
