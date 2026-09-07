@@ -1,10 +1,10 @@
 {
-  "version": "0.1.20260907.24",
+  "version": "0.1.20260907.30",
   "files": [
     {
-      "path": "History.md",
-      "version": "0.1.20260907.24",
-      "sha256": "7cd57f0ba32b4c2add50eedf66fa2e7393472be6d0ce8ffe18033a41610eafcd"
+      "path": "README.md",
+      "version": "0.1.20260907.30",
+      "sha256": "b4d1eaf3b8161f6d8b0fc348c2d3dc90f4d2e1afb9cd229ade4b259634a99680"
     }
   ]
 }

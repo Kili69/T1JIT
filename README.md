@@ -20,68 +20,29 @@ While the group where the user is added contains the target server in the name,o
 The user is automatically removed from the local administrator group after the time is expired.
 The groups will be automatically created by the JIT-Solution, if a computer oject exists in the configured target OU.
 
-## Solution Structure
+```mermaid
+flowchart LR
+    subgraph Provisioning[Group provisioning stream]
+        Computer[Computer exists in a configured target OU]
+        Detect[JIT solution detects the target server]
+        Group[Create the server-specific AD group]
+        Computer --> Detect --> Group
+    end
 
-- `src`: contains all source code
-- `Release`: contains all files required for the installation of the JIT-Solution.
-- `docs`: documentation
-- `build`: scripts to build a new release version
+    subgraph RequestFlow[User request stream]
+        User[User selects a server and duration]
+        Request[PowerShell or KJIT-Web creates the request]
+        EventLog[Write the request to the Just-In-Time event log]
+        Validate{Validate the request and authorization}
+        Denied[Reject the request]
+        AddMember[Add the user to the server-specific group with a TTL]
+        Expire[TTL expires and Active Directory removes the membership]
 
-## Versioning
-
-Every change uses the version format `<Major>.<Minor>.<yyyyMMdd>.<counter>`, for example
-`0.1.20260823.1`. The counter starts at `1` each day and increases for every additional
-version created on that day. All files in one change share the same version.
-Each entry in `file-versions.json` records that shared version and the file's SHA-256
-hash.
-
-Enable automatic versioning for local commits once after cloning the repository:
-
-```powershell
-git config core.hooksPath .githooks
+        User --> Request --> EventLog --> Validate
+        Validate -->|Invalid| Denied
+        Validate -->|Valid| AddMember --> Expire
+    end
 ```
-
-The pre-commit hook runs `Update-Version.ps1 -Staged`, creates the next version for
-the files staged in that commit, and stages `VERSION` and `file-versions.json`.
-
-Use the repository push script for GitHub pushes:
-
-```powershell
-./build/Push-GitHub.ps1
-```
-
-It records every outgoing commit and changed file in `History.md`, creates a versioned
-history commit, and then pushes the current branch. The pre-push hook rejects direct
-GitHub pushes when outgoing commits have not been documented.
-
-Before committing changes, update `VERSION` and `file-versions.json`:
-
-```powershell
-./build/Update-Version.ps1
-```
-
-For a branch that already contains commits, include every change since the target branch:
-
-```powershell
-./build/Update-Version.ps1 -BaseRef origin/main
-```
-
-Use `-Major` or `-Minor` only when intentionally changing those version components. The
-release build and the GitHub workflow reject invalid versions or changed files missing from
-`file-versions.json`. Generated .NET output below `bin` and `obj` is excluded.
-
-Every `.ps1` file must contain the standard `Script Info` disclaimer used in
-`build/Update-Version.ps1`. The version update and GitHub workflow reject existing or new
-PowerShell scripts when any required disclaimer line is missing.
-
-Create a complete installation package in `Installationspackage` with:
-
-```powershell
-./build/New-InstallationPackage.ps1
-```
-
-The script copies all required installation files from `release` to the package directory.
-Use `-BuildRelease` when `release` must be rebuilt before creating the package.
 
 ## Quick-start Installation
 
@@ -102,8 +63,105 @@ required installation permission:
 
 1. Run the install-JIT.ps1 script. This script will install the JIT-Solution on the current computer.
 2. Move to the %ProgramFiles%\Just-IN-time folder and the config-Jit.ps1 script to configure the JIT-Solution. This script will ask for the required configuration parameters and write them to the config file.
-3. COnfigure the group policy to assign the local administrator rights on the target servers. The group policy should contain a preference to add the <AdminPrefix>%AD-DNSdomainname%<DomainSeparator>%<ComputerName>% to the local administrator group.
+3. Configure the group policy to assign the local administrator rights on the target servers. The group policy should contain a preference to add the <AdminPrefix>%AD-DNSdomainname%<DomainSeparator>%<ComputerName>% to the local administrator group.
 4. (optional) Install the KJIT-Web service with the install-kjitweb.ps1 script. This script will install the KJIT-Web service on the current computer.
+
+### Installation of the KJIT-Web service
+
+The KJIT-Web service can be installed with the install-kjitweb.ps1 script. This script will install the KJIT-Web service on the current computer. The KJIT-Web Service must be installed on a server where the JIT-Solution is installed.
+
+### Configuration of the KJIT-Web service
+
+The KJIT-Web service can be configured with the appsettings.json file. The configuration parameters are:
+- Branding: The branding configuration for the web interface. The parameters are:
+    - LogoPath: The path to the logo for the web interface. The default value is "/images/logo.png". The logo should be a square image with a size of 100x100 pixels.
+    - CompanyName: The name of the company for the web interface. The default value is "Contoso Ltd.". The company name will be displayed in the header of the web interface.
+- AllowedHosts: The server DNS names accepted in the HTTP `Host` header. Separate multiple names with semicolons. The default value `"*"` accepts every host header; this setting does not restrict client IP addresses.
+
+#### Configure an SSL certificate
+
+KJIT-Web can terminate HTTPS directly through Kestrel. The certificate must contain the
+DNS name used by the clients in its Subject Alternative Name, include a private key, and
+be trusted by the clients. Import the certificate into `Local Computer > Personal`
+(`Cert:\LocalMachine\My`). In the Certificates MMC snap-in, use **Manage Private Keys**
+to grant the service account `NETWORK SERVICE` read access to the certificate's private key.
+
+Run the following commands in an elevated PowerShell session. Replace the DNS name and
+port with the values used in your environment:
+
+```powershell
+$serviceName = "KjitWeb"
+$dnsName = "kjitweb.contoso.com"
+$httpsPort = 5240
+$certificate = Get-ChildItem Cert:\LocalMachine\My |
+    Where-Object { $_.HasPrivateKey -and $_.DnsNameList.Unicode -contains $dnsName } |
+    Sort-Object NotAfter -Descending |
+    Select-Object -First 1
+
+if (-not $certificate) {
+    throw "No certificate with a private key was found for $dnsName."
+}
+$certificateSubject = $certificate.GetNameInfo(
+    [Security.Cryptography.X509Certificates.X509NameType]::SimpleName,
+    $false
+)
+
+$serviceRegistryPath = "HKLM:\SYSTEM\CurrentControlSet\Services\$serviceName"
+$environment = @(
+    (Get-ItemProperty -Path $serviceRegistryPath -Name Environment).Environment |
+    Where-Object { $_ -notmatch '^(ASPNETCORE_URLS|Kestrel__Certificates__Default__[^=]+)=' }
+)
+$environment += @(
+    "ASPNETCORE_URLS=https://*:$httpsPort",
+    "Kestrel__Certificates__Default__Subject=$certificateSubject",
+    "Kestrel__Certificates__Default__Store=My",
+    "Kestrel__Certificates__Default__Location=LocalMachine"
+)
+Set-ItemProperty -Path $serviceRegistryPath -Name Environment -Value $environment
+Restart-Service -Name $serviceName
+```
+
+Verify the binding with `https://kjitweb.contoso.com:5240`. When KJIT-Web is placed
+behind a reverse proxy that terminates TLS, keep the internal HTTP binding and configure
+the certificate on the reverse proxy instead. Do not expose that internal HTTP port to
+untrusted networks.
+
+#### Restrict source addresses
+
+The installer can restrict access to one client hostname or IP address. It resolves the
+value and creates the Windows Firewall rule `KjitWeb Port <port> Client Restriction`:
+
+```powershell
+.\install-kjitweb.ps1 -AllowedClient "10.20.30.40" -Port 5240
+```
+
+After installation, set `AllowedHosts` in
+`C:\Program Files\KJITWEB\appsettings.json` to the DNS names used to access the KJIT-Web
+server, for example `"kjitweb;kjitweb.contoso.com"`. This setting describes the server
+names accepted in the HTTP `Host` header, not the allowed client.
+
+Omitting `-AllowedClient` limits the listener to localhost. Using `-AllowedClient "*"`
+allows all source addresses and is not recommended for production. To permit multiple
+clients or networks, install the service for remote access and then replace the firewall
+rule's remote-address list. CIDR notation is supported by Windows Firewall:
+
+```powershell
+$ruleName = "KjitWeb Port 5240 Client Restriction"
+Get-NetFirewallRule -DisplayName $ruleName |
+    Get-NetFirewallAddressFilter |
+    Set-NetFirewallAddressFilter `
+        -RemoteAddress @("10.20.30.40", "10.30.0.0/16", "192.168.50.0/24")
+```
+
+Confirm the effective restriction with:
+
+```powershell
+Get-NetFirewallRule -DisplayName "KjitWeb Port 5240 Client Restriction" |
+    Get-NetFirewallAddressFilter
+```
+
+`AllowedHosts` validates the HTTP `Host` header only. It does not restrict client source
+IP addresses and therefore does not replace the Windows Firewall rule.
 
 ### Configure Just-In-Time
 
@@ -145,20 +203,9 @@ e.g.
 
 The KJIT-Web service provides a web interface for users to request administrator privileges on the target servers. The web interface is accessible via http://<server>.<domain>:5240. The user can select the target server and the duration for the elevation. The user can also see the status of their requests and the remaining time for the elevation.
 
-### Installation of the KJIT-Web service
-
-The KJIT-Web service can be installed with the install-kjitweb.ps1 script. This script will install the KJIT-Web service on the current computer. The KJIT-Web Service must be installed on a server where the JIT-Solution is installed.
 ### Using the KJIT-Web service
 
 To use the KJIT-Web service, the user can open a web browser and navigate to http://<server>.<domain>:5240. The user can then select the target server and the duration for the elevation. The user can also see the status of their requests and the remaining time for the elevation.
-
-### Configuration of the KJIT-Web service
-
-The KJIT-Web service can be configured with the appsettings.json file. The configuration parameters are:
-- Branding: The branding configuration for the web interface. The parameters are:
-    - LogoPath: The path to the logo for the web interface. The default value is "/images/logo.png". The logo should be a square image with a size of 100x100 pixels.
-    - CompanyName: The name of the company for the web interface. The default value is "Contoso Ltd.". The company name will be displayed in the header of the web interface.
-- AllowedHosts: The allowed hosts for the web interface. The default value is "*". The web interface will only be accessible from the specified hosts. To allow access from any host, set the value to "*".
 
 ## Setup addtional JIT servers
 
@@ -267,14 +314,79 @@ The Add-JITServerOU command can be used to add a server OU for the JIT-Solution.
     Add-JITServerOU -OU "OU=Server,DC=domain,DC=local"
         This will add the "OU=Server,DC=domain,DC=local" OU for the JIT-Solution. Any computer objects located in this OU or its child OUs will be considered as target servers for the JIT-Solution.
 
-## Contributing
-
-github\Kili69
-github\Bulgwei
-
 ## 📄 License
 
 This project is licensed under the MIT License.
 
 ## Updates
 2025-08-30 The update is a complete restructuring of the files to enable the use of C# code. Integrating C# is essential for extending the JIT Solution into a cloud service. In this update, the code has been separated from the release files. Additionally, the documentation has been moved to the Doc folder to improve clarity. All files required for operation are now located in the release directory.
+
+## Developer information
+
+### Solution Structure
+
+- `src`: contains all source code
+- `Release`: contains all files required for the installation of the JIT-Solution.
+- `docs`: documentation
+- `build`: scripts to build a new release version
+
+### Versioning
+
+Every change uses the version format `<Major>.<Minor>.<yyyyMMdd>.<counter>`, for example
+`0.1.20260823.1`. The counter starts at `1` each day and increases for every additional
+version created on that day. All files in one change share the same version.
+Each entry in `file-versions.json` records that shared version and the file's SHA-256
+hash.
+
+Enable automatic versioning for local commits once after cloning the repository:
+
+```powershell
+git config core.hooksPath .githooks
+```
+
+The pre-commit hook runs `Update-Version.ps1 -Staged`, creates the next version for
+the files staged in that commit, and stages `VERSION` and `file-versions.json`.
+
+Use the repository push script for GitHub pushes:
+
+```powershell
+./build/Push-GitHub.ps1
+```
+
+It records every outgoing commit and changed file in `History.md`, creates a versioned
+history commit, and then pushes the current branch. The pre-push hook rejects direct
+GitHub pushes when outgoing commits have not been documented.
+
+Before committing changes, update `VERSION` and `file-versions.json`:
+
+```powershell
+./build/Update-Version.ps1
+```
+
+For a branch that already contains commits, include every change since the target branch:
+
+```powershell
+./build/Update-Version.ps1 -BaseRef origin/main
+```
+
+Use `-Major` or `-Minor` only when intentionally changing those version components. The
+release build and the GitHub workflow reject invalid versions or changed files missing from
+`file-versions.json`. Generated .NET output below `bin` and `obj` is excluded.
+
+Every `.ps1` file must contain the standard `Script Info` disclaimer used in
+`build/Update-Version.ps1`. The version update and GitHub workflow reject existing or new
+PowerShell scripts when any required disclaimer line is missing.
+
+Create a complete installation package in `Installationspackage` with:
+
+```powershell
+./build/New-InstallationPackage.ps1
+```
+
+The script copies all required installation files from `release` to the package directory.
+Use `-BuildRelease` when `release` must be rebuilt before creating the package.
+
+### Contributing
+
+github\Kili69
+github\Bulgwei
