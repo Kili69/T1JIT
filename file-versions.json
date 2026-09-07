@@ -1,10 +1,15 @@
 {
-  "version": "0.1.20260907.31",
+  "version": "0.1.20260907.34",
   "files": [
     {
-      "path": "History.md",
-      "version": "0.1.20260907.31",
-      "sha256": "ac1e41ee797329b853c938c59c1823d34d5003a853239b7dcecc688e2037e44c"
+      "path": "build/release_build.ps1",
+      "version": "0.1.20260907.34",
+      "sha256": "42d8dadbd8991ab4e29aa4caa07b940fb8dbd0f516fd15cc2a274aa895189984"
+    },
+    {
+      "path": "src/C#/Kjitweb/KjitWeb.csproj",
+      "version": "0.1.20260907.34",
+      "sha256": "5e10cfbbf0bdb95338bc12b7f70b933808c6e252bed235aa05736a1470695496"
     }
   ]
 }
