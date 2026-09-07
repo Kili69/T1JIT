@@ -1,5 +1,9 @@
 # T1JIT Active Directory Test Environment
 
+> All PowerShell scripts in this directory are development-only tools. They are
+> maintained on `dev` and must not be merged into `main` or included in a
+> release package.
+
 The `New-T1JitTestEnvironment.ps1` script creates Active Directory objects for
 functional and delegation tests. It is not part of the release package and must
 only be used in a disposable test domain.
@@ -78,3 +82,58 @@ a creation status line.
 
 All Active Directory writes support `-WhatIf` through PowerShell's
 `ShouldProcess` mechanism.
+
+## Clean Installation Test
+
+The following scripts prepare a repeatable installation test on an existing
+domain hierarchy:
+
+- `Remove-T1JitInstallation.ps1` removes the installed PowerShell and KjitWeb
+    components, scheduled tasks, event log, GMSA, generated JIT administrator
+    groups, and JIT configuration files. It preserves `OU=Servers`, all computer
+    objects below it, `OU=SQL`, and the eligibility groups.
+- `Install-T1JitTestInstallation.ps1` creates a configuration in SYSVOL, invokes
+    `install-JIT.ps1`, installs KjitWeb, configures the delegations, and validates
+    the resulting service, tasks, GMSA, and delegation entries.
+
+The installation test expects these existing objects in the current domain:
+
+- `OU=Servers`
+- `OU=SQL,OU=Servers`
+- Security group `Global Server Administrators`
+- Security group `SQL-Admins`
+
+Run both scripts in Windows PowerShell 5.1 as a local administrator and Domain
+Admin. Preview the cleanup first:
+
+```powershell
+.\Remove-T1JitInstallation.ps1 -WhatIf
+```
+
+Remove the installation after reviewing the targets:
+
+```powershell
+.\Remove-T1JitInstallation.ps1 -Force -Verbose
+```
+
+Preview and then perform the installation. The default web binding permits only
+local access:
+
+```powershell
+.\Install-T1JitTestInstallation.ps1 -WhatIf
+.\Install-T1JitTestInstallation.ps1 -Confirm:$false -Verbose
+```
+
+To permit a specific administration workstation to access KjitWeb, provide its
+resolvable hostname or IP address:
+
+```powershell
+.\Install-T1JitTestInstallation.ps1 `
+        -AllowedClient "PAW01.contoso.com" `
+        -Confirm:$false `
+        -Verbose
+```
+
+The parent delegation makes `Global Server Administrators` eligible for every
+computer below `OU=Servers`. The additional child delegation makes `SQL-Admins`
+eligible for computers below `OU=SQL,OU=Servers`.

@@ -7,6 +7,22 @@ on:
       - main
 
 jobs:
+  protect-main-content:
+    if: github.ref_name == 'main' || github.base_ref == 'main'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reject development-only test scripts
+        shell: pwsh
+        run: |
+            $testScripts = @(git ls-files -- "src/Powershell/TestEnvironment" | Where-Object { $_ -like "*.ps1" })
+
+          if ($testScripts.Count -gt 0) {
+            Write-Error "Development-only TestEnvironment scripts must not be included in main: $($testScripts -join ', ')"
+              exit 1
+          }
+
   validate-version:
     runs-on: windows-latest
     steps:

@@ -21,6 +21,17 @@ possibility of such damages
 .DESCRIPTION
     This script install the Just-IN-Time Solution. The purpose of this script is to copy scripts into
     program files folder,the modules into the modules and start the configuration script
+.PARAMETER InstallWeb
+    Installs KjitWeb after the PowerShell configuration completes. In silent mode,
+    provide the web parameters to avoid interactive prompts.
+.PARAMETER AllowedClient
+    Hostname or IP address allowed to access KjitWeb.
+.PARAMETER CompanyName
+    Company name displayed by KjitWeb.
+.PARAMETER Port
+    TCP port used by KjitWeb.
+.PARAMETER DebugLogPath
+    Optional KjitWeb debug log path.
 Version 0.1.20240918
     Initial Version
 Version 0.1.20241006
@@ -34,12 +45,18 @@ Version 0.1.20250830
 .NOTES
     The installation transcript is written to the current user's temporary directory.
 #>
+[CmdletBinding()]
 param(
     [Parameter(Mandatory = $false)]
     [string]$JitProgramFolder,
     [Parameter (Mandatory = $false)]
     [string]$JitConfigFile,
-    [switch]$silent
+    [switch]$silent,
+    [switch]$InstallWeb,
+    [string]$AllowedClient,
+    [string]$CompanyName,
+    [int]$Port,
+    [string]$DebugLogPath
 )
 
 $logPath = Join-Path ([IO.Path]::GetTempPath()) ("T1JIT-install-{0:yyyyMMdd-HHmmss}-{1}.log" -f (Get-Date), $PID)
@@ -76,16 +93,26 @@ try {
     Copy-Item .\modules\* -Destination "$($env:ProgramFiles)\WindowsPowerShell\Modules\Just-In-time" -Recurse -ErrorAction Stop -Force 
     Set-Location -Path $TargetDir
     if ($silent) {
-        $configArguments = @("-quiet")
+        $configArguments = @{ quiet = $true }
         if (![string]::IsNullOrWhiteSpace($JitConfigFile)) {
-            $configArguments += @("-configurationFile", "`"$JitConfigFile`"")
+            $configArguments.configurationFile = $JitConfigFile
         }
-        Start-Process -FilePath "$TargetDir\config-JIT.ps1" -ArgumentList $configArguments
+
+        $configuration = & "$TargetDir\config-JIT.ps1" @configArguments
+        if ($null -eq $configuration) {
+            throw "JIT configuration did not complete successfully. Review the preceding errors."
+        }
     } else {
         Write-Host "Start the configuration: $TargetDir\config-JIT.ps1"
+    }
 
+    $installWebRequested = $InstallWeb
+    if (!$silent) {
         $installWebResponse = Read-Host "Install the KjitWeb website as a Windows service? [Y/n]"
-        if ([string]::IsNullOrWhiteSpace($installWebResponse) -or $installWebResponse.Trim() -match '^(?i:y|yes)$') {
+        $installWebRequested = [string]::IsNullOrWhiteSpace($installWebResponse) -or $installWebResponse.Trim() -match '^(?i:y|yes)$'
+    }
+
+    if ($installWebRequested) {
             $webInstallerCandidates = @(
                 (Join-Path $PSScriptRoot "kjibweb\install-kjitweb.ps1"),
                 (Join-Path $PSScriptRoot "..\..\C#\Kjitweb\install-kjitweb.ps1")
@@ -102,18 +129,27 @@ try {
             if (![string]::IsNullOrWhiteSpace($JitConfigFile)) {
                 $webInstallerArguments.JitConfig = $JitConfigFile
             }
+            if (![string]::IsNullOrWhiteSpace($AllowedClient)) {
+                $webInstallerArguments.AllowedClient = $AllowedClient
+            }
+            if (![string]::IsNullOrWhiteSpace($CompanyName)) {
+                $webInstallerArguments.CompanyName = $CompanyName
+            }
+            if ($Port -gt 0) {
+                $webInstallerArguments.Port = $Port
+            }
+            if (![string]::IsNullOrWhiteSpace($DebugLogPath)) {
+                $webInstallerArguments.DebugLogPath = $DebugLogPath
+            }
 
             & $webInstallerPath @webInstallerArguments
-        }
     }
 } 
 catch [System.UnauthorizedAccessException] {
-    Write-Host "A access denied error occurred" -ForegroundColor Red
-    Write-Host "Run the installation as administrator"
+    throw "Access denied. Run the installation as administrator. $($_.Exception.Message)"
 }
 catch{
-    Write-Host "An unexpected error occurred" -ForegroundColor Red
-    $Error[0] 
+    throw "Installation failed: $($_.Exception.Message)"
 }
 finally {
     if ($transcriptStarted) {

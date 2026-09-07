@@ -58,7 +58,21 @@ foreach ($update in $refUpdates) {
     }
 
     $localHash = $parts[1]
+    $remoteRef = $parts[2]
     $remoteHash = $parts[3]
+    if ($remoteRef -eq "refs/heads/main") {
+        $mainTestScripts = @(& git -C $repoRoot ls-tree -r --name-only $localHash -- "src/Powershell/TestEnvironment") |
+            Where-Object { $_ -like "*.ps1" }
+        if ($LASTEXITCODE -ne 0) {
+            throw "Unable to inspect TestEnvironment scripts in $localHash."
+        }
+
+        if ($mainTestScripts.Count -gt 0) {
+            Write-Error "Push to main rejected: development-only TestEnvironment scripts are included: $($mainTestScripts -join ', ')"
+            exit 1
+        }
+    }
+
     $candidates = @(& git -C $repoRoot rev-list --reverse "$enforcementStart..$localHash")
     if ($LASTEXITCODE -ne 0) {
         throw "Unable to determine commits included in the push."

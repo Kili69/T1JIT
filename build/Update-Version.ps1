@@ -187,7 +187,7 @@ function Assert-ScriptDisclaimers {
     $invalidScripts = @()
     foreach ($script in @($trackedScripts + $untrackedScripts | Sort-Object -Unique)) {
         $scriptPath = Join-Path $repoRoot $script
-        $scriptLines = @(Get-Content -LiteralPath $scriptPath | ForEach-Object { $_.TrimEnd() })
+        $scriptLines = @(Get-Content -LiteralPath $scriptPath | ForEach-Object { $_.Trim() })
         $missingLines = @($requiredScriptDisclaimerLines | Where-Object { $_ -notin $scriptLines })
         if ($missingLines.Count -gt 0) {
             $invalidScripts += $script.Replace('\', '/')

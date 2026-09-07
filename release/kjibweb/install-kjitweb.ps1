@@ -223,7 +223,7 @@ function Get-PortProcessIds {
         $ids = netstat -ano -p tcp |
             Select-String ":$Port\s" |
             ForEach-Object {
-                $parts = ($_ -split "\s+") | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+                $parts = @(($_ -split "\s+") | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
                 if ($parts.Count -gt 0) { [int]$parts[-1] }
             } |
             Select-Object -Unique
@@ -261,8 +261,8 @@ function Resolve-AllowedClientAddresses {
     }
 
     try {
-        $addresses = [System.Net.Dns]::GetHostAddresses($candidate) |
-            Select-Object -ExpandProperty IPAddressToString -Unique
+        $addresses = @([System.Net.Dns]::GetHostAddresses($candidate) |
+            Select-Object -ExpandProperty IPAddressToString -Unique)
         if (-not $addresses -or $addresses.Count -eq 0) {
             throw "No IP addresses resolved."
         }
@@ -422,16 +422,23 @@ function Get-RequiredDotnetMajorVersion {
         $runtimeConfig = Get-Content -Path $runtimeConfigPath -Raw | ConvertFrom-Json # Attempt to read the .runtimeconfig.json file to determine the required .NET runtime version. This allows the installer to automatically determine the correct runtime version to install based on the actual binary, which is especially useful if different versions of KJITweb may require different runtimes in the future.
         $frameworkVersion = $null
 
-        if ($runtimeConfig.runtimeOptions.framework.version) {
-            $frameworkVersion = [string]$runtimeConfig.runtimeOptions.framework.version # First, check the top-level "framework" section which is used for self-contained deployments. This is the most common case for KJITweb, as it is typically published as a self-contained application. If this section exists, it indicates the required .NET runtime version directly.
+        $runtimeOptionsProperty = $runtimeConfig.PSObject.Properties["runtimeOptions"]
+        $runtimeOptions = if ($null -ne $runtimeOptionsProperty) { $runtimeOptionsProperty.Value }
+        $frameworkProperty = if ($null -ne $runtimeOptions) { $runtimeOptions.PSObject.Properties["framework"] }
+        $frameworksProperty = if ($null -ne $runtimeOptions) { $runtimeOptions.PSObject.Properties["frameworks"] }
+        $framework = if ($null -ne $frameworkProperty) { $frameworkProperty.Value }
+        $frameworks = if ($null -ne $frameworksProperty) { $frameworksProperty.Value }
+
+        if ($null -ne $framework -and $null -ne $framework.PSObject.Properties["version"]) {
+            $frameworkVersion = [string]$framework.version # First, check the top-level "framework" section which is used for self-contained deployments. This is the most common case for KJITweb, as it is typically published as a self-contained application. If this section exists, it indicates the required .NET runtime version directly.
         }
-        elseif ($runtimeConfig.runtimeOptions.frameworks) {
+        elseif ($null -ne $frameworks) {
             # If the "framework" section is not present, check the "frameworks" array which is used for framework-dependent deployments that may target multiple frameworks. In this case, we look for the first entry that matches either "Microsoft.NETCore.App" or "Microsoft.AspNetCore.App", as KJITweb requires both the .NET runtime and ASP.NET Core runtime. This allows us to support more complex deployment scenarios while still correctly determining the required runtime version.
-            $fx = $runtimeConfig.runtimeOptions.frameworks |
+            $fx = $frameworks |
                 Where-Object { $_.name -in @("Microsoft.NETCore.App", "Microsoft.AspNetCore.App") } |
                 Select-Object -First 1
             # If we find a matching framework entry, we take its version as the required runtime version. If there are multiple entries, we assume they all require the same major version, which is a common scenario when targeting both the .NET runtime and ASP.NET Core runtime.
-            if ($fx -and $fx.version) {
+            if ($null -ne $fx -and $null -ne $fx.PSObject.Properties["version"]) {
                 $frameworkVersion = [string]$fx.version
             }
         }
@@ -581,7 +588,7 @@ function Set-ClientAccessFirewallRule {
 
     # For localhost-only mode, service binding already prevents remote access.
     $addresses = @($RemoteAddresses | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-    $isLoopbackOnly = ($addresses.Count -gt 0) -and (($addresses | Where-Object { $_ -notin @("127.0.0.1", "::1") }).Count -eq 0)
+    $isLoopbackOnly = ($addresses.Count -gt 0) -and (@($addresses | Where-Object { $_ -notin @("127.0.0.1", "::1") }).Count -eq 0)
     if ($isLoopbackOnly) {
         Write-Host "Skipping firewall rule for localhost-only mode."
         return
@@ -630,7 +637,7 @@ function Update-AppSettingsForInstall {
     try {
         $appSettings = Get-Content -Path $AppSettingsPath -Raw | ConvertFrom-Json
 
-        if ($null -eq $appSettings.ActiveDirectory) {
+        if ($null -eq $appSettings.PSObject.Properties["ActiveDirectory"]) {
             $appSettings | Add-Member -MemberType NoteProperty -Name "ActiveDirectory" -Value ([PSCustomObject]@{}) -Force
         }
         $appSettings.ActiveDirectory | Add-Member -MemberType NoteProperty -Name "JitConfigPath" -Value $JitConfigPath -Force
@@ -638,19 +645,19 @@ function Update-AppSettingsForInstall {
         $allowedHosts = Get-AllowedHostsFromAllowedClient -Client $AllowedClient
         $appSettings | Add-Member -MemberType NoteProperty -Name "AllowedHosts" -Value $allowedHosts -Force
 
-        if ($null -eq $appSettings.Branding) {
+        if ($null -eq $appSettings.PSObject.Properties["Branding"]) {
             $appSettings | Add-Member -MemberType NoteProperty -Name "Branding" -Value ([PSCustomObject]@{}) -Force
         }
         $appSettings.Branding | Add-Member -MemberType NoteProperty -Name "CompanyName" -Value $CompanyName -Force
 
-        if ($null -eq $appSettings.KjitWebInstall) {
+        if ($null -eq $appSettings.PSObject.Properties["KjitWebInstall"]) {
             $appSettings | Add-Member -MemberType NoteProperty -Name "KjitWebInstall" -Value ([PSCustomObject]@{}) -Force
         }
         $appSettings.KjitWebInstall | Add-Member -MemberType NoteProperty -Name "AllowedClient" -Value $AllowedClient -Force
         $appSettings.KjitWebInstall | Add-Member -MemberType NoteProperty -Name "ServiceUrl" -Value $ServiceUrl -Force
 
         if (-not [string]::IsNullOrWhiteSpace($DebugLogPath)) {
-            if ($null -eq $appSettings.DebugLog) {
+            if ($null -eq $appSettings.PSObject.Properties["DebugLog"]) {
                 $appSettings | Add-Member -MemberType NoteProperty -Name "DebugLog" -Value ([PSCustomObject]@{}) -Force
             }
             $appSettings.DebugLog | Add-Member -MemberType NoteProperty -Name "Path" -Value $DebugLogPath -Force
@@ -706,7 +713,7 @@ else {
 
 $CompanyName = Resolve-CompanyName -RequestedCompanyName $CompanyName
 
-$allowedRemoteAddresses = Resolve-AllowedClientAddresses -Client $AllowedClient # Resolve the allowed client to specific remote addresses. This allows us to configure the service binding and firewall rules correctly based on the user's input, whether they specify a hostname, an IP address, or a wildcard. By resolving the hostname to IP addresses, we can ensure that the firewall rules are configured with the correct remote addresses to allow access to the service while maintaining security.
+$allowedRemoteAddresses = @(Resolve-AllowedClientAddresses -Client $AllowedClient) # Resolve the allowed client to specific remote addresses. This allows us to configure the service binding and firewall rules correctly based on the user's input, whether they specify a hostname, an IP address, or a wildcard. By resolving the hostname to IP addresses, we can ensure that the firewall rules are configured with the correct remote addresses to allow access to the service while maintaining security.
 Write-Host "Allowed client: $AllowedClient"
 Write-Host "Allowed remote address(es): $($allowedRemoteAddresses -join ', ')"
 Write-Host "Company name: $CompanyName"
@@ -791,7 +798,7 @@ Write-Host "Configuring firewall rule '$FirewallRuleName' for port $Port ..."
 Set-ClientAccessFirewallRule -RuleName $FirewallRuleName -RemoteAddresses $allowedRemoteAddresses -Port $Port
 
 Write-Host "Ensuring port $Port is free..."
-$portProcessIds = Get-PortProcessIds -Port $Port
+$portProcessIds = @(Get-PortProcessIds -Port $Port)
 if ($portProcessIds.Count -gt 0) {
     throw "TCP port $Port became occupied during installation."
 }
