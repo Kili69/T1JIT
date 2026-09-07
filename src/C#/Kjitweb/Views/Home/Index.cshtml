@@ -15,32 +15,55 @@
 
         @if (ViewBag.SuccessMessage != null)
         {
-            <div class="alert alert-success">@ViewBag.SuccessMessage</div>
+            <div class="alert alert-success"
+                 data-computer-name="@ViewBag.SuccessComputerName"
+                 id="elevationSuccessAlert">@ViewBag.SuccessMessage</div>
         }
 
-        <form asp-action="Index" method="post">
+        <form asp-action="Index" method="post" id="elevationRequestForm">
             <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
             <div class="mb-3">
-                <label asp-for="SelectedDomain" class="form-label">@L["SelectDomain"]</label>
-                <select asp-for="SelectedDomain" class="form-select" id="selectedDomain">
-                    <option value="">@L["PleaseSelectOption"]</option>
-                    @foreach (var domain in Model.Domains)
-                    {
-                        <option value="@domain">@domain</option>
-                    }
-                </select>
+                @if (Model.Domains.Count == 1)
+                {
+                    <input type="hidden" name="SelectedDomain" value="@Model.Domains[0]" />
+                    <p class="mb-0"><span class="fw-semibold">@L["ActiveDirectoryDomain"]:</span> @Model.Domains[0]</p>
+                }
+                else
+                {
+                    <label asp-for="SelectedDomain" class="form-label">@L["SelectDomain"]</label>
+                    <select asp-for="SelectedDomain" class="form-select" id="selectedDomain">
+                        <option value="">@L["PleaseSelectOption"]</option>
+                        @foreach (var domain in Model.Domains)
+                        {
+                            <option value="@domain">@domain</option>
+                        }
+                    </select>
+                }
                 <span asp-validation-for="SelectedDomain" class="text-danger"></span>
             </div>
 
             <div class="mb-3">
+                <label for="serverSearch" class="form-label">@L["SearchServerLabel"]</label>
+                <input type="search"
+                       class="form-control mb-2"
+                       id="serverSearch"
+                       placeholder="@L["SearchServerPlaceholder"]"
+                       autocomplete="off"
+                       aria-controls="SelectedServer" />
                 <label asp-for="SelectedServer" class="form-label">@L["SelectServer"]</label>
-                <select asp-for="SelectedServer" class="form-select">
-                    <option value="">@L["PleaseSelectOption"]</option>
+                <select asp-for="SelectedServer"
+                        class="form-select"
+                    size="@Math.Max(2, Math.Min(10, Model.Servers.Count))">
+                    <option value="" hidden>@L["PleaseSelectOption"]</option>
                     @foreach (var server in Model.Servers)
                     {
-                        <option value="@server">@server</option>
+                        <option value="@server" data-server-option>@server</option>
                     }
+                    <option value=""
+                            disabled
+                            hidden="@(Model.Servers.Count > 0)"
+                            id="serverNoResults">@L["NoMatchingServers"]</option>
                 </select>
                 <span asp-validation-for="SelectedServer" class="text-danger"></span>
             </div>
@@ -59,38 +82,62 @@
                 <span asp-validation-for="ElevationDurationMinutes" class="text-danger"></span>
             </div>
 
-            <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-primary">@L["RequestButton"]</button>
-                <button type="button" class="btn btn-outline-secondary" id="openCurrentElevations">@L["CurrentElevationsButton"]</button>
+            <div>
+                <button type="submit" class="btn btn-primary" id="elevationRequestButton">@L["RequestButton"]</button>
             </div>
         </form>
+
+        <section class="border rounded p-3 mt-4"
+                 aria-labelledby="currentElevatedComputersHeading"
+                 data-refresh-url="@Url.Action("CurrentElevatedComputers", "Home")"
+                 data-empty-text="@L["CurrentElevatedComputersEmpty"]"
+                 data-remaining-label="@L["RemainingTimeLabel"]"
+                 data-minutes-label="@L["MinutesLabel"]"
+                 data-permanent-label="@L["PermanentLabel"]"
+                 id="currentElevatedComputers">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                <h2 class="h6 mb-0" id="currentElevatedComputersHeading">@L["CurrentElevatedComputersTitle"]</h2>
+                <span class="badge text-bg-secondary" id="currentElevatedComputersCount">@Model.CurrentElevatedComputers.Count</span>
+            </div>
+            <div aria-live="polite" aria-atomic="true">
+                <p class="text-muted mb-0 @(Model.CurrentElevatedComputers.Count == 0 ? "" : "d-none")" id="currentElevatedComputersEmpty">@L["CurrentElevatedComputersEmpty"]</p>
+                <ul class="list-group list-group-flush @(Model.CurrentElevatedComputers.Count == 0 ? "d-none" : "")" id="currentElevatedComputersList">
+                    @foreach (var computer in Model.CurrentElevatedComputers)
+                    {
+                        <li class="list-group-item px-0 d-flex flex-wrap justify-content-between gap-2">
+                            <span>
+                                <strong>@computer.ComputerName</strong>
+                                @if (!string.IsNullOrWhiteSpace(computer.Domain))
+                                {
+                                    <span class="text-muted ms-2">@computer.Domain</span>
+                                }
+                            </span>
+                            <span class="text-nowrap"
+                                  data-elevation-countdown
+                                  data-remaining-seconds="@computer.RemainingSeconds">
+                                @L["RemainingTimeLabel"]:
+                                @(computer.RemainingSeconds.HasValue
+                                    ? $"{computer.RemainingSeconds.Value / 60}:{computer.RemainingSeconds.Value % 60:D2} {L["MinutesLabel"]}"
+                                    : L["PermanentLabel"])
+                            </span>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </section>
     </div>
 </div>
 
-<dialog id="currentElevationsDialog" class="rounded border p-0" style="max-width: 640px; width: 90%;">
-    <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
-        <h2 class="h5 mb-0">@L["CurrentElevationsDialogTitle"]</h2>
-        <button type="button" class="btn-close" id="closeCurrentElevationsTop" aria-label="Close"></button>
+<div class="position-fixed top-0 start-0 w-100 h-100 d-none align-items-center justify-content-center bg-light bg-opacity-75"
+     id="requestProcessingOverlay"
+     style="z-index: 1080;"
+     role="status"
+     aria-live="assertive">
+    <div class="text-center p-4">
+        <div class="spinner-border text-primary mb-3" aria-hidden="true"></div>
+        <p class="fw-semibold mb-0">@L["RequestProcessing"]</p>
     </div>
-    <div class="p-3">
-        @if (Model.CurrentElevationGroups.Count == 0)
-        {
-            <p class="text-muted mb-0">@L["CurrentElevationsEmpty"]</p>
-        }
-        else
-        {
-            <ul class="list-group list-group-flush">
-                @foreach (var group in Model.CurrentElevationGroups)
-                {
-                    <li class="list-group-item">@group</li>
-                }
-            </ul>
-        }
-    </div>
-    <div class="p-3 border-top text-end">
-        <button type="button" class="btn btn-secondary" id="closeCurrentElevationsBottom">@L["CloseButton"]</button>
-    </div>
-</dialog>
+</div>
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
@@ -98,41 +145,201 @@
     <script src="https://cdn.jsdelivr.net/npm/jquery-validation-unobtrusive@4.0.0/dist/jquery.validate.unobtrusive.min.js"></script>
     <script>
         (function () {
+            const elevationRequestForm = document.getElementById('elevationRequestForm');
+            const elevationRequestButton = document.getElementById('elevationRequestButton');
+            const requestProcessingOverlay = document.getElementById('requestProcessingOverlay');
             const domainSelect = document.getElementById('selectedDomain');
-            const currentElevationsDialog = document.getElementById('currentElevationsDialog');
-            const openCurrentElevations = document.getElementById('openCurrentElevations');
-            const closeCurrentElevationsTop = document.getElementById('closeCurrentElevationsTop');
-            const closeCurrentElevationsBottom = document.getElementById('closeCurrentElevationsBottom');
+            const serverSearch = document.getElementById('serverSearch');
+            const serverSelect = document.getElementById('SelectedServer');
+            const serverNoResults = document.getElementById('serverNoResults');
+            const elevatedComputers = document.getElementById('currentElevatedComputers');
+            const elevatedComputersCount = document.getElementById('currentElevatedComputersCount');
+            const elevatedComputersEmpty = document.getElementById('currentElevatedComputersEmpty');
+            const elevatedComputersList = document.getElementById('currentElevatedComputersList');
+            const elevationSuccessAlert = document.getElementById('elevationSuccessAlert');
+            const remainingLabel = elevatedComputers.dataset.remainingLabel;
+            const minutesLabel = elevatedComputers.dataset.minutesLabel;
+            const permanentLabel = elevatedComputers.dataset.permanentLabel;
 
-            if (!domainSelect) {
-                return;
-            }
+            const resetRequestProcessing = function () {
+                elevationRequestForm.dataset.submitting = 'false';
+                elevationRequestForm.removeAttribute('aria-busy');
+                elevationRequestButton.disabled = false;
+                requestProcessingOverlay.classList.add('d-none');
+                requestProcessingOverlay.classList.remove('d-flex');
+            };
 
-            domainSelect.addEventListener('change', function () {
-                const selectedDomain = domainSelect.value || '';
-                const nextUrl = selectedDomain
-                    ? '@Url.Action("Index", "Home")' + '?selectedDomain=' + encodeURIComponent(selectedDomain)
-                    : '@Url.Action("Index", "Home")';
-                window.location.assign(nextUrl);
+            elevationRequestForm.addEventListener('submit', function (event) {
+                if (elevationRequestForm.dataset.submitting === 'true') {
+                    event.preventDefault();
+                    return;
+                }
+
+                if (window.jQuery && !window.jQuery(elevationRequestForm).valid()) {
+                    return;
+                }
+
+                elevationRequestForm.dataset.submitting = 'true';
+                elevationRequestForm.setAttribute('aria-busy', 'true');
+                elevationRequestButton.disabled = true;
+                requestProcessingOverlay.classList.remove('d-none');
+                requestProcessingOverlay.classList.add('d-flex');
             });
 
-            if (currentElevationsDialog && openCurrentElevations && typeof currentElevationsDialog.showModal === 'function') {
-                openCurrentElevations.addEventListener('click', function () {
-                    currentElevationsDialog.showModal();
+            window.addEventListener('pageshow', function (event) {
+                if (event.persisted) {
+                    resetRequestProcessing();
+                }
+            });
+
+            if (domainSelect) {
+                domainSelect.addEventListener('change', function () {
+                    const selectedDomain = domainSelect.value || '';
+                    const nextUrl = selectedDomain
+                        ? '@Url.Action("Index", "Home")' + '?selectedDomain=' + encodeURIComponent(selectedDomain)
+                        : '@Url.Action("Index", "Home")';
+                    window.location.assign(nextUrl);
+                });
+            }
+
+            serverSearch.addEventListener('input', function () {
+                const query = serverSearch.value.trim().toLocaleLowerCase();
+                let matchingServerCount = 0;
+
+                serverSelect.querySelectorAll('[data-server-option]').forEach(function (option) {
+                    const matches = option.text.toLocaleLowerCase().includes(query);
+                    option.hidden = !matches;
+                    option.disabled = !matches;
+                    if (matches) {
+                        matchingServerCount++;
+                    }
                 });
 
-                const closeDialog = function () {
-                    currentElevationsDialog.close();
-                };
+                serverNoResults.hidden = matchingServerCount > 0;
+                serverSelect.size = Math.max(2, Math.min(10, matchingServerCount));
 
-                if (closeCurrentElevationsTop) {
-                    closeCurrentElevationsTop.addEventListener('click', closeDialog);
+                const selectedOption = serverSelect.selectedOptions[0];
+                if (selectedOption && selectedOption.hidden) {
+                    serverSelect.value = '';
+                }
+            });
+
+            const formatRemainingTime = function (remainingSeconds) {
+                if (remainingSeconds === null) {
+                    return `${remainingLabel}: ${permanentLabel}`;
                 }
 
-                if (closeCurrentElevationsBottom) {
-                    closeCurrentElevationsBottom.addEventListener('click', closeDialog);
+                const seconds = Math.max(0, Math.ceil(remainingSeconds));
+                return `${remainingLabel}: ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')} ${minutesLabel}`;
+            };
+
+            const updateCountdownHighlight = function (countdown, remainingSeconds) {
+                const item = countdown.closest('.list-group-item');
+                item.classList.remove('list-group-item-warning', 'list-group-item-danger');
+
+                if (remainingSeconds !== null && remainingSeconds < 60) {
+                    item.classList.add('list-group-item-danger');
+                } else if (remainingSeconds !== null && remainingSeconds < 300) {
+                    item.classList.add('list-group-item-warning');
                 }
-            }
+            };
+
+            const updateCountdowns = function () {
+                const now = Date.now();
+                elevatedComputersList.querySelectorAll('[data-elevation-countdown]').forEach(function (countdown) {
+                    let expiresAt = Number(countdown.dataset.expiresAt);
+                    if (!Number.isFinite(expiresAt)
+                        && countdown.dataset.remainingSeconds) {
+                        expiresAt = now + Number(countdown.dataset.remainingSeconds) * 1000;
+                        countdown.dataset.expiresAt = expiresAt.toString();
+                        delete countdown.dataset.remainingSeconds;
+                    }
+
+                    if (!Number.isFinite(expiresAt)) {
+                        countdown.textContent = formatRemainingTime(null);
+                        updateCountdownHighlight(countdown, null);
+                        return;
+                    }
+
+                    const remainingSeconds = (expiresAt - now) / 1000;
+                    countdown.textContent = formatRemainingTime(remainingSeconds);
+                    updateCountdownHighlight(countdown, remainingSeconds);
+                });
+            };
+
+            const renderElevatedComputers = function (computers) {
+                elevatedComputersCount.textContent = computers.length.toString();
+                elevatedComputersList.replaceChildren();
+
+                computers.forEach(function (computer) {
+                    const item = document.createElement('li');
+                    item.className = 'list-group-item px-0 d-flex flex-wrap justify-content-between gap-2';
+
+                    const identity = document.createElement('span');
+                    const computerName = document.createElement('strong');
+                    computerName.textContent = computer.computerName;
+                    identity.appendChild(computerName);
+
+                    if (computer.domain) {
+                        const domain = document.createElement('span');
+                        domain.className = 'text-muted ms-2';
+                        domain.textContent = computer.domain;
+                        identity.appendChild(domain);
+                    }
+
+                    item.appendChild(identity);
+
+                    const countdown = document.createElement('span');
+                    countdown.className = 'text-nowrap';
+                    countdown.dataset.elevationCountdown = '';
+                    if (computer.remainingSeconds !== null) {
+                        countdown.dataset.expiresAt = (Date.now() + computer.remainingSeconds * 1000).toString();
+                    }
+                    countdown.textContent = formatRemainingTime(computer.remainingSeconds);
+                    item.appendChild(countdown);
+
+                    elevatedComputersList.appendChild(item);
+                });
+
+                elevatedComputersEmpty.classList.toggle('d-none', computers.length > 0);
+                elevatedComputersList.classList.toggle('d-none', computers.length === 0);
+
+                if (elevationSuccessAlert) {
+                    const requestedComputer = elevationSuccessAlert.dataset.computerName.toLocaleLowerCase();
+                    const requestIsActive = computers.some(function (computer) {
+                        return computer.computerName.toLocaleLowerCase() === requestedComputer;
+                    });
+
+                    if (requestIsActive) {
+                        elevationSuccessAlert.remove();
+                    }
+                }
+
+                updateCountdowns();
+            };
+
+            const refreshElevatedComputers = async function () {
+                if (document.hidden) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(elevatedComputers.dataset.refreshUrl, {
+                        cache: 'no-store',
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    if (response.ok) {
+                        renderElevatedComputers(await response.json());
+                    }
+                } catch {
+                    // Keep the last successfully loaded state when a refresh fails.
+                }
+            };
+
+            window.setInterval(refreshElevatedComputers, 10000);
+            window.setInterval(updateCountdowns, 1000);
+            document.addEventListener('visibilitychange', refreshElevatedComputers);
+            refreshElevatedComputers();
         })();
     </script>
 }

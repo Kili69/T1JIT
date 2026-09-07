@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using KjitWeb.Models;
 
 namespace KjitWeb.Services;
 
@@ -19,9 +20,9 @@ public interface IActiveDirectoryService
     string GetDefaultDomainForUser(ClaimsPrincipal? user);
 
     /// <summary>
-    ///     Retrieves the current elevation groups for the specified user.
+    ///     Retrieves the computers on which the specified user is currently elevated.
     /// </summary>
-    List<string> GetCurrentElevationGroups(ClaimsPrincipal? user);
+    List<ElevatedComputerViewModel> GetCurrentElevatedComputers(ClaimsPrincipal? user);
 
     /// <summary>
     ///     Retrieves a list of server names accessible to the specified user.

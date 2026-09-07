@@ -18,13 +18,22 @@
   <data name="SelectDomain" xml:space="preserve"><value>Select domain</value></data>
   <data name="SelectServer" xml:space="preserve"><value>Select server</value></data>
   <data name="PleaseSelectOption" xml:space="preserve"><value>-- please select --</value></data>
+  <data name="ActiveDirectoryDomain" xml:space="preserve"><value>Active Directory Domain</value></data>
+  <data name="SearchServerLabel" xml:space="preserve"><value>Search servers</value></data>
+  <data name="SearchServerPlaceholder" xml:space="preserve"><value>Enter a server name</value></data>
+  <data name="NoMatchingServers" xml:space="preserve"><value>No matching servers found</value></data>
   <data name="ElevationDurationMinutesLabel" xml:space="preserve"><value>Elevation duration in minutes</value></data>
   <data name="MinLabel" xml:space="preserve"><value>Min</value></data>
   <data name="DefaultLabel" xml:space="preserve"><value>Default</value></data>
   <data name="MaxLabel" xml:space="preserve"><value>Max</value></data>
   <data name="MinutesLabel" xml:space="preserve"><value>minutes</value></data>
   <data name="RequestButton" xml:space="preserve"><value>Request</value></data>
+  <data name="RequestProcessing" xml:space="preserve"><value>Processing request...</value></data>
   <data name="SwitchUserButton" xml:space="preserve"><value>Switch user</value></data>
+  <data name="CurrentElevatedComputersTitle" xml:space="preserve"><value>Currently elevated computers</value></data>
+  <data name="CurrentElevatedComputersEmpty" xml:space="preserve"><value>No computers are currently elevated for this user.</value></data>
+  <data name="RemainingTimeLabel" xml:space="preserve"><value>Remaining</value></data>
+  <data name="PermanentLabel" xml:space="preserve"><value>Permanent</value></data>
   <data name="CurrentElevationsButton" xml:space="preserve"><value>Current elevations</value></data>
   <data name="CurrentElevationsDialogTitle" xml:space="preserve"><value>Current elevations</value></data>
   <data name="CurrentElevationsEmpty" xml:space="preserve"><value>No matching group memberships were found.</value></data>
@@ -33,6 +42,6 @@
   <data name="ValidationSelectServer" xml:space="preserve"><value>Please select a server.</value></data>
   <data name="ValidationServerDomainMismatch" xml:space="preserve"><value>The selected server does not belong to the selected domain.</value></data>
   <data name="ValidationElevationRange" xml:space="preserve"><value>Elevation duration must be between {0} and {1} minutes.</value></data>
-  <data name="SuccessUserElevated" xml:space="preserve"><value>User elevated.</value></data>
+  <data name="SuccessUserElevated" xml:space="preserve"><value>User elevated on {0}.</value></data>
   <data name="EventLogWriteError" xml:space="preserve"><value>Could not write to event log. Ensure the application has sufficient permissions.</value></data>
 </root>

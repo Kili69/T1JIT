@@ -13,6 +13,7 @@
 /// var elevationGroups = adService.GetCurrentElevationGroups();
 /// </code>
 /// </example>  
+using KjitWeb.Models;
 using Sds = System.DirectoryServices.Protocols;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -168,26 +169,26 @@ public class ActiveDirectoryService : IActiveDirectoryService
     ///     Console.WriteLine($"User is currently a member of elevation group: {group}");
     /// }
     /// </example>  
-    public List<string> GetCurrentElevationGroups(ClaimsPrincipal? user)
+    public List<ElevatedComputerViewModel> GetCurrentElevatedComputers(ClaimsPrincipal? user)
     {
         // If the group OU is not configured, we cannot perform the query, so return an empty list. 
         // This is a graceful handling of misconfiguration that allows the application to continue functioning without elevation information rather than throwing exceptions.
         if (string.IsNullOrWhiteSpace(_groupOuDistinguishedName))
         {
-            return new List<string>();
+            return new List<ElevatedComputerViewModel>();
         }
         // Attempt to resolve the user's distinguished name from their identity. If this fails, we cannot perform the query, 
         // so return an empty list.
         var identityName = user?.Identity?.Name;
         if (string.IsNullOrWhiteSpace(identityName))
         {
-            return new List<string>();
+            return new List<ElevatedComputerViewModel>();
         }
         // Get the user's distinguished name, which is required for the LDAP query. If this cannot be resolved, return an empty list.
         var userDn = GetUserDistinguishedName(identityName);
         if (string.IsNullOrWhiteSpace(userDn) || userDn.Equals("unknown-user", StringComparison.OrdinalIgnoreCase))
         {
-            return new List<string>();
+            return new List<ElevatedComputerViewModel>();
         }
         // Normalize the group OU LDAP path and perform the LDAP query to find all groups that the user is a member of, 
         // including nested memberships.
@@ -195,24 +196,33 @@ public class ActiveDirectoryService : IActiveDirectoryService
         // If the normalized group OU LDAP path is invalid, return an empty list.
         if (string.IsNullOrWhiteSpace(groupOuLdapPath))
         {
-            return new List<string>();
+            return new List<ElevatedComputerViewModel>();
         }
 
         try
         {
-            var entries = LdapSearchPaged(
+            var entries = LdapSearchPagedWithLinkTtl(
                 groupOuLdapPath,
                 $"(&(objectCategory=group)(member:1.2.840.113556.1.4.1941:={EscapeLdapFilter(userDn)}))",
                 SearchScope.Subtree,
-                "cn", "distinguishedName");
+                "cn", "distinguishedName", "member");
 
             return entries
-                .Select(ExtractGroupDisplayName)
-                .Where(name => !string.IsNullOrWhiteSpace(name))
-                .Select(name => FormatCurrentElevationGroupName(name!))
-                .Where(name => !string.IsNullOrWhiteSpace(name))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                .Select(entry => new
+                {
+                    Name = ExtractGroupDisplayName(entry),
+                    Membership = GetDirectMembershipTimeToLive(entry, userDn)
+                })
+                .Where(result => !string.IsNullOrWhiteSpace(result.Name) && result.Membership.Found)
+                .Select(result => ParseElevatedComputer(result.Name!, result.Membership.RemainingSeconds))
+                .Where(computer => computer != null)
+                .Select(computer => computer!)
+                .GroupBy(
+                    computer => $"{computer.Domain}\0{computer.ComputerName}",
+                    StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .OrderBy(computer => computer.ComputerName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(computer => computer.Domain, StringComparer.OrdinalIgnoreCase)
                 .ToList();
         }
         // If there is an issue with the LDAP query (e.g. connectivity problems, invalid search parameters), 
@@ -220,14 +230,14 @@ public class ActiveDirectoryService : IActiveDirectoryService
         catch (Exception ex) when (ex is Sds.LdapException)
         {
             _logger.LogWarning(ex, "LDAP matching rule query failed for current elevations of user {IdentityName}", identityName);
-            return new List<string>();
+            return new List<ElevatedComputerViewModel>();
         }
         // Catch any other unexpected exceptions, 
         // log a warning, and return an empty list to allow the application to continue functioning.
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Could not resolve current elevations for user {IdentityName}", identityName);
-            return new List<string>();
+            return new List<ElevatedComputerViewModel>();
         }
     }
 
@@ -669,25 +679,69 @@ public class ActiveDirectoryService : IActiveDirectoryService
             : ExtractCommonNameFromDn(distinguishedName);
     }
 
-    // This helper method formats the name of an elevation group by applying certain transformations based on configured prefixes and separators.
-    // It trims whitespace from the group name, removes a configured admin prefix if it exists, and replaces a configured domain separator with a space. 
-    // This allows us to present elevation group names in a cleaner and more user-friendly format based on the application's configuration.
-    private string FormatCurrentElevationGroupName(string groupName)
+    private static (bool Found, int? RemainingSeconds) GetDirectMembershipTimeToLive(
+        SearchResultEntry entry,
+        string userDistinguishedName)
     {
-        var formatted = groupName.Trim(); // Trim any leading or trailing whitespace from the group name to ensure a clean format.
-
-        if (!string.IsNullOrWhiteSpace(_adminPreFix) // If an admin prefix is configured and the group name starts with this prefix, we remove the prefix from the group name. This allows us to simplify the display of elevation group names by removing a common prefix that may be used in Active Directory to identify admin groups.
-            && formatted.StartsWith(_adminPreFix, StringComparison.OrdinalIgnoreCase)) // Check if the formatted group name starts with the configured admin prefix, ignoring case. If it does, we will remove this prefix from the display name to make it cleaner and more user-friendly.
+        if (!entry.Attributes.TryGetValue("member", out var members))
         {
-            formatted = formatted[_adminPreFix.Length..]; // Remove the admin prefix from the beginning of the group name by taking the substring starting from the length of the prefix to the end of the string. This allows us to present a cleaner group name without the common prefix that may be used in Active Directory.
+            return (false, null);
         }
 
-        if (!string.IsNullOrWhiteSpace(_domainSeparator)) // If a domain separator is configured, we replace all occurrences of this separator in the group name with a space. This allows us to further clean up the display of elevation group names by replacing configured separators (e.g. underscores, dashes) with spaces for better readability.
+        foreach (var memberValue in members.Select(value => value?.ToString()).Where(value => value != null))
         {
-            formatted = formatted.Replace(_domainSeparator, " ", StringComparison.Ordinal); // Replace all occurrences of the configured domain separator in the group name with a space. This transformation is applied to improve the readability of the group name when displayed to users, based on the application's configuration for what constitutes a domain separator.
+            var value = memberValue!;
+            var ttlMatch = Regex.Match(value, @"^<TTL=(?<seconds>\d+)>,(?<dn>.+)$", RegexOptions.IgnoreCase);
+            if (ttlMatch.Success
+                && ttlMatch.Groups["dn"].Value.Equals(userDistinguishedName, StringComparison.OrdinalIgnoreCase))
+            {
+                return int.TryParse(ttlMatch.Groups["seconds"].Value, out var seconds)
+                    ? (true, seconds)
+                    : (true, null);
+            }
+
+            if (value.Equals(userDistinguishedName, StringComparison.OrdinalIgnoreCase))
+            {
+                return (true, null);
+            }
         }
 
-        return formatted.Trim(); // Finally, we trim any leading or trailing whitespace from the formatted group name again to ensure that the final output is clean and does not have unintended spaces after the transformations. We return this formatted group name for display purposes.
+        return (false, null);
+    }
+
+    private ElevatedComputerViewModel? ParseElevatedComputer(string groupName, int? remainingSeconds)
+    {
+        var value = groupName.Trim();
+        if (!string.IsNullOrWhiteSpace(_adminPreFix))
+        {
+            if (!value.StartsWith(_adminPreFix, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            value = value[_adminPreFix.Length..];
+        }
+
+        string? domain = null;
+        var computerName = value;
+        if (!string.IsNullOrWhiteSpace(_domainSeparator))
+        {
+            var separatorIndex = value.IndexOf(_domainSeparator, StringComparison.Ordinal);
+            if (separatorIndex >= 0)
+            {
+                domain = value[..separatorIndex].Trim();
+                computerName = value[(separatorIndex + _domainSeparator.Length)..].Trim();
+            }
+        }
+
+        return string.IsNullOrWhiteSpace(computerName)
+            ? null
+            : new ElevatedComputerViewModel
+            {
+                ComputerName = computerName,
+                Domain = string.IsNullOrWhiteSpace(domain) ? null : domain,
+                RemainingSeconds = remainingSeconds
+            };
     }
     // This helper method checks if a given LDAP search base is allowed based on the configured server search base LDAP paths.
     // It compares the search base to each of the configured base paths, allowing for case-insensitive matches and also allowing for the search base to end with the configured base path (ignoring the "LDAP://" prefix).  
@@ -1114,6 +1168,21 @@ public class ActiveDirectoryService : IActiveDirectoryService
     /// </summary>
     private IList<SearchResultEntry> LdapSearchPaged(string baseLdapPath, string filter, int scope, params string[] attributes)
     {
+        return LdapSearchPaged(baseLdapPath, filter, scope, false, attributes);
+    }
+
+    private IList<SearchResultEntry> LdapSearchPagedWithLinkTtl(string baseLdapPath, string filter, int scope, params string[] attributes)
+    {
+        return LdapSearchPaged(baseLdapPath, filter, scope, true, attributes);
+    }
+
+    private IList<SearchResultEntry> LdapSearchPaged(
+        string baseLdapPath,
+        string filter,
+        int scope,
+        bool showLinkTimeToLive,
+        params string[] attributes)
+    {
         var baseDn = LdapPathToDn(baseLdapPath);
         
         _logger.LogInformation("LDAP Search: BaseDN={BaseDn}, Filter={Filter}, Scope={Scope}, Attributes={Attributes}", 
@@ -1131,6 +1200,10 @@ public class ActiveDirectoryService : IActiveDirectoryService
             pageRequest.Cookie = nextCookie ?? Array.Empty<byte>();
             var request = new Sds.SearchRequest(baseDn, filter, (Sds.SearchScope)scope, attributes);
             request.Controls.Add(pageRequest);
+            if (showLinkTimeToLive)
+            {
+                request.Controls.Add(new Sds.DirectoryControl("1.2.840.113556.1.4.2309", null, true, true));
+            }
 
             var response = (Sds.SearchResponse)conn.SendRequest(request);
 

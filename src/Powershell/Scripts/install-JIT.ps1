@@ -31,6 +31,8 @@ Version 0.1.20241227
     Fixing minor bugs
 Version 0.1.20250830
     The delegation-config.ps1 is replaced with PS-Module command Add-JitDelegation
+.NOTES
+    The installation transcript is written to the current user's temporary directory.
 #>
 param(
     [Parameter(Mandatory = $false)]
@@ -39,6 +41,13 @@ param(
     [string]$JitConfigFile,
     [switch]$silent
 )
+
+$logPath = Join-Path ([IO.Path]::GetTempPath()) ("T1JIT-install-{0:yyyyMMdd-HHmmss}-{1}.log" -f (Get-Date), $PID)
+$transcriptStarted = $false
+Start-Transcript -Path $logPath -Force -ErrorAction Stop | Out-Null
+$transcriptStarted = $true
+Write-Host "Installation log: $logPath" -ForegroundColor Cyan
+
 if ([string]::IsNullOrWhiteSpace($JitProgramFolder)) {
     $JitProgramFolder = Join-Path $env:ProgramFiles "Just-In-Time"
 }
@@ -74,6 +83,28 @@ try {
         Start-Process -FilePath "$TargetDir\config-JIT.ps1" -ArgumentList $configArguments
     } else {
         Write-Host "Start the configuration: $TargetDir\config-JIT.ps1"
+
+        $installWebResponse = Read-Host "Install the KjitWeb website as a Windows service? [Y/n]"
+        if ([string]::IsNullOrWhiteSpace($installWebResponse) -or $installWebResponse.Trim() -match '^(?i:y|yes)$') {
+            $webInstallerCandidates = @(
+                (Join-Path $PSScriptRoot "kjibweb\install-kjitweb.ps1"),
+                (Join-Path $PSScriptRoot "..\..\C#\Kjitweb\install-kjitweb.ps1")
+            )
+            $webInstallerPath = $webInstallerCandidates |
+                Where-Object { Test-Path -Path $_ -PathType Leaf } |
+                Select-Object -First 1
+
+            if ([string]::IsNullOrWhiteSpace($webInstallerPath)) {
+                throw "KjitWeb installer not found. Expected: $($webInstallerCandidates -join ', ')"
+            }
+
+            $webInstallerArguments = @{}
+            if (![string]::IsNullOrWhiteSpace($JitConfigFile)) {
+                $webInstallerArguments.JitConfig = $JitConfigFile
+            }
+
+            & $webInstallerPath @webInstallerArguments
+        }
     }
 } 
 catch [System.UnauthorizedAccessException] {
@@ -83,4 +114,10 @@ catch [System.UnauthorizedAccessException] {
 catch{
     Write-Host "An unexpected error occurred" -ForegroundColor Red
     $Error[0] 
+}
+finally {
+    if ($transcriptStarted) {
+        Stop-Transcript | Out-Null
+    }
+    Write-Host "Installation log: $logPath" -ForegroundColor Cyan
 }

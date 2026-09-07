@@ -32,6 +32,17 @@ The groups will be automatically created by the JIT-Solution, if a computer ojec
 Every change uses the version format `<Major>.<Minor>.<yyyyMMdd>.<counter>`, for example
 `0.1.20260823.1`. The counter starts at `1` each day and increases for every additional
 version created on that day. All files in one change share the same version.
+Each entry in `file-versions.json` records that shared version and the file's SHA-256
+hash.
+
+Enable automatic versioning for local commits once after cloning the repository:
+
+```powershell
+git config core.hooksPath .githooks
+```
+
+The pre-commit hook runs `Update-Version.ps1 -Staged`, creates the next version for
+the files staged in that commit, and stages `VERSION` and `file-versions.json`.
 
 Before committing changes, update `VERSION` and `file-versions.json`:
 

@@ -216,6 +216,12 @@ try
     });
     app.UseAuthorization();
 
+    app.MapGet("/images/kjitlogo.png", (IWebHostEnvironment environment) =>
+            Results.File(
+                Path.Combine(environment.ContentRootPath, "kjitlogo.png"),
+                "image/png"))
+        .AllowAnonymous();
+
     app.MapControllerRoute(
         name: "default",
         pattern: "{controller=Home}/{action=Index}/{id?}");

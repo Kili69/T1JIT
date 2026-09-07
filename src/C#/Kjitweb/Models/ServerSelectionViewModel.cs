@@ -4,7 +4,7 @@ public class ServerSelectionViewModel
 {
     public List<string> Domains { get; set; } = new();
     public string? SelectedDomain { get; set; }
-    public List<string> CurrentElevationGroups { get; set; } = new();
+    public List<ElevatedComputerViewModel> CurrentElevatedComputers { get; set; } = new();
     public List<string> Servers { get; set; } = new();
     public string? SelectedServer { get; set; }
     public int ElevationDurationMinutes { get; set; }

@@ -28,6 +28,10 @@ possibility of such damages
     Optional path to the KJITweb executable. If not provided, the script assumes it is located in the installation folder (Program Files\KJITWEB\KJITweb.exe).
 .PARAMETER AllowedClient
     Optional hostname or IP address of the allowed client for connecting to the service. Defaults to "localhost". Use "*" to allow any remote client (not recommended for production use).
+.PARAMETER CompanyName
+    Optional company name displayed in the web interface. If omitted or empty, the installer prompts and defaults to "Active Directory Just-in-Time Administration".
+.PARAMETER Port
+    Optional TCP port for the KJITweb service. If omitted, the installer prompts for a free port and suggests 5240 when available.
 .EXAMPLE
     .\install-kjitweb.ps1 -JitConfig "C:\Configs\JIT.config" -DebugLogPath "C:\Logs\kjitweb-debug.log" -AllowedClient "adminpc.domain.local"
     Installs the KJITweb service with a specific JIT configuration file, debug log path, and allows connections from a specific client.
@@ -48,7 +52,11 @@ param(
     # Optional path to the KJITweb executable. If not provided, the script assumes it is located in the installation folder (Program Files\KJITWEB\KJITweb.exe).
     [string]$BinaryPath,
     # Optional hostname or IP address of the allowed client for connecting to the service. Defaults to "localhost". Use "*" to allow any remote client (not recommended for production use).
-    [string]$AllowedClient
+    [string]$AllowedClient,
+    # Optional company name displayed in the web interface.
+    [string]$CompanyName,
+    # Optional TCP port. If omitted, the installer prompts for a free port and suggests 5240 when available.
+    [int]$Port
 )
 # region Initialization and defaults
 $_scriptVersion = "0.1.20260430" # Script version for reference. This can be updated with each change to help track versions and ensure that users are aware of the version they are running, especially if there are breaking changes or important updates in future versions. 
@@ -59,7 +67,7 @@ $InstallRoot = Join-Path $env:ProgramFiles "KJITWEB" # Installation folder for t
 $SourceRoot = $PSScriptRoot # Assuming the script is located in the root of the published output folder. Adjust if your layout is different.
 $SourceServiceFolder = Join-Path $SourceRoot "publish-service" # Subfolder containing the service binaries and config to be copied to the install location. Adjust if your layout is different.
 $InstallServiceFolder = $InstallRoot # Target folder for the service binaries and config. By default, this is a subfolder under Program Files, but it can be customized if needed.
-$FirewallRuleName = "KjitWeb Port 5240 Client Restriction" #    
+$FirewallRuleName = $null # Will be determined from the selected TCP port.
 #
 $BinaryPath   = if ([string]::IsNullOrWhiteSpace($BinaryPath)) {
     Join-Path $InstallServiceFolder "KjitWeb.exe"
@@ -226,30 +234,6 @@ function Get-PortProcessIds {
 
 <#
 .SYNOPSIS
-    Stops all processes listening on a specified port.
-.PARAMETER Port
-    The port number to stop processes on.
-#>
-function Stop-ProcessesListeningOnPort {
-    [Parameter (Mandatory = $true)]
-    param([int]$Port)
-
-    $pids = Get-PortProcessIds -Port $Port # Get process IDs of processes listening on the specified port. This is important to ensure that the KJITweb service can start successfully without port conflicts. If
-    foreach ($processId in $pids) {
-        try {
-            $process = Get-Process -Id $processId -ErrorAction Stop # Attempt to get the process information for better logging. If the process has already exited, this will throw an error and we can skip it.
-            Write-Host "Stopping process on port ${Port}: $($process.ProcessName) (PID $processId)"
-            Stop-Process -Id $processId -Force -ErrorAction Stop # Attempt to stop the process gracefully, and if that fails, force it. If the process has already exited, this will throw an error and we can skip it.
-        }
-        catch {
-            # If we fail to get the process or stop it, log a warning but continue with the installation. The port might still be in use, and if so, the service will fail to start, but we want to allow the installation to complete so that the user can address the issue (for example by rebooting) without having to rerun the installer.
-            Write-Warning "Could not stop PID $processId on port ${Port}: $($_.Exception.Message)"
-        }
-    }
-}
-
-<#
-.SYNOPSIS
     Resolves the allowed client addresses for a given client identifier.
 .PARAMETER Client
     The client identifier (e.g., hostname, IP address, or wildcard).
@@ -301,14 +285,87 @@ function Resolve-AllowedClientAddresses {
 function Get-ServiceUrlFromAllowedClient {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$Client
+        [string]$Client,
+        [Parameter(Mandatory = $true)]
+        [int]$Port
     )
 
     if ([string]::IsNullOrWhiteSpace($Client) -or $Client.Trim() -ieq "localhost") {
-        return "http://localhost:5240"
+        return "http://localhost:$Port"
     }
 
-    return "http://*:5240"
+    return "http://*:$Port"
+}
+
+function Resolve-CompanyName {
+    param([string]$RequestedCompanyName)
+
+    if (-not [string]::IsNullOrWhiteSpace($RequestedCompanyName)) {
+        return $RequestedCompanyName.Trim()
+    }
+
+    $defaultCompanyName = "Active Directory Just-in-Time Administration"
+    $inputCompanyName = Read-Host "Company name [$defaultCompanyName]"
+    if ([string]::IsNullOrWhiteSpace($inputCompanyName)) {
+        return $defaultCompanyName
+    }
+
+    return $inputCompanyName.Trim()
+}
+
+function Resolve-ServicePort {
+    param([int]$RequestedPort)
+
+    $defaultPort = 5240
+    while ($true) {
+        if ($RequestedPort -ne 0) {
+            $candidatePort = $RequestedPort
+        }
+        else {
+            $defaultPortAvailable = @(Get-PortProcessIds -Port $defaultPort).Count -eq 0
+            $prompt = if ($defaultPortAvailable) {
+                "TCP port [$defaultPort]"
+            }
+            else {
+                "TCP port ($defaultPort is already in use)"
+            }
+            $portInput = Read-Host $prompt
+
+            if ([string]::IsNullOrWhiteSpace($portInput)) {
+                if (-not $defaultPortAvailable) {
+                    Write-Warning "TCP port $defaultPort is already in use. Enter another port."
+                    continue
+                }
+                $candidatePort = $defaultPort
+            }
+            else {
+                $parsedPort = 0
+                if (-not [int]::TryParse($portInput.Trim(), [ref]$parsedPort)) {
+                    Write-Warning "Enter a numeric TCP port between 1 and 65535."
+                    continue
+                }
+                $candidatePort = $parsedPort
+            }
+        }
+
+        if ($candidatePort -lt 1 -or $candidatePort -gt 65535) {
+            if ($RequestedPort -ne 0) {
+                throw "TCP port must be between 1 and 65535: $candidatePort"
+            }
+            Write-Warning "TCP port must be between 1 and 65535."
+            continue
+        }
+
+        if (@(Get-PortProcessIds -Port $candidatePort).Count -gt 0) {
+            if ($RequestedPort -ne 0) {
+                throw "TCP port $candidatePort is already in use."
+            }
+            Write-Warning "TCP port $candidatePort is already in use. Enter another port."
+            continue
+        }
+
+        return $candidatePort
+    }
 }
 
 <#
@@ -544,6 +601,8 @@ function Set-ClientAccessFirewallRule {
     Allowed client identifier entered during installation.
 .PARAMETER ServiceUrl
     Service URL binding resolved from AllowedClient.
+.PARAMETER CompanyName
+    Company name displayed in the web interface.
 .PARAMETER DebugLogPath
     Optional debug log path override. If empty, existing appsettings value is kept.
 #>
@@ -557,6 +616,8 @@ function Update-AppSettingsForInstall {
         [string]$AllowedClient,
         [Parameter(Mandatory = $true)]
         [string]$ServiceUrl,
+        [Parameter(Mandatory = $true)]
+        [string]$CompanyName,
         [Parameter(Mandatory = $false)]
         [string]$DebugLogPath
     )
@@ -576,6 +637,11 @@ function Update-AppSettingsForInstall {
 
         $allowedHosts = Get-AllowedHostsFromAllowedClient -Client $AllowedClient
         $appSettings | Add-Member -MemberType NoteProperty -Name "AllowedHosts" -Value $allowedHosts -Force
+
+        if ($null -eq $appSettings.Branding) {
+            $appSettings | Add-Member -MemberType NoteProperty -Name "Branding" -Value ([PSCustomObject]@{}) -Force
+        }
+        $appSettings.Branding | Add-Member -MemberType NoteProperty -Name "CompanyName" -Value $CompanyName -Force
 
         if ($null -eq $appSettings.KjitWebInstall) {
             $appSettings | Add-Member -MemberType NoteProperty -Name "KjitWebInstall" -Value ([PSCustomObject]@{}) -Force
@@ -638,11 +704,12 @@ else {
     $AllowedClient = $AllowedClient.Trim()
 }
 
+$CompanyName = Resolve-CompanyName -RequestedCompanyName $CompanyName
+
 $allowedRemoteAddresses = Resolve-AllowedClientAddresses -Client $AllowedClient # Resolve the allowed client to specific remote addresses. This allows us to configure the service binding and firewall rules correctly based on the user's input, whether they specify a hostname, an IP address, or a wildcard. By resolving the hostname to IP addresses, we can ensure that the firewall rules are configured with the correct remote addresses to allow access to the service while maintaining security.
-$ServiceUrl = Get-ServiceUrlFromAllowedClient -Client $AllowedClient # Determine the service URL binding based on the allowed client. If the allowed client is localhost-only, we bind to http://localhost:5240. If the allowed client allows remote access, we bind to http://*:5240 to allow connections from any remote address. This ensures that the service is configured with the correct URL binding based on the user's desired access level, and helps to prevent misconfiguration that could lead to connectivity issues or security vulnerabilities.
 Write-Host "Allowed client: $AllowedClient"
 Write-Host "Allowed remote address(es): $($allowedRemoteAddresses -join ', ')"
-Write-Host "Service URL binding: $ServiceUrl"
+Write-Host "Company name: $CompanyName"
 Write-Host "Debug log path: $DebugLogPath"
 
 
@@ -665,14 +732,20 @@ if ($existing) {
     }
 }
 
+$Port = Resolve-ServicePort -RequestedPort $Port
+$FirewallRuleName = "KjitWeb Port $Port Client Restriction"
+$ServiceUrl = Get-ServiceUrlFromAllowedClient -Client $AllowedClient -Port $Port
+Write-Host "TCP port: $Port"
+Write-Host "Service URL binding: $ServiceUrl"
+
 Write-Host "Copying service files to $InstallRoot ..."
 Copy-ServiceFiles -SourceServiceFolder $SourceServiceFolder -TargetServiceFolder $InstallServiceFolder
 
 $installedAppSettingsPath = Join-Path $InstallServiceFolder "appsettings.json"
-Update-AppSettingsForInstall -AppSettingsPath $installedAppSettingsPath -JitConfigPath $JitConfig -AllowedClient $AllowedClient -ServiceUrl $ServiceUrl -DebugLogPath $DebugLogPath
+Update-AppSettingsForInstall -AppSettingsPath $installedAppSettingsPath -JitConfigPath $JitConfig -AllowedClient $AllowedClient -ServiceUrl $ServiceUrl -CompanyName $CompanyName -DebugLogPath $DebugLogPath
 
 $installedProductionAppSettingsPath = Join-Path $InstallServiceFolder "appsettings.Production.json"
-Update-AppSettingsForInstall -AppSettingsPath $installedProductionAppSettingsPath -JitConfigPath $JitConfig -AllowedClient $AllowedClient -ServiceUrl $ServiceUrl -DebugLogPath $DebugLogPath
+Update-AppSettingsForInstall -AppSettingsPath $installedProductionAppSettingsPath -JitConfigPath $JitConfig -AllowedClient $AllowedClient -ServiceUrl $ServiceUrl -CompanyName $CompanyName -DebugLogPath $DebugLogPath
 
 if (-not (Test-Path $BinaryPath)) { Write-Error "Binary not found: $BinaryPath"; exit 1 }
 Write-Host "Checking .NET runtime prerequisites for $BinaryPath ..."
@@ -714,23 +787,26 @@ else {
 
 New-ItemProperty -Path $envRegPath -Name "Environment" -PropertyType MultiString -Value $envValues -Force | Out-Null
 
-Write-Host "Configuring firewall rule '$FirewallRuleName' for port 5240 ..."
-Set-ClientAccessFirewallRule -RuleName $FirewallRuleName -RemoteAddresses $allowedRemoteAddresses -Port 5240
+Write-Host "Configuring firewall rule '$FirewallRuleName' for port $Port ..."
+Set-ClientAccessFirewallRule -RuleName $FirewallRuleName -RemoteAddresses $allowedRemoteAddresses -Port $Port
 
-Write-Host "Ensuring port 5240 is free..."
-Stop-ProcessesListeningOnPort -Port 5240
+Write-Host "Ensuring port $Port is free..."
+$portProcessIds = Get-PortProcessIds -Port $Port
+if ($portProcessIds.Count -gt 0) {
+    throw "TCP port $Port became occupied during installation."
+}
 
 Write-Host "Starting service..."
 Start-Service -Name $ServiceName
 
 $status = Get-Service -Name $ServiceName
 Write-Host "Status: $($status.Status)"
-Write-Host "URL   : http://$($env:COMPUTERNAME).$($env:USERDNSDOMAIN):5240"
+Write-Host "URL   : http://$($env:COMPUTERNAME).$($env:USERDNSDOMAIN):$Port"
 if ($status.Status -eq "Running") { Write-Host "Service is running." -ForegroundColor Green }
 else {
     Write-Warning "Service did not start. Check: Get-EventLog -LogName Application -Source KjitWeb -Newest 10"
-    Write-Host "Port 5240 currently used by:"
-    Get-PortProcessIds -Port 5240 | ForEach-Object {
+    Write-Host "Port $Port currently used by:"
+    Get-PortProcessIds -Port $Port | ForEach-Object {
         $p = Get-Process -Id $_ -ErrorAction SilentlyContinue
         if ($p) {
             Write-Host "  $($p.ProcessName) (PID $($_))"

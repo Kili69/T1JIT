@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyDescriptionAttribute(("Core library for Just-In-Time logic shared by PowerShell modules and native .NET " +
     "apps."))]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9cd885f917b716436ac205a9ae1a8fa3407f1a95")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7270377cd4f80b810cac79976c34f4fe56e2d152")]
 [assembly: System.Reflection.AssemblyProductAttribute("KjitCore")]
 [assembly: System.Reflection.AssemblyTitleAttribute("KjitCore")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

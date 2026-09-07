@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "c3aYzlXnJ04=",
+  "dgSpecHash": "EyiRZz3E4RU=",
   "success": true,
   "projectFilePath": "C:\\Repos\\T1JIT\\src\\C#\\Kjitweb\\KjitWeb.csproj",
   "expectedPackageFiles": [
@@ -59,7 +59,8 @@
       "filePath": "C:\\Repos\\T1JIT\\src\\C#\\Kjitweb\\KjitWeb.csproj",
       "libraryId": "Microsoft.AspNetCore.Authentication.Negotiate",
       "targetGraphs": [
-        "net8.0-windows7.0"
+        "net8.0-windows7.0",
+        "net8.0-windows7.0/win-x64"
       ]
     },
     {
@@ -71,7 +72,8 @@
       "filePath": "C:\\Repos\\T1JIT\\src\\C#\\Kjitweb\\KjitWeb.csproj",
       "libraryId": "Microsoft.AspNetCore.Authentication.Negotiate",
       "targetGraphs": [
-        "net8.0-windows7.0"
+        "net8.0-windows7.0",
+        "net8.0-windows7.0/win-x64"
       ]
     }
   ]

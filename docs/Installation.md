@@ -64,7 +64,9 @@ The JIT solution requires one or more Windows servers. On these servers, users o
 The installation is based on the installation of the solution and configuration of the T1JIT solution. Download the latest version from the relasefolder from https://github.com/Kili69/T1JIT/release
 
 ### First Server Installation
-To install the T1JIT solution run the .\install-JIT.ps1 with local Administrator privileges. This script copies the required Powershell modules and scripts to the server. 
+To install the T1JIT solution run the `.\install-JIT.ps1` script with local Administrator privileges. This script copies the required PowerShell modules and scripts to the server.
+
+During an interactive installation, the script also offers to install the KjitWeb interface as a Windows service. If selected, the web installer asks for the company name displayed in the navigation bar. An empty response uses `Active Directory Just-in-Time Administration`. The web installer also asks for the TCP port. Port `5240` is offered as the default when it is available; otherwise, another free port must be entered. The selected port is used consistently for the service URL and Windows Firewall rule.
 
 ### Additional Server Installation
 

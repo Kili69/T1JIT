@@ -3,8 +3,10 @@ using KjitWeb.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
+using System.Globalization;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -42,6 +44,35 @@ public class HomeController : Controller
         var model = CreateModel(selectedDomain);
 
         return View(model);
+    }
+
+    [HttpGet]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public IActionResult CurrentElevatedComputers()
+    {
+        return Json(_activeDirectoryService.GetCurrentElevatedComputers(User));
+    }
+
+    [HttpPost]
+    [AllowAnonymous]
+    public IActionResult SetLanguage(string culture, string? returnUrl)
+    {
+        var supportedCultures = new[] { "de", "en" };
+        var selectedCulture = supportedCultures.Contains(culture, StringComparer.OrdinalIgnoreCase)
+            ? culture.ToLowerInvariant()
+            : "en";
+
+        Response.Cookies.Append(
+            CookieRequestCultureProvider.DefaultCookieName,
+            CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(selectedCulture)),
+            new CookieOptions
+            {
+                Expires = DateTimeOffset.UtcNow.AddYears(1),
+                IsEssential = true,
+                SameSite = SameSiteMode.Lax
+            });
+
+        return LocalRedirect(Url.IsLocalUrl(returnUrl) ? returnUrl! : Url.Action(nameof(Index))!);
     }
 
     /// <summary>Shows the switch-user login form.</summary>
@@ -103,7 +134,7 @@ public class HomeController : Controller
         var identityName = User?.Identity?.Name;
         ApplyJitSettings(model);
         ApplyDomainSelection(model);
-        model.CurrentElevationGroups = _activeDirectoryService.GetCurrentElevationGroups(User);
+        model.CurrentElevatedComputers = _activeDirectoryService.GetCurrentElevatedComputers(User);
         model.Servers = _activeDirectoryService.GetServerNames(User, model.SelectedDomain);
 
         if (string.IsNullOrWhiteSpace(model.SelectedDomain))
@@ -135,13 +166,14 @@ public class HomeController : Controller
 
         try
         {
+            var requestedServer = model.SelectedServer!;
             var userDn = _activeDirectoryService.GetUserDistinguishedName(identityName);
             var callingUserUpn = _activeDirectoryService.GetUserPrincipalName(identityName);
 
             var eventPayload = new
             {
                 UserDN = userDn,
-                ServerName = model.SelectedServer!,
+                ServerName = requestedServer,
                 ServerDomain = model.SelectedDomain!,
                 ElevationTime = model.ElevationDurationMinutes,
                 CallingUser = callingUserUpn
@@ -153,7 +185,7 @@ public class HomeController : Controller
 
             _eventLogWriter.WriteManagementEvent(
                 userDn,
-                model.SelectedServer!,
+                requestedServer,
                 model.SelectedDomain!,
                 model.ElevationDurationMinutes,
                 callingUserUpn);
@@ -165,12 +197,13 @@ public class HomeController : Controller
                 model.ElevationDurationMinutes,
                 callingUserUpn);
 
-            model.CurrentElevationGroups = _activeDirectoryService.GetCurrentElevationGroups(User);
+            model.CurrentElevatedComputers = _activeDirectoryService.GetCurrentElevatedComputers(User);
 
             model.SelectedServer = null;
             ModelState.Remove(nameof(model.SelectedServer));
 
-            ViewBag.SuccessMessage = _localizer["SuccessUserElevated"];
+            ViewBag.SuccessMessage = _localizer["SuccessUserElevated", requestedServer];
+            ViewBag.SuccessComputerName = requestedServer;
         }
         catch (Exception ex)
         {
@@ -190,7 +223,7 @@ public class HomeController : Controller
 
         ApplyJitSettings(model);
         ApplyDomainSelection(model);
-        model.CurrentElevationGroups = _activeDirectoryService.GetCurrentElevationGroups(User);
+        model.CurrentElevatedComputers = _activeDirectoryService.GetCurrentElevatedComputers(User);
         model.Servers = _activeDirectoryService.GetServerNames(User, model.SelectedDomain);
         model.ElevationDurationMinutes = model.DefaultElevationDurationMinutes;
         return model;

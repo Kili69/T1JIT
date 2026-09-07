@@ -71,3 +71,4 @@ C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\refint\KjitWeb.dll
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\KjitWeb.pdb
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\KjitWeb.genruntimeconfig.cache
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\ref\KjitWeb.dll
+C:\Repos\T1JIT\src\C#\Kjitweb\bin\Release\net8.0-windows\wwwroot\images\kjitlogo.png

@@ -1,7 +1,8 @@
 ﻿@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@using System.Globalization
 
 <!DOCTYPE html>
-<html lang="de">
+<html lang="@CultureInfo.CurrentUICulture.TwoLetterISOLanguageName">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,15 +11,30 @@
 </head>
 <body class="bg-light">
     <nav class="navbar bg-dark mb-4">
-        <div class="container-fluid d-flex justify-content-between align-items-center">
+        <div class="container-fluid d-flex justify-content-between align-items-center gap-3">
             <span class="navbar-brand text-white mb-0">@(Configuration["Branding:CompanyName"] ?? "Firma")</span>
-            @{
-                var logoPath = Configuration["Branding:LogoPath"];
-                if (!string.IsNullOrEmpty(logoPath))
-                {
-                    <img src="@logoPath" alt="Logo" style="height: 40px; max-width: 200px;" />
+            <div class="d-flex align-items-center gap-3">
+                <form asp-controller="Home" asp-action="SetLanguage" method="post" class="btn-group btn-group-sm" aria-label="Language">
+                    <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
+                    <button type="submit"
+                            name="culture"
+                            value="de"
+                            class="btn @(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "de" ? "btn-light" : "btn-outline-light")"
+                            aria-pressed="@(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "de" ? "true" : "false")">DE</button>
+                    <button type="submit"
+                            name="culture"
+                            value="en"
+                            class="btn @(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "btn-light" : "btn-outline-light")"
+                            aria-pressed="@(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "true" : "false")">EN</button>
+                </form>
+                @{
+                    var logoPath = Configuration["Branding:LogoPath"];
+                    if (!string.IsNullOrEmpty(logoPath))
+                    {
+                        <img src="@logoPath" alt="Logo" style="height: 40px; max-width: 200px;" />
+                    }
                 }
-            }
+            </div>
         </div>
     </nav>
     <div class="container py-4">

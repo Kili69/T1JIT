@@ -12,6 +12,46 @@ damages whatsoever (including, without limitation, damages for loss of business 
 interruption, loss of business information, or other pecuniary loss) arising out of the use of or
 inability to use the sample scripts or documentation, even if Microsoft has been advised of the
 possibility of such damages
+
+.SYNOPSIS
+    Creates or validates the repository version metadata for a commit.
+.DESCRIPTION
+    In update mode, determines files changed relative to BaseRef, creates a version in
+    the format <Major>.<Minor>.<yyyyMMdd>.<counter>, and writes VERSION plus
+    file-versions.json. Every changed file receives the same version and its current
+    SHA-256 hash in the manifest.
+
+    In check mode, validates the version format, manifest version, changed-file
+    versions and hashes, and the required disclaimer in every PowerShell script.
+    Generated files below bin and obj and the version metadata files themselves are
+    excluded from changed-file tracking.
+.PARAMETER Major
+    Major component used when creating a version. The default is 0.
+.PARAMETER Minor
+    Minor component used when creating a version. The default is 1.
+.PARAMETER BaseRef
+    Git reference against which changed files are determined. Use HEAD before a local
+    commit or the target branch when versioning several commits. The default is HEAD.
+.PARAMETER Staged
+    Versions only files currently staged for commit. This mode is intended for the
+    repository pre-commit hook and cannot be combined with Check.
+.PARAMETER Check
+    Validates existing metadata without changing files.
+.EXAMPLE
+    ./build/Update-Version.ps1
+    Creates metadata for uncommitted changes relative to HEAD.
+.EXAMPLE
+    ./build/Update-Version.ps1 -BaseRef origin/main
+    Creates metadata for all changes relative to origin/main.
+.EXAMPLE
+    ./build/Update-Version.ps1 -Check -BaseRef HEAD^
+    Validates the most recent commit and its changed files.
+.EXAMPLE
+    ./build/Update-Version.ps1 -Staged
+    Creates metadata only for files currently staged for commit.
+.OUTPUTS
+    None. The script writes status information to the host and throws on validation
+    or Git errors.
 #>
 
 [CmdletBinding(DefaultParameterSetName = "Update")]
@@ -27,6 +67,9 @@ param(
     [Parameter()]
     [ValidateNotNullOrEmpty()]
     [string]$BaseRef = "HEAD",
+
+    [Parameter(ParameterSetName = "Update")]
+    [switch]$Staged,
 
     [Parameter(Mandatory = $true, ParameterSetName = "Check")]
     [switch]$Check
@@ -55,15 +98,30 @@ $requiredScriptDisclaimerLines = @(
     "possibility of such damages"
 )
 
+<#
+.SYNOPSIS
+    Returns versionable files changed relative to BaseRef.
+.DESCRIPTION
+    Combines tracked Git differences and untracked files, normalizes path separators,
+    and excludes metadata plus generated bin and obj content.
+#>
 function Get-ChangedFiles {
-    $trackedFiles = @(git -C $repoRoot diff --name-only $BaseRef)
+    if ($Staged) {
+        $trackedFiles = @(git -C $repoRoot diff --cached --name-only --diff-filter=ACMR)
+    }
+    else {
+        $trackedFiles = @(git -C $repoRoot diff --name-only --diff-filter=ACMR $BaseRef)
+    }
     if ($LASTEXITCODE -ne 0) {
         throw "Unable to determine changed files with git."
     }
 
-    $untrackedFiles = @(git -C $repoRoot ls-files --others --exclude-standard)
-    if ($LASTEXITCODE -ne 0) {
-        throw "Unable to determine untracked files with git."
+    $untrackedFiles = @()
+    if (-not $Staged) {
+        $untrackedFiles = @(git -C $repoRoot ls-files --others --exclude-standard)
+        if ($LASTEXITCODE -ne 0) {
+            throw "Unable to determine untracked files with git."
+        }
     }
 
     @($trackedFiles + $untrackedFiles) |
@@ -73,6 +131,10 @@ function Get-ChangedFiles {
         Sort-Object -Unique
 }
 
+<#
+.SYNOPSIS
+    Validates the repository version syntax and calendar date.
+#>
 function Assert-VersionFormat {
     param([Parameter(Mandatory = $true)][string]$Version)
 
@@ -92,6 +154,10 @@ function Assert-VersionFormat {
     }
 }
 
+<#
+.SYNOPSIS
+    Returns the lowercase SHA-256 hash for a repository-relative file.
+#>
 function Get-FileHashValue {
     param([Parameter(Mandatory = $true)][string]$RelativePath)
 
@@ -103,6 +169,10 @@ function Get-FileHashValue {
     (Get-FileHash -LiteralPath $absolutePath -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 
+<#
+.SYNOPSIS
+    Ensures every tracked or untracked PowerShell script has the required disclaimer.
+#>
 function Assert-ScriptDisclaimers {
     $trackedScripts = @(git -C $repoRoot ls-files -- "*.ps1")
     if ($LASTEXITCODE -ne 0) {
@@ -148,7 +218,9 @@ if ($Check) {
     foreach ($file in @(Get-ChangedFiles)) {
         $entries = @($manifest.files | Where-Object { $_.path -eq $file })
         $currentHash = Get-FileHashValue -RelativePath $file
-        if ($entries.Count -ne 1 -or $entries[0].sha256 -ne $currentHash) {
+        if ($entries.Count -ne 1 -or
+            $entries[0].version -ne $version -or
+            $entries[0].sha256 -ne $currentHash) {
             $invalidFiles += $file
         }
     }
@@ -186,6 +258,7 @@ Set-Content -Path $versionPath -Value $version -Encoding ASCII
     files = @($changedFiles | ForEach-Object {
         [ordered]@{
             path = $_
+            version = $version
             sha256 = Get-FileHashValue -RelativePath $_
         }
     })
