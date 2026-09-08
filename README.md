@@ -31,6 +31,7 @@
     - [Remove-JITServerOU](#remove-jitserverou)
     - [Add-jitdelegation](#add-jitdelegation)
     - [Add-JITServerOU](#add-jitserverou)
+- [Restrict KjitWeb access to trusted workstations with IPsec](#restrict-kjitweb-access-to-trusted-workstations-with-ipsec)
 - [Developer information](#developer-information)
     - [Solution Structure](#solution-structure)
     - [Versioning](#versioning)
@@ -330,6 +331,162 @@ The Add-JITServerOU command can be used to add a server OU for the JIT-Solution.
 
     Add-JITServerOU -OU "OU=Server,DC=domain,DC=local"
         This will add the "OU=Server,DC=domain,DC=local" OU for the JIT-Solution. Any computer objects located in this OU or its child OUs will be considered as target servers for the JIT-Solution.
+
+## Restrict KjitWeb access to trusted workstations with IPsec
+
+KjitWeb is a privileged access application and should only be reachable from trusted, managed workstations. In an Active Directory domain, Windows Defender Firewall with IPsec can enforce this restriction without changing the KjitWeb application. IPsec authenticates the client computer with its Kerberos computer account before Windows permits a connection to the KjitWeb TCP port. KjitWeb then performs its existing user authentication separately.
+
+The resulting access requirements are:
+
+1. The client computer is a member of an approved Active Directory computer group and successfully authenticates to the KjitWeb server with Kerberos.
+2. The user successfully authenticates to KjitWeb and is authorized to request access to the selected server.
+
+IPsec controls the source computer, not the user. Do not add user accounts to the trusted-workstation group.
+
+### Prerequisites
+
+- The KjitWeb server and trusted workstations are joined to the Active Directory domain or to domains with a working trust relationship.
+- The clients can reach a domain controller and obtain Kerberos tickets.
+- DNS resolution, domain time synchronization, and the required domain firewall paths are working.
+- The KjitWeb service uses a fixed TCP port. The default port is `5240`.
+- Group Policy Management and Windows Defender Firewall with Advanced Security are available.
+- A recovery method such as console access to the KjitWeb server is available during rollout.
+
+IPsec authenticates and can protect the network connection, but HTTPS is still recommended for KjitWeb. In particular, Kerberos authentication by itself does not turn HTTP into a generally encrypted application channel, and Basic Authentication must never be transported over unencrypted HTTP.
+
+### 1. Create the trusted-workstation group
+
+Create a dedicated global security group, for example:
+
+```text
+KjitWeb-Trusted-Workstations
+```
+
+Add the **computer accounts** of the approved administrative workstations to this group, for example `ADMIN-WS01$` and `ADMIN-WS02$`. After changing computer-group membership, restart the affected workstation or purge and renew its computer Kerberos tickets before testing. A restart is the least ambiguous method during initial deployment.
+
+Manage this group as a privileged access control. Use a controlled process for additions and removals, review membership regularly, and do not nest broad groups such as `Domain Computers`.
+
+### 2. Create a pilot Group Policy deployment
+
+Create separate GPOs for the KjitWeb server and the trusted workstations. Link them first to small pilot OUs containing only the test systems:
+
+- `KjitWeb IPsec Server`
+- `KjitWeb IPsec Trusted Clients`
+
+Configure the policies under:
+
+```text
+Computer Configuration
+    Policies
+        Windows Settings
+            Security Settings
+                Windows Defender Firewall with Advanced Security
+```
+
+Use the Domain profile. Avoid enabling the rules for Public networks unless this is an explicit requirement.
+
+### 3. Configure the client IPsec rule
+
+In the trusted-client GPO, create a **Connection Security Rule** with the following intent:
+
+- Rule type: Custom or Server-to-server
+- Local endpoint: the trusted workstation
+- Remote endpoint: the fixed IP address or subnet containing the KjitWeb server
+- Protocol: TCP
+- Remote port: the configured KjitWeb port, normally `5240`
+- Authentication: Computer authentication using Kerberos V5
+- Requirement: request or require authentication for outbound connections
+- Profile: Domain
+
+Requiring authentication gives the strongest enforcement. Requesting authentication is useful during the pilot phase while the server policy is being deployed. Restrict the endpoints and port as narrowly as the supported Windows version and the organization's IPsec policy permit.
+
+### 4. Configure the KjitWeb server IPsec rule
+
+In the server GPO, create the matching **Connection Security Rule**:
+
+- Local endpoint: the KjitWeb server
+- Remote endpoint: the management workstation networks
+- Protocol: TCP
+- Local port: the configured KjitWeb port, normally `5240`
+- Authentication: Computer authentication using Kerberos V5
+- Requirement: require authentication for inbound connections
+- Profile: Domain
+
+Use transport mode unless the network design specifically requires an IPsec tunnel. Ensure that the selected integrity and encryption algorithms are permitted by the organization's security baseline on both clients and server.
+
+### 5. Require secure inbound connections
+
+In the server GPO, create an inbound Windows Firewall rule for the KjitWeb port:
+
+- Rule type: Port or Custom
+- Protocol: TCP
+- Local port: `5240`, or the port selected during installation
+- Action: **Allow the connection if it is secure**
+- Security requirement: require authentication
+- Authorized remote computers: the Active Directory group `KjitWeb-Trusted-Workstations`
+- Profile: Domain
+
+If the policy editor offers separate authorization fields, configure the group under **Remote computers authorized to access this computer**. Use the domain-qualified group name, for example `CONTOSO\KjitWeb-Trusted-Workstations`.
+
+The KjitWeb installer can create a normal inbound allow rule named similar to `KjitWeb Port 5240 Client Restriction`. Disable or remove that rule after the IPsec policy is active. Also check for other local or GPO firewall rules that allow the KjitWeb port without requiring a secure connection. A normal allow rule can bypass the intended IPsec-only restriction.
+
+Do not use `AllowedHosts` as a workstation security boundary. ASP.NET Core host filtering validates the HTTP `Host` header and does not authenticate the client computer.
+
+### 6. Deploy without locking out administrators
+
+Use this rollout order:
+
+1. Add one test workstation to `KjitWeb-Trusted-Workstations` and refresh its computer-group membership.
+2. Deploy the client connection security rule in request mode.
+3. Deploy the server connection security rule and the secure inbound firewall rule.
+4. Confirm that the trusted test workstation can open KjitWeb.
+5. Confirm that a domain-joined workstation outside the group cannot connect to the KjitWeb TCP port.
+6. Change the client rule from request to require authentication if request mode was used for the pilot.
+7. Expand the GPO scope to the remaining approved workstations.
+8. Remove all ordinary inbound allow rules for the KjitWeb port.
+
+Keep console access available until both a positive and a negative test have succeeded. Do not start by applying a mandatory server rule to all systems, because a mismatched client rule or algorithm suite can block every remote connection.
+
+### 7. Validate and troubleshoot
+
+Refresh Group Policy on the server and test workstation:
+
+```powershell
+gpupdate.exe /force
+```
+
+Confirm that the expected GPOs were applied:
+
+```powershell
+gpresult.exe /scope computer /r
+```
+
+Test the application port from an approved workstation and from a workstation outside the group:
+
+```powershell
+Test-NetConnection -ComputerName "kjitweb.contoso.com" -Port 5240
+```
+
+The approved workstation should establish the TCP connection. The unapproved workstation should fail before an HTTP response is returned. A KjitWeb `401 Unauthorized` response means the network connection reached the application and only the user authentication failed; this is different from an IPsec or firewall rejection.
+
+Inspect the active IPsec security associations and firewall rules when troubleshooting:
+
+```powershell
+Get-NetIPsecMainModeSA
+Get-NetIPsecQuickModeSA
+Get-NetFirewallRule -PolicyStore ActiveStore |
+        Where-Object DisplayName -Like "*KjitWeb*"
+```
+
+Also inspect the Windows event logs under **Applications and Services Logs > Microsoft > Windows > Windows Firewall With Advanced Security** and verify Kerberos failures in the System and Security logs. Common causes are stale computer-group membership, incorrect DNS records, clock skew, unavailable domain controllers, inconsistent IPsec algorithms, NAT between endpoints, or an ordinary firewall rule that still permits the port.
+
+### Operational maintenance
+
+- Review membership of `KjitWeb-Trusted-Workstations` regularly.
+- Remove retired or compromised computer accounts immediately and allow Active Directory replication to complete.
+- Monitor changes to the group and to the IPsec GPOs.
+- Retest both approved and unapproved workstations after firewall, network, operating-system, or security-baseline changes.
+- Keep HTTPS enabled even when IPsec is required.
 
 ## Developer information
 

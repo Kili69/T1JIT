@@ -1,10 +1,50 @@
 {
-  "version": "0.1.20260908.3",
+  "version": "0.1.20260908.4",
   "files": [
     {
-      "path": "History.md",
-      "version": "0.1.20260908.3",
-      "sha256": "ba93d441df186b24befc2ada7d64d626d91ad8d0744f6fcd5d6f6d0a1853c888"
+      "path": "README.md",
+      "version": "0.1.20260908.4",
+      "sha256": "42e54d1c2eff63ce669e5f051ada53f55e6f41909f870bc5e8f105d49db83907"
+    },
+    {
+      "path": "release/Config-JIT.ps1",
+      "version": "0.1.20260908.4",
+      "sha256": "c11fdc0f3098103ccccb9ddd8cf4e53e23d08a5318482ea725c84e5032f0b350"
+    },
+    {
+      "path": "release/ElevateUser.ps1",
+      "version": "0.1.20260908.4",
+      "sha256": "9c95ba8027918f33bbb227830504b80fb6c44504bd05a14a558c456aa7ce5764"
+    },
+    {
+      "path": "release/modules/0.1/just-in-time-request.psm1",
+      "version": "0.1.20260908.4",
+      "sha256": "2e605c8228d6164c38a763774776aa5895e7029b2513675fb2bb69bc61ff22c2"
+    },
+    {
+      "path": "release/Tier1LocalAdminGroup.ps1",
+      "version": "0.1.20260908.4",
+      "sha256": "b2b5b1f9e23ee469850c44a1999c8cfbbe0234230ab471cbd0f8da16bafb8c43"
+    },
+    {
+      "path": "src/Powershell/modules/0.1/just-in-time-request.psm1",
+      "version": "0.1.20260908.4",
+      "sha256": "c1cfb8f2aafc4ac1f32c64c3d08ca21eb990439ac85ee57d379ace3b7e29569a"
+    },
+    {
+      "path": "src/Powershell/Scripts/Config-JIT.ps1",
+      "version": "0.1.20260908.4",
+      "sha256": "05cee7ff03023466858a6389fe6bad60291ad82ded443718bffcca524430658b"
+    },
+    {
+      "path": "src/Powershell/Scripts/ElevateUser.ps1",
+      "version": "0.1.20260908.4",
+      "sha256": "5be369e3abc8d12ad81945a2c63d8adfbf964edce6c18d3d5c69641c235921c2"
+    },
+    {
+      "path": "src/Powershell/Scripts/Tier1LocalAdminGroup.ps1",
+      "version": "0.1.20260908.4",
+      "sha256": "b2b5b1f9e23ee469850c44a1999c8cfbbe0234230ab471cbd0f8da16bafb8c43"
     }
   ]
 }

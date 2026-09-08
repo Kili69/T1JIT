@@ -38,6 +38,9 @@ version 0.1.2025016 by Kili
     Fix a error if the DNS name of a server is assigned to more the one computer object
 version 0.1.20260413
     Return a error message if the requested user has no configured UPN. The UPN is required to use the delegation.config file. If the user has no UPN the function will terminate with a warning message
+version 0.1.20260908
+    Support users without a UPN by using their canonical Active Directory name for delegation checks.
+    Add verbose diagnostics to New-AdminRequest.
 
 #>
 
@@ -224,7 +227,7 @@ function Get-User{
         # TokenGroups is not reliably available through the GC, so query the user
         # again in the owning domain using a base-scope LDAP search.
         $userDomainDNSName = $oUser.CanonicalName.split("/")[0]
-        $oUser = Get-ADUser -LDAPFilter "(ObjectClass=user)" -SearchBase $ouser.DistinguishedName -SearchScope Base -Server $userDomainDNSName -Properties "TokenGroups"
+        $oUser = Get-ADUser -LDAPFilter "(ObjectClass=user)" -SearchBase $ouser.DistinguishedName -SearchScope Base -Server $userDomainDNSName -Properties TokenGroups, CanonicalName, UserPrincipalName, SamAccountName
         return $oUser
     }
 }
@@ -472,6 +475,7 @@ function New-AdminRequest{
     to the configured Windows event log.
     #>
 
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true, Position=0 )]
         [string]$Server,
@@ -485,8 +489,11 @@ function New-AdminRequest{
         [bool]$UIused = $false
     )
 
+    Write-Verbose "Preparing administrator request for server '$Server'."
+
     # Load all request limits, naming rules, and event-log settings.
     $config = Get-JITconfig
+    Write-Verbose "Loaded JIT configuration for domain '$($config.Domain)'; delegation enabled: $($config.EnableDelegation)."
 
     # Console requests normalize their duration against the configured limits.
     if (!$UIused) {
@@ -515,21 +522,31 @@ function New-AdminRequest{
     }
 
     # Resolve the user and enforce the configured concurrent-elevation limit.
+    Write-Verbose "Resolving requested user '$User'."
     $oUser = Get-User $User
-    if ((Get-AdminStatus $oUser).count -gt $config.MaxConcurrentServer){
-        Write-ScriptMessage "Elevation limit reached. retry in a couple of minutes" -UIused $UIused
-    }
     if ($Null -eq $oUser){
         Write-ScriptMessage "Can find the user object." -Severity Warning -UIused $UIused
         return
     }
-    if ($null -eq $oUser.userPrincipalName){
-        Write-ScriptMessage "Missing UPN attribute on the user object. Aborting elevation" -Severity Warning -UIused $UIused
-        return
+    Write-Verbose "Resolved user DN '$($oUser.DistinguishedName)', SAM account '$($oUser.SamAccountName)', UPN '$($oUser.UserPrincipalName)'."
+    if ((Get-AdminStatus $oUser).count -gt $config.MaxConcurrentServer){
+        Write-ScriptMessage "Elevation limit reached. retry in a couple of minutes" -UIused $UIused
+    }
+
+    # Delegation accepts UPN and canonical-name identities; use the latter when UPN is unset.
+    $authorizationUserName = [string]$oUser.UserPrincipalName
+    if ([string]::IsNullOrWhiteSpace($authorizationUserName)) {
+        $authorizationUserName = [string]$oUser.CanonicalName
+        if ([string]::IsNullOrWhiteSpace($authorizationUserName)) {
+            Write-ScriptMessage "The user object has neither a UPN nor a canonical name. Aborting elevation" -Severity Warning -UIused $UIused
+            return
+        }
+        Write-Verbose "User '$($oUser.DistinguishedName)' has no UPN; using canonical identity '$authorizationUserName' for delegation checks."
     }
     #endregion
 
     # Resolve the computer by NetBIOS-qualified, DNS, or unqualified name.
+    Write-Verbose "Resolving target computer '$Server'$(if ($ServerDomain) { " in domain '$ServerDomain'" })."
     switch ($Server) {
         {$_ -like "*\*"}{
             # Resolve DNS-domain\ComputerName or DOMAIN\ComputerName.
@@ -570,6 +587,7 @@ function New-AdminRequest{
         Write-ScriptMessage -Message "Multiple computer found with this name $server in the current forest, Please use the DNS hostname instead " -Severity Warning -UIused $UIused 
         return
     }
+    Write-Verbose "Resolved target computer DN '$($oServer.DistinguishedName)' with DNS hostname '$($oServer.DNSHostName)'."
     # Build the target admin-group name according to the deployment mode.
     if ($config.EnableMultiDomainSupport){
         #$ServerDomainDN = [regex]::Match($oserver.DistinguishedName,"DC=.*").value
@@ -591,10 +609,12 @@ function New-AdminRequest{
 
     # Enforce per-server delegation before recording the elevation request.
     if ($config.EnableDelegation) {
-        if (!(Get-UserElevationStatus -ServerName $oServer.DNSHostName -UserName $oUser.UserPrincipalName -DelegationConfig $config.DelegationConfigPath)){
+        Write-Verbose "Checking delegation for '$authorizationUserName' on '$($oServer.DNSHostName)' using '$($config.DelegationConfigPath)'."
+        if (!(Get-UserElevationStatus -ServerName $oServer.DNSHostName -UserName $authorizationUserName -DelegationConfig $config.DelegationConfigPath)){
             Write-ScriptMessage -Message "User is not allowed to request administrator privileges" -Severity Warning -UIused $UIused
             return
         }
+        Write-Verbose "Delegation check succeeded."
     }
 
     # Serialize the validated request for the event-driven elevation processor.
@@ -604,10 +624,17 @@ function New-AdminRequest{
     $ElevateUser | Add-Member -MemberType NoteProperty -Name "ServerDomain" -Value $ServerDomainDNSName
     $ElevateUser | Add-Member -MemberType NoteProperty -Name "ElevationTime" -Value $Minutes
     #$ElevateUser | Add-Member -MemberType NoteProperty -Name "CallingUser" -Value "$($env:USERNAME)@$($env:USERDNSDOMAIN)"
-    $ElevateUser | Add-Member -MemberType NoteProperty -Name "CallingUser" -Value (([ADSI]"LDAP://<SID=$([System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value)>").UserPrincipalName).ToString()
+    $callingUserObject = [ADSI]"LDAP://<SID=$([System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value)>"
+    $callingUser = [string]$callingUserObject.UserPrincipalName
+    if ([string]::IsNullOrWhiteSpace($callingUser)) {
+        $callingUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+        Write-Verbose "Calling user has no UPN; recording Windows identity '$callingUser'."
+    }
+    $ElevateUser | Add-Member -MemberType NoteProperty -Name "CallingUser" -Value $callingUser
     $EventMessage = ConvertTo-Json $ElevateUser
 
     # Submit the request and notify the console or UI caller.
+    Write-Verbose "Writing elevation request for group '$ServerGroupName' and $Minutes minute(s) to '$($config.EventLog)' with event ID $($config.ElevateEventID)."
     Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId $config.ElevateEventID -Message $EventMessage
     Write-ScriptMessage -Message "The $($oUser.DistinguishedName) will be elevated soon" -Severity Information -UIused $UIused
 }

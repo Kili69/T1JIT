@@ -43,7 +43,7 @@ Script Info
     possibility of such damages
 
     Version Tracking
-    2021-10-12 
+    2021-10-12
     Version 0.1
         - First internal release
     Version 0.1.2021294
@@ -79,7 +79,7 @@ Script Info
     Version 0.1.20240213
         - by Andreas Luy
         - corrected several inconsistency issues with existing config file
-        - simplified/corrected OU creation function 
+        - simplified/corrected OU creation function
         - integrated updating delegationconfig location
         - group validation corrected
         - ToDo: use custom form for input
@@ -89,17 +89,17 @@ Script Info
         - New Parameter advancedsetup
             The LDAP configuration string will only be visible if this switch is available
         - New Environment variable
-            A global environment variable will created to determnine the configuration file. This environment variable will 
+            A global environment variable will created to determnine the configuration file. This environment variable will
             be used in the request and elevate script to read a central configuration without using the config parameter
         - removed all parameters except InstallationDirectory and AdvancedSetup
         - new switch parameter -silent
             This parameter installs the GMSA on the local computer, create the Windows Eventlog and the schedule task
-            This parameter can be used if the solution run on multiple servers. this parameter required the JIT.config file 
+            This parameter can be used if the solution run on multiple servers. this parameter required the JIT.config file
             JIT.CONFIG can be availabel through
                 - Environment variable
                 - configurationFile parameter
                 - local jit.config
-        - Schedule task to elevate users run in paralell 
+        - Schedule task to elevate users run in paralell
             The userelevate schedule task run in paralell if multiple request events send to the event log
      Version 0.1.20240801
         - Updated dialog messages
@@ -146,13 +146,13 @@ Script Info
 [CmdletBinding(SupportsShouldProcess = $true)]
 param (
     #The installation directory to find the JIT.config file
-    [Parameter (Mandatory=$false)]
+    [Parameter (Mandatory = $false)]
     $InstallationDirectory,
     [Parameter ()]
     [switch]$AdvancedSetup,
     [Parameter ()]
     [switch]$quiet,
-    [Parameter (Mandatory=$false)]
+    [Parameter (Mandatory = $false)]
     [string]$configurationFile
 )
 
@@ -301,8 +301,7 @@ function Import-JitConfiguration {
     # Normalize JSON and file-system failures into one configuration-specific exception.
     try {
         $existingConfiguration = Get-Content -LiteralPath $existingConfigPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
-    }
-    catch {
+    } catch {
         throw [System.ArgumentException]::new("The configuration file '$existingConfigPath' is invalid.", $_.Exception)
     }
 
@@ -588,8 +587,7 @@ function Read-JitIdentityConfiguration {
         # File creation is best effort so identity and logging setup can still complete.
         try {
             Set-JitDelegationFile -Path $delegationFile
-        }
-        catch {
+        } catch {
             Write-Warning "Unable to create delegation file '$delegationFile': $($_.Exception.Message)"
         }
     }
@@ -613,8 +611,7 @@ function Read-JitIdentityConfiguration {
     return $Configuration
 }
 
-function Add-LogonAsABatchJobPrivilege 
-{
+function Add-LogonAsABatchJobPrivilege {
     <#
     .SYNOPSIS
         Grants the "Log on as a batch job" user right to a security principal SID.
@@ -649,24 +646,22 @@ function Add-LogonAsABatchJobPrivilege
     # Use isolated policy files in the current account's temporary directory.
     $tempPath = [System.IO.Path]::GetTempPath()
     $import = Join-Path -Path $tempPath -ChildPath "import.inf"
-    if(Test-Path $import) { Remove-Item -Path $import -Force }
+    if (Test-Path $import) { Remove-Item -Path $import -Force }
     $export = Join-Path -Path $tempPath -ChildPath "export.inf"
-    if(Test-Path $export) { Remove-Item -Path $export -Force }
+    if (Test-Path $export) { Remove-Item -Path $export -Force }
     $secedt = Join-Path -Path $tempPath -ChildPath "secedt.sdb"
-    if(Test-Path $secedt) { Remove-Item -Path $secedt -Force }
+    if (Test-Path $secedt) { Remove-Item -Path $secedt -Force }
     # Export the effective local security policy before changing one user right.
     secedit /export /cfg $export | Out-Null
-    if ($false -eq  (Test-Path $export)){
+    if ($false -eq (Test-Path $export)) {
         Write-Host 'Administrator privileges required to set "Logon AS Batch job permission" please add the privilege manually'
-        Return
+        return
     }
     # Preserve existing trustees and append the SID only when it is not assigned already.
     $SIDs = (Select-String $export -Pattern "SeBatchLogonRight").Line
-    if (!($SIDs.Contains($Sid)))
-    {
+    if (!($SIDs.Contains($Sid))) {
         # Build the minimal security template required to update SeBatchLogonRight.
-        foreach ($line in @("[Unicode]", "Unicode=yes", "[System Access]", "[Event Audit]", "[Registry Values]", "[Version]", "signature=`"`$CHICAGO$`"", "Revision=1", "[Profile Description]", "Description=GrantLogOnAsABatchJob security template", "[Privilege Rights]", "$SIDs,*$sid"))
-        {
+        foreach ($line in @("[Unicode]", "Unicode=yes", "[System Access]", "[Event Audit]", "[Registry Values]", "[Version]", "signature=`"`$CHICAGO$`"", "Revision=1", "[Profile Description]", "Description=GrantLogOnAsABatchJob security template", "[Privilege Rights]", "$SIDs,*$sid")) {
             Add-Content $import $line
         }
         # Import and apply the template, then refresh Group Policy before cleanup.
@@ -678,7 +673,7 @@ function Add-LogonAsABatchJobPrivilege
     }
     # Always remove the exported policy after the assignment check completes.
     Remove-Item -Path $export -Force
-    
+
 }
 
 function CreateOU {
@@ -713,20 +708,20 @@ function CreateOU {
         [Parameter (Mandatory)]
         [string]$DomainDNS
     )
-    try{
+    try {
         # Resolve the target domain and split the requested distinguished-name path.
         $DomainDN = (Get-ADDomain -Server $DomainDNS).DistinguishedName
-        $aryOU=$OUPath.Split(",").Trim()
-        $OUBuildPath = ","+$DomainDN
-        
+        $aryOU = $OUPath.Split(",").Trim()
+        $OUBuildPath = "," + $DomainDN
+
         # Reverse the components so parent OUs are available before their children.
         [array]::Reverse($aryOU)
-        $aryOU|ForEach-Object {
+        $aryOU | ForEach-Object {
             # Domain components come from Get-ADDomain and must not be created as OUs.
             if ($_ -like "ou=*") {
                 $OUName = $_ -ireplace [regex]::Escape("ou="), ""
                 # Keep existing OUs unchanged; create only the missing hierarchy element.
-                if (Get-ADOrganizationalUnit -Filter "distinguishedName -eq '$($_+$OUBuildPath)'") {
+                if (Get-ADOrganizationalUnit -Filter "distinguishedName -eq '$($_+$OUBuildPath)'" -Server $DomainDNS) {
                     Write-Debug "$($_+$OUBuildPath) already exists no actions needed"
                 } else {
                     $targetPath = $_ + $OUBuildPath
@@ -736,23 +731,21 @@ function CreateOU {
                     }
                 }
                 # Use this OU as the parent path for the next, more specific component.
-                $OUBuildPath = ","+$_+$OUBuildPath
+                $OUBuildPath = "," + $_ + $OUBuildPath
             }
 
 
         }
- 
-    } 
-    catch [System.UnauthorizedAccessException]{
+
+    } catch [System.UnauthorizedAccessException] {
         Write-Host "Access denied to create $OUPath in $domainDNS"
-        Return $false
-    } 
-    catch{
+        return $false
+    } catch {
         Write-Host "A error occured while create OU Structure"
         Write-Host $Error[0].CategoryInfo.GetType()
-        Return $false
+        return $false
     }
-    Return $true
+    return $true
 }
 
 <#
@@ -815,19 +808,16 @@ function Set-JitServiceAccount {
     $computerDistinguishedName = (Get-ADComputer -Identity $env:COMPUTERNAME).DistinguishedName
     $allowedPrincipals = @((Get-ADServiceAccount -Identity $accountName -Properties PrincipalsAllowedToRetrieveManagedPassword).PrincipalsAllowedToRetrieveManagedPassword)
     $allowedPrincipalDistinguishedNames = @($allowedPrincipals | ForEach-Object {
-        if ($_ -is [string]) {
-            $_
-        }
-        elseif ($_.PSObject.Properties.Name -contains "DistinguishedName") {
-            [string]$_.DistinguishedName
-        }
-        elseif ($_.PSObject.Properties.Name -contains "Value") {
-            [string]$_.Value
-        }
-        else {
-            [string]$_
-        }
-    })
+            if ($_ -is [string]) {
+                $_
+            } elseif ($_.PSObject.Properties.Name -contains "DistinguishedName") {
+                [string]$_.DistinguishedName
+            } elseif ($_.PSObject.Properties.Name -contains "Value") {
+                [string]$_.Value
+            } else {
+                [string]$_
+            }
+        })
     if ($allowedPrincipalDistinguishedNames -notcontains $computerDistinguishedName) {
         $allowedPrincipals += $computerDistinguishedName
         if ($PSCmdlet.ShouldProcess($accountName, "Allow the local computer to retrieve the managed password")) {
@@ -1102,358 +1092,359 @@ function Invoke-JitConfiguration {
         [string]$ScriptVersion
     )
 
-# Keep the internal version name used by the legacy workflow synchronized with the parameter.
-$_scriptVersion = $ScriptVersion
-# Resolve the displayed target early; the actual default directory is assigned below.
-$configurationTarget = if ([string]::IsNullOrWhiteSpace($InstallationDirectory)) {
-    (Get-Location).Path
-} else {
-    $InstallationDirectory
-}
-Write-Verbose "Preparing JIT configuration for '$configurationTarget'."
+    # Keep the internal version name used by the legacy workflow synchronized with the parameter.
+    $_scriptVersion = $ScriptVersion
+    # Resolve the displayed target early; the actual default directory is assigned below.
+    $configurationTarget = if ([string]::IsNullOrWhiteSpace($InstallationDirectory)) {
+        (Get-Location).Path
+    } else {
+        $InstallationDirectory
+    }
+    Write-Verbose "Preparing JIT configuration for '$configurationTarget'."
 
-# Report missing elevation before any local or Active Directory mutation is attempted.
-if (!(New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){
-    #Terminate script if it is not running as local administrator
-    Write-Host "Administrator privileges required" -ForegroundColor Red
-    #return
-}
+    # Report missing elevation before any local or Active Directory mutation is attempted.
+    if (!(New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        #Terminate script if it is not running as local administrator
+        Write-Host "Administrator privileges required" -ForegroundColor Red
+        #return
+    }
 
-#region global variables 
-#region Default values
-# Define stable names shared by configuration export and scheduled-task registration.
-$configFileName = "JIT.config"
-$STGroupManagementTaskName = "Tier 1 Local Group Management"
-$StGroupManagementTaskPath = "\Just-In-Time-Privilege"
-$STElevateUser = "Elevate User"
-# Resolving the domain also verifies that the ActiveDirectory module is operational.
-try {
-    $ADDomainDNS = (Get-ADDomain).DNSRoot
-}
-catch {
-    Write-Error "Cannot determine AD domain - aborting!"
-    return
-}
-#endregion
-# Use the current directory by default and reject an inaccessible explicit location.
-if (!($InstallationDirectory)){
-    $InstallationDirectory = (Get-Location).Path
-    Write-Host "Installation directory is $installationDirectory"
-} elseif (!(Test-Path $InstallationDirectory)) {
-    Write-Error "Installation directory missing - aborting!"
-    exit
-}
-#region validate configuration file for silent installation
-#the quiet paramter required the configuration script or the Just-In-Time environment. 
-#   The configuration scirpt will terminate if the configuraiton file is not accessible
-# Quiet setup requires an accessible explicit or process-level configuration source.
-if ($quiet){
-    if (![string]::IsNullOrWhiteSpace($configurationFile)){
-        if (!(Test-Path $configurationFile)){
-            Write-Host "The configuration file $configurationFile doesn't exists" -ForegroundColor Red
+    #region global variables
+    #region Default values
+    # Define stable names shared by configuration export and scheduled-task registration.
+    $configFileName = "JIT.config"
+    $STGroupManagementTaskName = "Tier 1 Local Group Management"
+    $StGroupManagementTaskPath = "\Just-In-Time-Privilege"
+    $STElevateUser = "Elevate User"
+    # Resolving the domain also verifies that the ActiveDirectory module is operational.
+    try {
+        $ADDomainDNS = (Get-ADDomain).DNSRoot
+    } catch {
+        Write-Error "Cannot determine AD domain - aborting!"
+        return
+    }
+    #endregion
+    # Use the current directory by default and reject an inaccessible explicit location.
+    if (!($InstallationDirectory)) {
+        $InstallationDirectory = (Get-Location).Path
+        Write-Host "Installation directory is $installationDirectory"
+    } elseif (!(Test-Path $InstallationDirectory)) {
+        Write-Error "Installation directory missing - aborting!"
+        exit
+    }
+    #region validate configuration file for silent installation
+    #the quiet paramter required the configuration script or the Just-In-Time environment.
+    #   The configuration scirpt will terminate if the configuraiton file is not accessible
+    # Quiet setup requires an accessible explicit or process-level configuration source.
+    if ($quiet) {
+        if (![string]::IsNullOrWhiteSpace($configurationFile)) {
+            if (!(Test-Path $configurationFile)) {
+                Write-Host "The configuration file $configurationFile doesn't exists" -ForegroundColor Red
+                Write-Host "Just-In-Time configuration stopped"
+                return
+            }
+            Set-JitConfigurationEnvironment -Path $configurationFile
+        } elseif ($null -eq $env:JustInTimeConfig) {
+            Write-Host "The parameter silent requires the environment variable JustInTimeConfig or the -configurationFile parameter" -ForegroundColor Red
             Write-Host "Just-In-Time configuration stopped"
             return
-        }
-        Set-JitConfigurationEnvironment -Path $configurationFile
-    } elseif ($null -eq $env:JustInTimeConfig){
-        Write-Host "The parameter silent requires the environment variable JustInTimeConfig or the -configurationFile parameter" -ForegroundColor Red
-        Write-Host "Just-In-Time configuration stopped"
-        return
-    } else {
-        if ((Test-Path $env:JustInTimeConfig)){} else {
-            Write-Host "Can't access configuration file $($env:JustInTimeConfig). Aborting configuration" -ForegroundColor Red
-            Write-Host "Validate the Just-In-Time variable"
-            return
-        }
-    }
-
-}
-#endregion
-
-# Time-limited group membership depends on the forest-wide PAM optional feature.
-if (!((Get-ADOptionalFeature -Filter "name -eq 'Privileged Access Management Feature'").EnabledScopes)){
-    $enablePamCommand = "Enable-ADOptionalFeature ""Privileged Access Management Feature"" -Scope ForestOrConfigurationSet -Target $((Get-ADForest).Name)"
-    Write-Host "Active Directory PAM feature is not enabled" -ForegroundColor Red
-    Write-Host "Run:" -ForegroundColor Red
-    Write-Host $enablePamCommand -ForegroundColor Cyan
-    Write-Host "Before continuing with JIT" -ForegroundColor Red
-    Write-Host "Aborting!" -ForegroundColor Red
-    return
-}
-#region Create or import configuration
-# Merge existing values onto domain-derived defaults before prompting or provisioning.
-$domain = Get-ADDomain
-$config = Get-JitDefaultConfiguration -ScriptVersion $_scriptVersion -DomainDns $ADDomainDNS -DomainDistinguishedName $domain.DistinguishedName
-
-try {
-    $config = Import-JitConfiguration -DefaultConfiguration $config -ScriptVersion $_scriptVersion -ConfigurationFile $configurationFile
-}
-catch {
-    Write-Error $_.Exception.Message
-    return
-}
-
-#endregion
-# Interactive setup collects identity and logging settings before provisioning the GMSA.
-if (!$quiet){
-    $config = Read-JitIdentityConfiguration -Configuration $config -AdvancedSetup:$AdvancedSetup
-} 
-#region GMSA
-# Provision and validate the service identity before assigning dependent permissions.
-try {
-    $oGmsa = Set-JitServiceAccount -Configuration $config
-}
-catch {
-    Write-Error "Unable to configure GMSA '$($config.GroupManagedServiceAccountName)': $($_.Exception.Message)"
-    return
-}
-#endregion
-
-# Quiet mode keeps all imported interactive settings unchanged.
-if (!$quiet){
-    # Accept an existing administrator-group OU or create its missing hierarchy.
-    do{
-        $OU = Read-Host -Prompt "OU for the local administrator groups [$($config.OU)]"
-        if ($OU -eq ""){
-            $OU = $config.OU
-        }
-        try{
-            if ([ADSI]::Exists("LDAP://$OU")){
-                $config.OU = $OU
-            } else {
-                Write-Host "The Ou '$OU' doesn't exist" -ForegroundColor Yellow
-                if (CreateOU -OUPath $OU -DomainDNS (Get-ADDomain).DNSRoot) {
-                    Write-Host "'$OU' succesfully created" -ForegroundColor Green
-                }
-            }
-        } 
-        catch {
-            Write-Host "invalid DistinguishedName" -ForegroundColor Red
-            $OU = $null
-        }
-    }while ($null -eq $OU)
-
-    # Constrain maximum elevation to the supported range of 15 through 1440 minutes.
-    do {
-        [UINT16]$MaxMinutes = Read-Host "Maximum elevated time [$($config.MaxElevatedTime)]"
-        switch ($MaxMinutes) {
-            0{
-                $MaxMinutes = $config.MaxElevatedTime
-            }
-            {($_ -gt 0) -and ($_ -lt 15)} {
-                Write-Host "Minimum elevation time is 15 minutes" -ForegroundColor Yellow
-                $MaxMinutes = 0
-            }
-            {$_ -gt 1440}{
-                Write-Host "Maximum elevation time 1440 minutes" -ForegroundColor Yellow
-                $MaxMinutes = 0
-            }
-            Default{
-                $config.MaxElevatedTime = $MaxMinutes
-            }
-        }
-    } while ($MaxMinutes -eq 0) 
-
-    # Keep the default elevation between 15 minutes and the selected maximum.
-    DO {
-        [INT]$DefaultElevatedTime = Read-Host -Prompt "Default elevated time [$($config.DefaultElevatedTime)]"
-        switch ($DefaultElevatedTime) {
-            0 {
-                if ($config.DefaultElevatedTime -gt $config.MaxElevatedTime){
-                    Write-Host "The default elevation time could not exceed the maximum elevation time"
-                } else {
-                    $DefaultElevatedTime = 1
-                }
-            }
-            {($_ -gt 0) -and ($_ -lt 15)} {
-                Write-Host "The default elevation time could not be lower then 15 minutes" -ForegroundColor Yellow
-                $DefaultElevatedTime = 0
-            }
-            {$_ -gt $config.MaxElevatedTime} {
-                Write-Host "The default elevation time cannot exceed 1440 minutes" -ForegroundColor Yellow
-                $DefaultElevatedTime = 0
-            }  
-            Default {
-                $config.DefaultElevatedTime = $DefaultElevatedTime
-            }      
-        }
-    } while($DefaultElevatedTime -eq 0)
-
-    # Resolve the Tier 0 exclusion group and persist its distinguished name.
-    do{
-        $T0computergroup = Read-Host -Prompt "Tier 0 computers group [$($config.Tier0ServerGroupName)]"
-        if ($T0computergroup -eq ""){
-            $T0ComputerGroup = $config.Tier0ServerGroupName 
-        }
-        Try {
-            $Group = Get-ADGroup -Identity $T0computergroup
-            $config.Tier0ServerGroupName = $Group.DistinguishedName
-        } catch [Microsoft.ActiveDirectory.Management.ADIdentityNotFoundException]{
-            Write-Host "$($T0computergroup) is not a valid AD group" -ForegroundColor Yellow 
-            Write-Host "Please enter either group's SamAccountName or DistinguishedName" -ForegroundColor Yellow 
-            $T0computergroup = ""
-        } 
-        catch {
-            Write-Host "unexpected occured script terminated" -ForegroundColor Red
-            Write-Host $Error[0]
-            return
-        }
-    } while ($T0computergroup -eq "")
-
-    # Advanced setup allows the default Tier 1 LDAP filter to be replaced.
-    if ($AdvancedSetup){
-        $LDAPT1Computers = Read-Host "LDAP query for Tier 1 computers [$($config.LDAPT1Computers)]"
-        if ($LDAPT1Computers -ne ""){
-            $config.LDAPT1Computers = $LDAPT1Computers
-        }
-    }
-
-    # Validate the Tier 0 OU as a relative path beneath the current domain root.
-    do{
-        $Tier0OUDN = Read-Host "Tier 0 OU realtive distinguished name [$($config.LDAPT0ComputerPath)]"
-        if ($Tier0OUDN  -eq ""){
-            $Tier0OUDN = $config.LDAPT0ComputerPath
-        }
-        try{
-            if ([ADSI]::Exists("LDAP://$Tier0OUDN,$((Get-ADDomain).DistinguishedName)")){
-                $config.LDAPT0ComputerPath = $Tier0OUDN
-            } else {
-                Write-Host "Invalid DistinguishedName LDAP://$Tier0OUDN,$((Get-ADDomain).Distinguishedname)."
-                $Tier0OUDN = ""
-            }
-        } catch{
-            Write-Host "Invalid DN path $($Error[0].CategoryInfo.GetType().Name)"
-            $Tier0OUDN = ""
-        }
-    } while ($Tier0OUDN -eq "")
-
-    # Collect a group-management interval between 5 minutes and once per day.
-    do{
-        try{
-            [int]$GroupManagementTaskRerun = Read-Host "Minutes to evaluate Tier 1 Admin groups[$($config.GroupManagementTaskRerun)]"
-            switch ($GroupManagementTaskRerun) {
-                {$_ -lt 5} { 
-                    $GroupManagementTaskRerun = [int]$config.GroupManagementTaskRerun
-                }
-                {$_ -gt 1440} {
-                    Write-Host "The enumeration of Tier 1 computer must run at least once a day" -ForegroundColor Yellow
-                    $GroupManagementTaskRerun = 0
-                }
-                Default{
-                    $config.GroupManagementTaskRerun = $GroupManagementTaskRerun
-                } 
-            }
-        }
-        catch [System.Management.Automation.ArgumentTransformationMetadataException]{
-            Write-Host "Invalid number please use a numer between 5 and 1439" -ForegroundColor Red
-            $GroupManagementTaskRerun = $Null
-        }
-        catch{
-            Write-Host "a unexpected error is occured $($error[0].CategoryInfo)"
-            $GroupManagementTaskRerun = $Null
-        }
-    } while (($GroupManagementTaskRerun -lt 5) -or ($GroupManagementTaskRerun -gt 1439))
-
-    # Rebuild the search-base list from entries confirmed during this interaction.
-    $arySearchBase = @()
-    foreach ($SearchBase in $config.T1Searchbase){
-#        if ($SearchBase -ne "<DomainRoot>"){
-#            $arySearchbase += $SearchBase
-#        }
-    }
-    $config.T1SearchBase = $arySearchBase
-    # Allow multiple relative or fully qualified distinguished-name search bases.
-    do{
-        Write-Host "Current searchbase for JIT members"
-        Write-Host $config.T1Searchbase -Separator "`n"
-        if ((Read-Host "Add search base? [N]") -eq "y"){
-            $arySearchBase = @()
-            $arySearchBase += $config.T1Searchbase
-            $SearchBase = Read-Host "Search base for JIT computers"
-            if ([RegEx]::Match($Searchbase,"^(OU|CN)=.+").Success){
-                if ($arySearchBase -contains $SearchBase){
-                    Write-Host "$SearchBase is already available"
-                } else {
-                    $config.T1Searchbase += $SearchBase
-                }
-            } else {
-                Write-Host "Invalid DN Retry" -ForegroundColor Yellow
-            }
         } else {
-            $SearchBase = "N"
+            if ((Test-Path $env:JustInTimeConfig)) {} else {
+                Write-Host "Can't access configuration file $($env:JustInTimeConfig). Aborting configuration" -ForegroundColor Red
+                Write-Host "Validate the Just-In-Time variable"
+                return
+            }
         }
-    } while ($SearchBase -ne "N") 
-    if (!$config.T1Searchbase) {
-        # An empty selection searches from the current domain root.
-        $config.T1Searchbase += "<DomainRoot>"
+
     }
     #endregion
 
-    # Prefer the published path; otherwise suggest the domain SYSVOL location.
-    if ((-not $env:JustInTimeConfig) -or ($env:JustInTimeConfig -eq "")) {
-        $DomainDNS = (Get-ADDomain).DNSRoot
-        $DefaultJITConfigPath = "\\$DomainDNS\SYSVOL\$DomainDNS\Just-in-Time\JIT.config"
-        Write-Host "It is recommended to store the configuration file on a central storage like $DefaultJITConfigPath"
-    } else {
-        $DefaultJITConfigPath = $env:JustInTimeConfig
+    # Time-limited group membership depends on the forest-wide PAM optional feature.
+    if (!((Get-ADOptionalFeature -Filter "name -eq 'Privileged Access Management Feature'").EnabledScopes)) {
+        $enablePamCommand = "Enable-ADOptionalFeature ""Privileged Access Management Feature"" -Scope ForestOrConfigurationSet -Target $((Get-ADForest).Name)"
+        Write-Host "Active Directory PAM feature is not enabled" -ForegroundColor Red
+        Write-Host "Run:" -ForegroundColor Red
+        Write-Host $enablePamCommand -ForegroundColor Cyan
+        Write-Host "Before continuing with JIT" -ForegroundColor Red
+        Write-Host "Aborting!" -ForegroundColor Red
+        return
+    }
+    #region Create or import configuration
+    # Merge existing values onto domain-derived defaults before prompting or provisioning.
+    $domain = Get-ADDomain
+    $config = Get-JitDefaultConfiguration -ScriptVersion $_scriptVersion -DomainDns $ADDomainDNS -DomainDistinguishedName $domain.DistinguishedName
+
+    try {
+        $config = Import-JitConfiguration -DefaultConfiguration $config -ScriptVersion $_scriptVersion -ConfigurationFile $configurationFile
+    } catch {
+        Write-Error $_.Exception.Message
+        return
     }
 
-    # Retry until the configuration file and environment reference are saved together.
-    $configSaved = $false
-    do {
-        $configFileName = Read-Host "Provide a path to store the configuration file[$DefaultJITConfigPath]"
-        if ($configFileName -eq ""){
-            $configFileName = $DefaultJITConfigPath
-        }         
-        try {
-            $configSaved = Export-JitConfiguration -Configuration $config -Path $configFileName
-        }
-        catch [System.Security.SecurityException]{
-            if ($error[0].InvocationInfo.Line -like "*SetEnvironmentVariable*"){
-                Write-Host "Can change system variable. Administrator privileges required"
-            } else{
-                Write-Host "Can't write configuration file $configurationFile Write privileges required"
+    #endregion
+    # Interactive setup collects identity and logging settings before provisioning the GMSA.
+    if (!$quiet) {
+        $config = Read-JitIdentityConfiguration -Configuration $config -AdvancedSetup:$AdvancedSetup
+    }
+    #region GMSA
+    # Provision and validate the service identity before assigning dependent permissions.
+    try {
+        $oGmsa = Set-JitServiceAccount -Configuration $config
+    } catch {
+        Write-Error "Unable to configure GMSA '$($config.GroupManagedServiceAccountName)': $($_.Exception.Message)"
+        return
+    }
+    #endregion
+
+    # Quiet mode keeps all imported interactive settings unchanged.
+    if (!$quiet) {
+        # Accept an existing administrator-group OU or create its missing hierarchy.
+        do {
+            $OU = Read-Host -Prompt "OU for the local administrator groups [$($config.OU)]"
+            if ($OU -eq "") {
+                $OU = $config.OU
+            }
+            try {
+                if ([ADSI]::Exists("LDAP://$OU")) {
+                    $config.OU = $OU
+                } else {
+                    Write-Host "The Ou '$OU' doesn't exist" -ForegroundColor Yellow
+                    if (CreateOU -OUPath $OU -DomainDNS (Get-ADDomain).DNSRoot) {
+                        Write-Host "'$OU' succesfully created" -ForegroundColor Green
+                    }
+                }
+            } catch {
+                Write-Host "invalid DistinguishedName" -ForegroundColor Red
+                $OU = $null
+            }
+        }while ($null -eq $OU)
+
+        # Constrain maximum elevation to the supported range of 15 through 1440 minutes.
+        do {
+            [UINT16]$MaxMinutes = Read-Host "Maximum elevated time [$($config.MaxElevatedTime)]"
+            switch ($MaxMinutes) {
+                0 {
+                    $MaxMinutes = $config.MaxElevatedTime
+                }
+                { ($_ -gt 0) -and ($_ -lt 15) } {
+                    Write-Host "Minimum elevation time is 15 minutes" -ForegroundColor Yellow
+                    $MaxMinutes = 0
+                }
+                { $_ -gt 1440 } {
+                    Write-Host "Maximum elevation time 1440 minutes" -ForegroundColor Yellow
+                    $MaxMinutes = 0
+                }
+                default {
+                    $config.MaxElevatedTime = $MaxMinutes
+                }
+            }
+        } while ($MaxMinutes -eq 0)
+
+        # Keep the default elevation between 15 minutes and the selected maximum.
+        do {
+            [INT]$DefaultElevatedTime = Read-Host -Prompt "Default elevated time [$($config.DefaultElevatedTime)]"
+            switch ($DefaultElevatedTime) {
+                0 {
+                    if ($config.DefaultElevatedTime -gt $config.MaxElevatedTime) {
+                        Write-Host "The default elevation time could not exceed the maximum elevation time"
+                    } else {
+                        $DefaultElevatedTime = 1
+                    }
+                }
+                { ($_ -gt 0) -and ($_ -lt 15) } {
+                    Write-Host "The default elevation time could not be lower then 15 minutes" -ForegroundColor Yellow
+                    $DefaultElevatedTime = 0
+                }
+                { $_ -gt $config.MaxElevatedTime } {
+                    Write-Host "The default elevation time cannot exceed 1440 minutes" -ForegroundColor Yellow
+                    $DefaultElevatedTime = 0
+                }
+                default {
+                    $config.DefaultElevatedTime = $DefaultElevatedTime
+                }
+            }
+        } while ($DefaultElevatedTime -eq 0)
+
+        # Resolve the Tier 0 exclusion group and persist its distinguished name.
+        do {
+            $T0computergroup = Read-Host -Prompt "Tier 0 computers group [$($config.Tier0ServerGroupName)]"
+            if ($T0computergroup -eq "") {
+                $T0ComputerGroup = $config.Tier0ServerGroupName
+            }
+            try {
+                $Group = Get-ADGroup -Identity $T0computergroup
+                $config.Tier0ServerGroupName = $Group.DistinguishedName
+            } catch [Microsoft.ActiveDirectory.Management.ADIdentityNotFoundException] {
+                Write-Host "$($T0computergroup) is not a valid AD group" -ForegroundColor Yellow
+                Write-Host "Please enter either group's SamAccountName or DistinguishedName" -ForegroundColor Yellow
+                $T0computergroup = ""
+            } catch {
+                Write-Host "unexpected occured script terminated" -ForegroundColor Red
+                Write-Host $Error[0]
+                return
+            }
+        } while ($T0computergroup -eq "")
+
+        # Advanced setup allows the default Tier 1 LDAP filter to be replaced.
+        if ($AdvancedSetup) {
+            $LDAPT1Computers = Read-Host "LDAP query for Tier 1 computers [$($config.LDAPT1Computers)]"
+            if ($LDAPT1Computers -ne "") {
+                $config.LDAPT1Computers = $LDAPT1Computers
             }
         }
-        catch [System.Management.Automation.MethodInvocationException]{
-            Write-Host "$($error[0].Exception.InnerException)" -ForegroundColor Red
+
+        # Validate the Tier 0 OU as a relative path beneath the current domain root.
+        do {
+            $Tier0OUDN = Read-Host "Tier 0 OU realtive distinguished name [$($config.LDAPT0ComputerPath)]"
+            if ($Tier0OUDN -eq "") {
+                $Tier0OUDN = $config.LDAPT0ComputerPath
+            }
+            try {
+                if ([ADSI]::Exists("LDAP://$Tier0OUDN,$((Get-ADDomain).DistinguishedName)")) {
+                    $config.LDAPT0ComputerPath = $Tier0OUDN
+                } else {
+                    Write-Host "Invalid DistinguishedName LDAP://$Tier0OUDN,$((Get-ADDomain).Distinguishedname)."
+                    $Tier0OUDN = ""
+                }
+            } catch {
+                Write-Host "Invalid DN path $($Error[0].CategoryInfo.GetType().Name)"
+                $Tier0OUDN = ""
+            }
+        } while ($Tier0OUDN -eq "")
+
+        # Collect a group-management interval between 5 minutes and once per day.
+        do {
+            try {
+                [int]$GroupManagementTaskRerun = Read-Host "Minutes to evaluate Tier 1 Admin groups[$($config.GroupManagementTaskRerun)]"
+                switch ($GroupManagementTaskRerun) {
+                    { $_ -lt 5 } {
+                        $GroupManagementTaskRerun = [int]$config.GroupManagementTaskRerun
+                    }
+                    { $_ -gt 1440 } {
+                        Write-Host "The enumeration of Tier 1 computer must run at least once a day" -ForegroundColor Yellow
+                        $GroupManagementTaskRerun = 0
+                    }
+                    default {
+                        $config.GroupManagementTaskRerun = $GroupManagementTaskRerun
+                    }
+                }
+            } catch [System.Management.Automation.ArgumentTransformationMetadataException] {
+                Write-Host "Invalid number please use a numer between 5 and 1439" -ForegroundColor Red
+                $GroupManagementTaskRerun = $Null
+            } catch {
+                Write-Host "a unexpected error is occured $($error[0].CategoryInfo)"
+                $GroupManagementTaskRerun = $Null
+            }
+        } while (($GroupManagementTaskRerun -lt 5) -or ($GroupManagementTaskRerun -gt 1439))
+
+        # Rebuild the search-base list from entries confirmed during this interaction.
+        $arySearchBase = @()
+        foreach ($SearchBase in $config.T1Searchbase) {
+            #        if ($SearchBase -ne "<DomainRoot>"){
+            #            $arySearchbase += $SearchBase
+            #        }
         }
-        catch {
-            Write-Host "can't create the configuration file. Please check the directory $configFileName exists and you have the permissions on this folder" -ForegroundColor Red
+        $config.T1SearchBase = $arySearchBase
+        # Allow multiple relative or fully qualified distinguished-name search bases.
+        do {
+            Write-Host "Current searchbase for JIT members"
+            Write-Host $config.T1Searchbase -Separator "`n"
+            if ((Read-Host "Add search base? [N]") -eq "y") {
+                $arySearchBase = @()
+                $arySearchBase += $config.T1Searchbase
+                $SearchBase = Read-Host "Search base for JIT computers"
+                if ([RegEx]::Match($Searchbase, "^(OU|CN)=.+").Success) {
+                    if ($arySearchBase -contains $SearchBase) {
+                        Write-Host "$SearchBase is already available"
+                    } else {
+                        $config.T1Searchbase += $SearchBase
+                    }
+                } else {
+                    Write-Host "Invalid DN Retry" -ForegroundColor Yellow
+                }
+            } else {
+                $SearchBase = "N"
+            }
+        } while ($SearchBase -ne "N")
+        if (!$config.T1Searchbase) {
+            # An empty selection searches from the current domain root.
+            $config.T1Searchbase += "<DomainRoot>"
         }
-    } while ($configSaved -eq $false)
-}
+        #endregion
 
-# Permission assignment requires the final configured administrator-group OU to exist.
-if (-not (Get-ADOrganizationalUnit -Identity $config.OU -Server $config.Domain -ErrorAction SilentlyContinue)) {
-    throw "The configured JIT administrator group OU '$($config.OU)' does not exist."
-}
-Set-JitOuPermission -Configuration $config -ServiceAccount $oGmsa
+        # Prefer the published path; otherwise suggest the domain SYSVOL location.
+        if ((-not $env:JustInTimeConfig) -or ($env:JustInTimeConfig -eq "")) {
+            $DomainDNS = (Get-ADDomain).DNSRoot
+            $DefaultJITConfigPath = "\\$DomainDNS\SYSVOL\$DomainDNS\Just-in-Time\JIT.config"
+            Write-Host "It is recommended to store the configuration file on a central storage like $DefaultJITConfigPath"
+        } else {
+            $DefaultJITConfigPath = $env:JustInTimeConfig
+        }
 
-#region Event infrastructure
-# Register event infrastructure before tasks that depend on those sources are started.
-Set-JitEventLog -Configuration $config
-#endregion
-#region Scheduled tasks
-# Register the recurring inventory task and event-triggered elevation task.
-try {
-    Set-JitScheduledTask -Configuration $config -InstallationDirectory $InstallationDirectory -TaskPath $StGroupManagementTaskPath -GroupManagementTaskName $STGroupManagementTaskName -ElevateUserTaskName $STElevateUser
-}
-catch {
-    Write-Error "Scheduled tasks could not be configured: $($_.Exception.Message)"
-    return
-}
-#endregion
-# Remind interactive operators that enabling delegation also requires delegation rules.
-if ($config.EnableDelegation){
-    Write-Host "do not forget to configure your OU delegation"
-    Write-Host "to allow the group Server-Admins on OU=Server,OU=contoso,OU=com use the command"
-    Write-Host "To add a delegation use the command: Add-JitDelegation -OU ""OU=Server,DC=contoso,DC=com"" -AdObject ""contoso\Server-Admins"""
-}
+        # Retry until the configuration file and environment reference are saved together.
+        $configSaved = $false
+        do {
+            $configFileName = Read-Host "Provide a path to store the configuration file[$DefaultJITConfigPath]"
+            if ($configFileName -eq "") {
+                $configFileName = $DefaultJITConfigPath
+            }
+            try {
+                $configSaved = Export-JitConfiguration -Configuration $config -Path $configFileName
+            } catch [System.Security.SecurityException] {
+                if ($error[0].InvocationInfo.Line -like "*SetEnvironmentVariable*") {
+                    Write-Host "Can change system variable. Administrator privileges required"
+                } else {
+                    Write-Host "Can't write configuration file $configurationFile Write privileges required"
+                }
+            } catch [System.Management.Automation.MethodInvocationException] {
+                Write-Host "$($error[0].Exception.InnerException)" -ForegroundColor Red
+            } catch {
+                Write-Host "can't create the configuration file. Please check the directory $configFileName exists and you have the permissions on this folder" -ForegroundColor Red
+            }
+        } while ($configSaved -eq $false)
+    }
 
-# Emit the final effective object for callers and installation scripts.
-Write-Verbose "JIT configuration completed successfully."
-return $config
+    # Provision the configured administrator-group OU in interactive and quiet setup.
+    $administratorGroupsOu = Get-ADOrganizationalUnit -Identity $config.OU -Server $config.Domain -ErrorAction SilentlyContinue
+    if (-not $administratorGroupsOu) {
+        Write-Verbose "The configured JIT administrator group OU '$($config.OU)' does not exist and will be created."
+        if (-not (CreateOU -OUPath $config.OU -DomainDNS $config.Domain)) {
+            throw "The configured JIT administrator group OU '$($config.OU)' could not be created."
+        }
+
+        # WhatIf reports the planned creation, but the OU cannot be resolved until it exists.
+        if (-not $WhatIfPreference) {
+            $administratorGroupsOu = Get-ADOrganizationalUnit -Identity $config.OU -Server $config.Domain -ErrorAction SilentlyContinue
+            if (-not $administratorGroupsOu) {
+                throw "The configured JIT administrator group OU '$($config.OU)' does not exist after creation."
+            }
+        }
+    }
+    Set-JitOuPermission -Configuration $config -ServiceAccount $oGmsa
+
+    #region Event infrastructure
+    # Register event infrastructure before tasks that depend on those sources are started.
+    Set-JitEventLog -Configuration $config
+    #endregion
+    #region Scheduled tasks
+    # Register the recurring inventory task and event-triggered elevation task.
+    try {
+        Set-JitScheduledTask -Configuration $config -InstallationDirectory $InstallationDirectory -TaskPath $StGroupManagementTaskPath -GroupManagementTaskName $STGroupManagementTaskName -ElevateUserTaskName $STElevateUser
+    } catch {
+        Write-Error "Scheduled tasks could not be configured: $($_.Exception.Message)"
+        return
+    }
+    #endregion
+    # Remind interactive operators that enabling delegation also requires delegation rules.
+    if ($config.EnableDelegation) {
+        Write-Host "do not forget to configure your OU delegation"
+        Write-Host "to allow the group Server-Admins on OU=Server,OU=contoso,OU=com use the command"
+        Write-Host "To add a delegation use the command: Add-JitDelegation -OU ""OU=Server,DC=contoso,DC=com"" -AdObject ""contoso\Server-Admins"""
+    }
+
+    # Emit the final effective object for callers and installation scripts.
+    Write-Verbose "JIT configuration completed successfully."
+    return $config
 }
 
 return Invoke-JitConfiguration -InstallationDirectory $InstallationDirectory -AdvancedSetup:$AdvancedSetup -Quiet:$quiet -ConfigurationFile $configurationFile -ScriptVersion $_scriptVersion -WhatIf:$WhatIfPreference

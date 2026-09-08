@@ -78,6 +78,11 @@ possibility of such damages
         - Support a global debug directory and one-generation 1 MB log rotation.
         - Register a missing Application event source when permitted and otherwise continue with transcript logging.
         - Ignore configured search-base paths that do not exist in an individual domain.
+    Version 0.1.20260908
+        - Report LDAP match and Tier 0 exclusion counts in verbose output.
+        - Diagnose zero-result searches with computer operating-system and primary-group values.
+        - Report configured and resolved debug-log paths.
+        - Support ExcludeComputerOU and prevent an empty exclusion path from filtering all computers.
 
 
     Event ID
@@ -103,7 +108,7 @@ Param(
     $configurationFile = $env:JustInTimeConfig
 )
 #Script Version
-$_scriptVersion = "0.1.20260907"
+$_scriptVersion = "0.1.20260908"
 $MinConfigVersionBuild = 20240123
 Write-Debug "Script Version $_scriptVersion"
 $tcpAdwsPort = 9389
@@ -192,6 +197,7 @@ if ((Test-Path -LiteralPath $debugLogFile -PathType Leaf) -and
     Move-Item -LiteralPath $debugLogFile -Destination $savedDebugLogFile -Force -ErrorAction Stop
 }
 Start-Transcript -Path $debugLogFile -Append -Force -ErrorAction Stop | Out-Null
+Write-Verbose "Configuration source: $configurationFile"
 Write-Verbose "Detailed logging: $debugLogFile"
 Write-Tier1ApplicationEvent -EventId 3100 -EntryType Information -Message "Tier1LocalAdminGroup.ps1 started. Detailed logging: $debugLogFile"
 
@@ -199,11 +205,27 @@ Write-Tier1ApplicationEvent -EventId 3100 -EntryType Information -Message "Tier1
 #if the configuration file doesnt exists or is malformed terminat the script
 try {
         $config = Get-JITconfig -configurationFile $configurationFile
-                
+    Write-Verbose "Configured DebugLogPath '$($config.DebugLogPath)' resolves to '$debugLogDirectory' for the current account."
 } catch [System.ArgumentException]{
     Write-Error -Message "invalid JSON file $configurationFile"
     Exit-Tier1LocalAdminGroup -ExitCode 0x3EA
 }
+
+# Prefer the current multi-value property and fall back to the legacy single OU path.
+$excludedComputerOuPaths = @()
+if ($null -ne $config.PSObject.Properties["ExcludeComputerOU"]) {
+    $excludedComputerOuPaths = @($config.ExcludeComputerOU)
+}
+elseif ($null -ne $config.PSObject.Properties["LDAPT0ComputerPath"]) {
+    $excludedComputerOuPaths = @($config.LDAPT0ComputerPath)
+}
+$excludedComputerOuPaths = @($excludedComputerOuPaths |
+    ForEach-Object { ([string]$_).Trim() } |
+    Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+    Select-Object -Unique)
+$excludedComputerOuDescription = if ($excludedComputerOuPaths.Count -gt 0) { $excludedComputerOuPaths -join "; " } else { "<none>" }
+Write-Verbose "Configured Tier 0 computer OU exclusion(s): $excludedComputerOuDescription"
+
 [int]$configBuildVersion = [regex]::Match($config.ConfigScriptVersion, "[^\.]+$").Value
 if ($configBuildVersion -lt $MinconfigVersionBuild) {
     Write-Output "invalid config version $($config.ConfigScriptVersion)). Configuration build $MinConfigVersionBuild or higher required"
@@ -272,7 +294,37 @@ Foreach ($Domain in $aryDomainList) {
             #Search for computer object in the OU and based on the LDAP filter. While the LDAP filter doesn't support DistinguishedNames the query must work again s the $searchbase
             try {
                 Write-Verbose "Searching computers in domain '$Domain' with search base '$SearchBase' and LDAP filter '$($config.LDAPT1Computers)'."
-                $serverList = @(Get-ADComputer -LDAPFilter $config.LDAPT1Computers -Properties memberof -SearchBase $Searchbase -Server $Domain -ErrorAction Stop | Where-Object { $_.DistinguishedName -notlike "*$($config.LDAPT0ComputerPath)*" })
+                $ldapMatches = @(Get-ADComputer -LDAPFilter $config.LDAPT1Computers -Properties memberof -SearchBase $SearchBase -Server $Domain -ErrorAction Stop)
+                $serverList = @($ldapMatches | Where-Object {
+                    $computerDistinguishedName = [string]$_.DistinguishedName
+                    $isExcluded = $false
+                    foreach ($excludedComputerOuPath in $excludedComputerOuPaths) {
+                        if ($computerDistinguishedName.IndexOf($excludedComputerOuPath, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
+                            $isExcluded = $true
+                            break
+                        }
+                    }
+                    -not $isExcluded
+                })
+                Write-Verbose "LDAP query returned $($ldapMatches.Count) computer(s); $($serverList.Count) remain after applying Tier 0 OU exclusion(s): $excludedComputerOuDescription."
+
+                if ($serverList.Count -eq 0) {
+                    if ($ldapMatches.Count -gt 0) {
+                        Write-Verbose "All matching computers were excluded because their distinguished names contain one of the configured Tier 0 OU paths."
+                    }
+                    elseif ($VerbosePreference -ne [Management.Automation.ActionPreference]::SilentlyContinue) {
+                        # A broad diagnostic query explains why a valid LDAP filter returned no computers.
+                        $computersInSearchBase = @(Get-ADComputer -LDAPFilter "(objectClass=computer)" -Properties OperatingSystem, PrimaryGroupID -SearchBase $SearchBase -Server $Domain -ErrorAction Stop)
+                        Write-Verbose "Zero-result diagnostic: search base '$SearchBase' contains $($computersInSearchBase.Count) computer object(s) before applying LDAPT1Computers."
+                        foreach ($computer in $computersInSearchBase | Select-Object -First 20) {
+                            $operatingSystem = if ([string]::IsNullOrWhiteSpace([string]$computer.OperatingSystem)) { "<not set>" } else { [string]$computer.OperatingSystem }
+                            Write-Verbose "Candidate '$($computer.DistinguishedName)': OperatingSystem='$operatingSystem', PrimaryGroupID='$($computer.PrimaryGroupID)'."
+                        }
+                        if ($computersInSearchBase.Count -gt 20) {
+                            Write-Verbose "Zero-result diagnostic limited to the first 20 of $($computersInSearchBase.Count) computer objects."
+                        }
+                    }
+                }
             }
             catch [Microsoft.ActiveDirectory.Management.ADIdentityNotFoundException] {
                 if ($searchBaseIsFullDn) {

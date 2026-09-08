@@ -269,7 +269,7 @@ try{
         return
     }
     #region Search for the user in the entire AD Forest
-    $oUser = Get-ADUser -Filter "DistinguishedName -eq '$($Request.UserDN)'" -Server $GlobalCatalogServer -Properties canonicalName
+    $oUser = Get-ADUser -Filter "DistinguishedName -eq '$($Request.UserDN)'" -Server $GlobalCatalogServer -Properties CanonicalName, UserPrincipalName, SamAccountName
     #check the user object is available, If not terminate the script
     if ($null -eq $oUser ) 
     {
@@ -281,6 +281,15 @@ try{
     }
     $userDomain = [regex]::Match($oUser.canonicalName,"[^/]+").value
     Write-Log -Severity Debug -Message "Found user $userDomain \ $($oUser.SamAccountName)"
+    $authorizationUserName = [string]$oUser.UserPrincipalName
+    if ([string]::IsNullOrWhiteSpace($authorizationUserName)) {
+        $authorizationUserName = [string]$oUser.CanonicalName
+        if ([string]::IsNullOrWhiteSpace($authorizationUserName)) {
+            Write-ScriptMessage -EventID 2002 -Severity Warning -Message "User $($oUser.DistinguishedName) has neither a UPN nor a canonical name"
+            return
+        }
+        Write-Log -Severity Debug -Message "User has no UPN; using canonical identity $authorizationUserName for delegation checks"
+    }
     #endregion
 
     #region This section check the permission for this user if the elevation version is enabled
@@ -318,7 +327,7 @@ try{
             Write-ScriptMessage -EventID 2109 -Severity Error -Message "Invalid path $($config.DelegationConfigPath)"
             return
         }
-        if (!(Get-UserElevationStatus -ServerName $oServer.DNSHostName -UserName $oUser.UserPrincipalName -DelegationConfig $config.DelegationConfigPath -AllowManagebyAttribute $config.UseManagedByforDelegation)){
+        if (!(Get-UserElevationStatus -ServerName $oServer.DNSHostName -UserName $authorizationUserName -DelegationConfig $config.DelegationConfigPath -AllowManagebyAttribute $config.UseManagedByforDelegation)){
             Write-ScriptMessage -EventID 2103 -Message "User $($oUser.DistinguishedName) is not allowed to request privileged access on $($oServer.DistinguishedName) " -Severity Warning
             return
         }
