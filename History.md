@@ -6,6 +6,27 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-09-08 19:22:18 +02:00 - `dev` to `origin/dev`
+
+Commits:
+
+<!-- commit:1f9fadf40e9bb4d24417a9fa62372ddadff55f06 -->
+- `1f9fadf` Harden JIT provisioning and request handling
+
+Changed files:
+
+- `M -> README.md`
+- `M -> VERSION`
+- `M -> file-versions.json`
+- `M -> release/Config-JIT.ps1`
+- `M -> release/ElevateUser.ps1`
+- `M -> release/Tier1LocalAdminGroup.ps1`
+- `M -> release/modules/0.1/just-in-time-request.psm1`
+- `M -> src/Powershell/Scripts/Config-JIT.ps1`
+- `M -> src/Powershell/Scripts/ElevateUser.ps1`
+- `M -> src/Powershell/Scripts/Tier1LocalAdminGroup.ps1`
+- `M -> src/Powershell/modules/0.1/just-in-time-request.psm1`
+
 ## 2026-09-08 08:16:47 +02:00 - `dev` to `origin/dev`
 
 Commits:
@@ -867,6 +888,7 @@ Changes:
 - Added a full-page processing lock that prevents duplicate elevation requests.
 - Extended Active Directory queries and web models for active elevation information.
 - Updated installation documentation, release scripts, modules, and published KjitWeb artifacts.
+
 
 
 
