@@ -6,6 +6,20 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-09-08 08:16:47 +02:00 - `dev` to `origin/dev`
+
+Commits:
+
+<!-- commit:2fa36140999b44cda8d554433a2658a1acd6e2e2 -->
+- `2fa3614` Document Config-JIT workflow
+
+Changed files:
+
+- `M -> VERSION`
+- `M -> file-versions.json`
+- `M -> release/Config-JIT.ps1`
+- `M -> src/Powershell/Scripts/Config-JIT.ps1`
+
 ## 2026-09-07 23:55:03 +02:00 - `dev` to `origin/dev`
 
 Commits:
@@ -853,6 +867,7 @@ Changes:
 - Added a full-page processing lock that prevents duplicate elevation requests.
 - Extended Active Directory queries and web models for active elevation information.
 - Updated installation documentation, release scripts, modules, and published KjitWeb artifacts.
+
 
 
 
