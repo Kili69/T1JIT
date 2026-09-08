@@ -496,7 +496,7 @@ public class DelegationConfiguration
 
 		try
 		{
-			using var document = JsonDocument.Parse(File.ReadAllText(path)); // We attempt to read the contents of the specified file and parse it as a JSON document using JsonDocument.Parse. If the file is successfully read and parsed, we proceed to extract the delegation rules from the JSON document. If there is an issue with reading the file or if the contents cannot be parsed as valid JSON, we catch the resulting exceptions and handle them appropriately to provide clear feedback on what went wrong when attempting to read the delegation configuration file.
+			using var document = ReadJsonDocumentWithRetry(path);
 			// If there is an issue with reading the file, such as insufficient permissions or an I/O error, we catch the IOException and throw a new InvalidOperationException with a clear error message indicating that there was an error reading the delegation config file, along with the original exception for more details. This ensures that we handle file access issues gracefully and provide clear feedback on what went wrong when attempting to read the configuration file.
 			var rules = ExtractRules(document.RootElement)
 				.Distinct()
@@ -514,6 +514,33 @@ public class DelegationConfiguration
 		{
 			throw new InvalidOperationException("Delegation config is not a valid JSON file.", ex);
 		}
+	}
+
+	private static JsonDocument ReadJsonDocumentWithRetry(string path)
+	{
+		const int maximumReadAttempts = 3;
+
+		for (var attempt = 1; attempt <= maximumReadAttempts; attempt++)
+		{
+			try
+			{
+				var json = File.ReadAllText(path);
+				if (string.IsNullOrWhiteSpace(json))
+				{
+					throw new JsonException("Delegation config is empty.");
+				}
+
+				return JsonDocument.Parse(json);
+			}
+			catch (Exception ex) when (
+				(ex is IOException || ex is JsonException)
+				&& attempt < maximumReadAttempts)
+			{
+				Thread.Sleep(50);
+			}
+		}
+
+		throw new InvalidOperationException("Delegation config could not be read.");
 	}
 
 	// This helper method recursively extracts delegation rules from a JsonElement. 

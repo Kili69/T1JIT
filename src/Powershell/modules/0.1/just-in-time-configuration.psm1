@@ -134,6 +134,37 @@ function Get-JitServerOU{
 
     return $config
 }
+function Write-JitConfigurationJsonAtomically {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$InputObject,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    $resolvedPath = [IO.Path]::GetFullPath($Path)
+    $temporaryPath = "$resolvedPath.$([Guid]::NewGuid().ToString('N')).tmp"
+    $backupPath = "$temporaryPath.bak"
+
+    try {
+        ConvertTo-Json -InputObject $InputObject -Depth 10 |
+            Out-File -LiteralPath $temporaryPath -Confirm:$false
+
+        if (Test-Path -LiteralPath $resolvedPath -PathType Leaf) {
+            [IO.File]::Replace($temporaryPath, $resolvedPath, $backupPath)
+        }
+        else {
+            [IO.File]::Move($temporaryPath, $resolvedPath)
+        }
+    }
+    finally {
+        Remove-Item -LiteralPath $temporaryPath -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $backupPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
 function Remove-JITServerOU{
     <#
     .SYNOPSIS
@@ -189,8 +220,7 @@ function Remove-JITServerOU{
 
             if ($removedDelegations.Count -gt 0) {
                 $remainingDelegations = @($currentDelegations | Where-Object { $_.ComputerOU -ne $OU })
-                ConvertTo-Json -InputObject $remainingDelegations -Depth 10 |
-                    Out-File -LiteralPath $delegationConfigPath -Confirm:$false
+                Write-JitConfigurationJsonAtomically -InputObject $remainingDelegations -Path $delegationConfigPath
             }
         }
 

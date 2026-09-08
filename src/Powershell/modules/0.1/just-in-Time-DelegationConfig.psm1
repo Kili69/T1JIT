@@ -167,6 +167,37 @@ function Get-Sid{
     return $OSID
 }
 
+function Write-JitJsonFileAtomically {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$InputObject,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    $resolvedPath = [IO.Path]::GetFullPath($Path)
+    $temporaryPath = "$resolvedPath.$([Guid]::NewGuid().ToString('N')).tmp"
+    $backupPath = "$temporaryPath.bak"
+
+    try {
+        ConvertTo-Json -InputObject $InputObject -Depth 10 |
+            Out-File -LiteralPath $temporaryPath -Confirm:$false
+
+        if (Test-Path -LiteralPath $resolvedPath -PathType Leaf) {
+            [IO.File]::Replace($temporaryPath, $resolvedPath, $backupPath)
+        }
+        else {
+            [IO.File]::Move($temporaryPath, $resolvedPath)
+        }
+    }
+    finally {
+        Remove-Item -LiteralPath $temporaryPath -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $backupPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
 function Update-JitDelegation {
     <#
     .SYNOPSIS
@@ -274,7 +305,7 @@ function Update-JitDelegation {
             }
 
             # Persist the complete delegation collection after the add operation.
-            ConvertTo-Json $CurrentDelegation  | Out-File $config.DelegationConfigPath -Confirm:$false
+            Write-JitJsonFileAtomically -InputObject $CurrentDelegation -Path $config.DelegationConfigPath
             return $true
         }
         'RemoveDelegation'{
@@ -287,7 +318,7 @@ function Update-JitDelegation {
             }
 
             # Persist the filtered delegation collection.
-            ConvertTo-Json $tempDelegation | Out-File $config.DelegationConfigPath -Confirm:$false
+            Write-JitJsonFileAtomically -InputObject $tempDelegation -Path $config.DelegationConfigPath
             return $true
         }
         'RemoveUserOrGroup'{
@@ -305,7 +336,7 @@ function Update-JitDelegation {
                     $CurrentDelegation[$i].ADObject = $tempSIDList
 
                     # Persist the modified OU entry and stop after the first match.
-                    ConvertTo-Json $CurrentDelegation | Out-File $config.DelegationConfigPath -Confirm:$false
+                    Write-JitJsonFileAtomically -InputObject $CurrentDelegation -Path $config.DelegationConfigPath
                     return $true    
                 }
             }
