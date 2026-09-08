@@ -1,20 +1,10 @@
 {
-  "version": "0.1.20260908.8",
+  "version": "0.1.20260908.9",
   "files": [
     {
-      "path": "src/C#/Kjitweb/Services/configuration.cs",
-      "version": "0.1.20260908.8",
-      "sha256": "34a4166f5ccdd21ba84a314f4691fe0814b42f06cabd55a35fd2eb5c209895b4"
-    },
-    {
-      "path": "src/Powershell/modules/0.1/just-in-time-configuration.psm1",
-      "version": "0.1.20260908.8",
-      "sha256": "75af252ab808af4f770d3aeb9936282092c9623d6f987b9356448d280a63afee"
-    },
-    {
-      "path": "src/Powershell/modules/0.1/just-in-Time-DelegationConfig.psm1",
-      "version": "0.1.20260908.8",
-      "sha256": "75f842590fe9c3933d0f7824751f9d9ca9a4f5c568d9ce3b1f63d5ab69098a3a"
+      "path": "History.md",
+      "version": "0.1.20260908.9",
+      "sha256": "0fce0fe22992cbbe321d683522b9dc0fb2e0ae150795ecac97f93ff15eab3d6d"
     }
   ]
 }

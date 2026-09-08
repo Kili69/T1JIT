@@ -6,6 +6,21 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-09-08 20:36:46 +02:00 - `dev` to `origin/dev`
+
+Commits:
+
+<!-- commit:eb4021a8bcf981deb392787c799e7f831c0bac81 -->
+- `eb4021a` Prevent transient delegation config reads
+
+Changed files:
+
+- `M -> VERSION`
+- `M -> file-versions.json`
+- `M -> src/C#/Kjitweb/Services/configuration.cs`
+- `M -> src/Powershell/modules/0.1/just-in-Time-DelegationConfig.psm1`
+- `M -> src/Powershell/modules/0.1/just-in-time-configuration.psm1`
+
 ## 2026-09-08 20:01:27 +02:00 - `dev` to `origin/dev`
 
 Commits:
@@ -912,6 +927,7 @@ Changes:
 - Added a full-page processing lock that prevents duplicate elevation requests.
 - Extended Active Directory queries and web models for active elevation information.
 - Updated installation documentation, release scripts, modules, and published KjitWeb artifacts.
+
 
 
 
