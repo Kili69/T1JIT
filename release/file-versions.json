@@ -1,15 +1,10 @@
 {
-  "version": "0.1.20260908.11",
+  "version": "0.1.20260908.12",
   "files": [
     {
-      "path": "src/C#/Kjitweb/Services/ActiveDirectoryService.cs",
-      "version": "0.1.20260908.11",
-      "sha256": "6e4b998b3cc3e8ff4eda2924676105603bbaa9a7e3b4595e0b52bcfdb662bdbd"
-    },
-    {
-      "path": "src/C#/Kjitweb/Services/configuration.cs",
-      "version": "0.1.20260908.11",
-      "sha256": "31c3ec9e88fffd1684a31ed63bbdcb985292a9500becf6fe60ce930aeb855929"
+      "path": "History.md",
+      "version": "0.1.20260908.12",
+      "sha256": "f6331c6f8b9008d13b48db2b24ca8d5db0107433cddf05903a57056065d7aeb7"
     }
   ]
 }

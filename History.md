@@ -6,6 +6,45 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-09-08 21:48:29 +02:00 - `dev` to `origin/dev`
+
+Commits:
+
+<!-- commit:b0d0066a780a8298251d17ca4613821ab720727a -->
+- `b0d0066` Fix KjitWeb delegation and automate release builds
+<!-- commit:9196ebc83b70080337531ea127426c4e6bed5d09 -->
+- `9196ebc` Fix relative KjitWeb search bases
+
+Changed files:
+
+- `M -> .githooks/pre-commit.ps1`
+- `M -> .githooks/pre-push.ps1`
+- `M -> VERSION`
+- `M -> build/release_build.ps1`
+- `M -> file-versions.json`
+- `M -> release/Config-JIT.ps1`
+- `M -> release/ElevateUser.ps1`
+- `M -> release/VERSION`
+- `M -> release/file-versions.json`
+- `M -> release/kjibweb/appsettings.Production.json`
+- `M -> release/kjibweb/appsettings.json`
+- `M -> release/kjibweb/install-kjitweb.ps1`
+- `M -> release/kjibweb/publish-service/KjitWeb.dll`
+- `M -> release/kjibweb/publish-service/KjitWeb.exe`
+- `M -> release/kjibweb/publish-service/KjitWeb.pdb`
+- `M -> release/kjibweb/publish-service/appsettings.Production.json`
+- `M -> release/kjibweb/publish-service/appsettings.json`
+- `M -> release/kjibweb/publish-service/de/KjitWeb.resources.dll`
+- `M -> release/kjibweb/publish-service/en/KjitWeb.resources.dll`
+- `M -> release/modules/0.1/KjitCore.dll`
+- `M -> release/modules/0.1/just-in-Time-DelegationConfig.psm1`
+- `M -> release/modules/0.1/just-in-time-configuration.psm1`
+- `M -> release/modules/0.1/just-in-time-request.psm1`
+- `M -> release/modules/Just-In-time.psd1`
+- `M -> src/C#/Kjitweb/Services/ActiveDirectoryService.cs`
+- `M -> src/C#/Kjitweb/Services/configuration.cs`
+- `M -> src/C#/Kjitweb/install-kjitweb.ps1`
+
 ## 2026-09-08 20:36:46 +02:00 - `dev` to `origin/dev`
 
 Commits:
@@ -927,6 +966,7 @@ Changes:
 - Added a full-page processing lock that prevents duplicate elevation requests.
 - Extended Active Directory queries and web models for active elevation information.
 - Updated installation documentation, release scripts, modules, and published KjitWeb artifacts.
+
 
 
 
