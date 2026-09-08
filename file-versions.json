@@ -1,65 +1,10 @@
 {
-  "version": "0.1.20260908.6",
+  "version": "0.1.20260908.7",
   "files": [
     {
-      "path": "README.md",
-      "version": "0.1.20260908.6",
-      "sha256": "d8db411c58ab026817d10f4db3a51e238dae1e987e68b6516e24bcf2a789046a"
-    },
-    {
-      "path": "release/kjibweb/publish-service/appsettings.json",
-      "version": "0.1.20260908.6",
-      "sha256": "ccf8aaf70ca9958509b059fb0efd97027e7e156b9aa0d99e76e0484d2c52b3fe"
-    },
-    {
-      "path": "src/C#/Kjitweb/appsettings.Development.json",
-      "version": "0.1.20260908.6",
-      "sha256": "f0f633a5f89be09cf9e8e8cd8baf6e385d1ce2db2aacaf25c8c544ba32544399"
-    },
-    {
-      "path": "src/C#/Kjitweb/appsettings.json",
-      "version": "0.1.20260908.6",
-      "sha256": "c4ecb2753449d713ca89dd105035193d97dd78663bb5547680c9196201ec9969"
-    },
-    {
-      "path": "src/C#/Kjitweb/appsettings.Production.json",
-      "version": "0.1.20260908.6",
-      "sha256": "6d7e18a0d394f46d1ad1e8339033f065cf653aa451b4c4e987ad3fda6d4b92df"
-    },
-    {
-      "path": "src/C#/Kjitweb/Program.cs",
-      "version": "0.1.20260908.6",
-      "sha256": "ae7c1a08e129b8cf219da1b7269fa2b573886f486bac6136821df04a227d0f13"
-    },
-    {
-      "path": "src/C#/Kjitweb/publish-service/appsettings.json",
-      "version": "0.1.20260908.6",
-      "sha256": "ccf8aaf70ca9958509b059fb0efd97027e7e156b9aa0d99e76e0484d2c52b3fe"
-    },
-    {
-      "path": "src/C#/Kjitweb/Services/DebugLogFileWriter.cs",
-      "version": "0.1.20260908.6",
-      "sha256": "8cdda8d58c268142c8f2aad169b2f7158ce5851a6ba1ca82f3e93fc840557ca5"
-    },
-    {
-      "path": "src/C#/Kjitweb/Services/MutualTlsCertificateValidator.cs",
-      "version": "0.1.20260908.6",
-      "sha256": "8f6d656322f8a664400a119945cfdec5b863d6eb710280a48d7a4868381c3291"
-    },
-    {
-      "path": "src/C#/Kjitweb/Services/MutualTlsOptions.cs",
-      "version": "0.1.20260908.6",
-      "sha256": "2a85764bcb2510d0f55fdecf56c6cd433a52056dea15ab07528da182d333889a"
-    },
-    {
-      "path": "src/Powershell/TestEnvironment/New-T1JitTestEnvironment.ps1",
-      "version": "0.1.20260908.6",
-      "sha256": "a512435c6016407c8873d739338229de1e6c90eafaa3375f0aed7c42ad21dd42"
-    },
-    {
-      "path": "src/Powershell/TestEnvironment/Test-Environment.md",
-      "version": "0.1.20260908.6",
-      "sha256": "4b5e9cb182a4d0f1e37381053774eb9d923dcb9320238eeaad314efdf0ce5b50"
+      "path": "History.md",
+      "version": "0.1.20260908.7",
+      "sha256": "0a8c4500d7dd9088c4827fc1327792bad42918cbb2c45d0649ded701af414be3"
     }
   ]
 }

@@ -6,6 +6,30 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-09-08 20:01:27 +02:00 - `dev` to `origin/dev`
+
+Commits:
+
+<!-- commit:0b30e312af34d4539b15cadb4255a0077064e6af -->
+- `0b30e31` Secure KjitWeb access and logging
+
+Changed files:
+
+- `M -> README.md`
+- `M -> VERSION`
+- `M -> file-versions.json`
+- `M -> release/kjibweb/publish-service/appsettings.json`
+- `M -> src/C#/Kjitweb/Program.cs`
+- `M -> src/C#/Kjitweb/Services/DebugLogFileWriter.cs`
+- `A -> src/C#/Kjitweb/Services/MutualTlsCertificateValidator.cs`
+- `A -> src/C#/Kjitweb/Services/MutualTlsOptions.cs`
+- `M -> src/C#/Kjitweb/appsettings.Development.json`
+- `M -> src/C#/Kjitweb/appsettings.Production.json`
+- `M -> src/C#/Kjitweb/appsettings.json`
+- `M -> src/C#/Kjitweb/publish-service/appsettings.json`
+- `M -> src/Powershell/TestEnvironment/New-T1JitTestEnvironment.ps1`
+- `M -> src/Powershell/TestEnvironment/Test-Environment.md`
+
 ## 2026-09-08 19:22:18 +02:00 - `dev` to `origin/dev`
 
 Commits:
@@ -888,6 +912,7 @@ Changes:
 - Added a full-page processing lock that prevents duplicate elevation requests.
 - Extended Active Directory queries and web models for active elevation information.
 - Updated installation documentation, release scripts, modules, and published KjitWeb artifacts.
+
 
 
 
