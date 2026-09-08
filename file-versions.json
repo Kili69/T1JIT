@@ -1,10 +1,15 @@
 {
-  "version": "0.1.20260907.50",
+  "version": "0.1.20260908.2",
   "files": [
     {
-      "path": "History.md",
-      "version": "0.1.20260907.50",
-      "sha256": "895d20354d18777f068b4ab54919a9966260310ae4bb4ed01c0a22fa98043d3c"
+      "path": "release/Config-JIT.ps1",
+      "version": "0.1.20260908.2",
+      "sha256": "8e0eba48634892e038d165ed95351de84c174bd98424df8e44637645a748bd5c"
+    },
+    {
+      "path": "src/Powershell/Scripts/Config-JIT.ps1",
+      "version": "0.1.20260908.2",
+      "sha256": "e1b3db5308491192e4c0603e6183ab01f8ccfcd1130a6a0fbcfb669b1956b104"
     }
   ]
 }

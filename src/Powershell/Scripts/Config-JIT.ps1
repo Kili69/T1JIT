@@ -118,6 +118,11 @@ Script Info
     Version 0.1.20260824
 
         - Added startup version output and improved the PAM feature warning.
+    Version 0.1.20260908
+        - Added Verbose and WhatIf support to the configuration workflow.
+        - Return the effective JIT configuration object to the caller.
+        - Split configuration import, export, identity, GMSA, OU permission, event log, and scheduled task handling into dedicated functions.
+        - Added complete comment-based help and intent-focused inline documentation.
 
 .PARAMETER InstallationDirectory
     Base folder containing the installed JIT scripts. The current directory is used when
@@ -151,11 +156,29 @@ param (
     [string]$configurationFile
 )
 
-[string]$_scriptVersion = "0.1.20260824"
+[string]$_scriptVersion = "0.1.20260908"
 Write-Host "Config-JIT script version $_scriptVersion"
 
 #region Functions
 function Get-JitDefaultConfiguration {
+    <#
+    .SYNOPSIS
+        Creates the default JIT configuration object.
+    .DESCRIPTION
+        Builds a new ordered configuration object using the current script version and
+        Active Directory domain information. The returned values are used for a new
+        installation and as defaults when an existing JIT.config file is imported.
+    .PARAMETER ScriptVersion
+        Version written to the ConfigScriptVersion property.
+    .PARAMETER DomainDns
+        DNS name of the Active Directory domain.
+    .PARAMETER DomainDistinguishedName
+        Distinguished name of the Active Directory domain.
+    .OUTPUTS
+        System.Management.Automation.PSCustomObject
+    .EXAMPLE
+        Get-JitDefaultConfiguration -ScriptVersion "0.1.20260908" -DomainDns "contoso.com" -DomainDistinguishedName "DC=contoso,DC=com"
+    #>
     [CmdletBinding()]
     param (
         [Parameter(Mandatory)]
@@ -194,6 +217,56 @@ function Get-JitDefaultConfiguration {
 }
 
 function Import-JitConfiguration {
+    <#
+    .SYNOPSIS
+        Imports an existing JIT.config file into the current default configuration.
+    .DESCRIPTION
+        Resolves the configuration source in this order:
+        1. The explicit ConfigurationFile parameter.
+        2. The process-level JustInTimeConfig environment variable.
+
+        If neither source is configured, the supplied default object is returned
+        unchanged. The JSON file is parsed and only properties that also exist on
+        DefaultConfiguration are copied. This preserves defaults for settings added
+        by newer Config-JIT versions and ignores unknown legacy properties.
+
+        The numeric build suffix in ConfigScriptVersion is compared with ScriptVersion.
+        A configuration created by a newer script is rejected. After a successful
+        merge, ConfigScriptVersion is set to the current ScriptVersion.
+    .PARAMETER DefaultConfiguration
+        Default configuration object that receives values from the existing file.
+        The object is updated in place and returned.
+    .PARAMETER ScriptVersion
+        Current Config-JIT script version used for compatibility validation and
+        written to the merged configuration.
+    .PARAMETER ConfigurationFile
+        Optional explicit path to an existing JIT.config file. This value takes
+        precedence over the JustInTimeConfig environment variable.
+    .OUTPUTS
+        System.Management.Automation.PSCustomObject
+        Returns the default configuration or the merged configuration object.
+    .EXAMPLE
+        $defaults = Get-JitDefaultConfiguration `
+            -ScriptVersion "0.1.20260908" `
+            -DomainDns "contoso.com" `
+            -DomainDistinguishedName "DC=contoso,DC=com"
+        Import-JitConfiguration -DefaultConfiguration $defaults `
+            -ScriptVersion "0.1.20260908" `
+            -ConfigurationFile "\\contoso.com\SYSVOL\contoso.com\Just-In-Time\JIT.config"
+
+        Imports the explicit JIT.config file and applies its supported properties to
+        the current defaults.
+    .EXAMPLE
+        Import-JitConfiguration -DefaultConfiguration $defaults `
+            -ScriptVersion "0.1.20260908"
+
+        Uses JustInTimeConfig when it is set; otherwise returns the defaults unchanged.
+    .NOTES
+        An explicit missing ConfigurationFile raises FileNotFoundException. A missing
+        file selected through JustInTimeConfig produces a warning and returns defaults.
+        Invalid JSON raises ArgumentException, and a newer configuration version raises
+        InvalidOperationException.
+    #>
     [CmdletBinding()]
     param (
         [Parameter(Mandatory)]
@@ -203,16 +276,19 @@ function Import-JitConfiguration {
         [string]$ConfigurationFile
     )
 
+    # An explicit path always overrides the process-wide configuration reference.
     $existingConfigPath = if (-not [string]::IsNullOrWhiteSpace($ConfigurationFile)) {
         $ConfigurationFile
     } elseif (-not [string]::IsNullOrWhiteSpace($env:JustInTimeConfig)) {
         $env:JustInTimeConfig
     }
 
+    # No source means a new installation can continue with the domain-derived defaults.
     if ([string]::IsNullOrWhiteSpace($existingConfigPath)) {
         return $DefaultConfiguration
     }
 
+    # A caller-supplied missing file is an error; a stale environment value is recoverable.
     if (-not (Test-Path -LiteralPath $existingConfigPath -PathType Leaf)) {
         if (-not [string]::IsNullOrWhiteSpace($ConfigurationFile)) {
             throw [System.IO.FileNotFoundException]::new("The configuration file '$ConfigurationFile' does not exist.", $ConfigurationFile)
@@ -222,6 +298,7 @@ function Import-JitConfiguration {
         return $DefaultConfiguration
     }
 
+    # Normalize JSON and file-system failures into one configuration-specific exception.
     try {
         $existingConfiguration = Get-Content -LiteralPath $existingConfigPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
     }
@@ -229,12 +306,14 @@ function Import-JitConfiguration {
         throw [System.ArgumentException]::new("The configuration file '$existingConfigPath' is invalid.", $_.Exception)
     }
 
+    # Compare only the trailing numeric build component used by Config-JIT versions.
     $existingVersion = ([regex]::Match([string]$existingConfiguration.ConfigScriptVersion, "\d+$")).Value
     $currentVersion = ([regex]::Match($ScriptVersion, "\d+$")).Value
     if ($existingVersion -and $currentVersion -and ([long]$existingVersion -gt [long]$currentVersion)) {
         throw [System.InvalidOperationException]::new("The configuration file was created by a newer Config-JIT script.")
     }
 
+    # Whitelist known properties so obsolete or unknown JSON fields cannot extend the model.
     foreach ($setting in $existingConfiguration.PSObject.Properties) {
         if ($DefaultConfiguration.PSObject.Properties.Name -contains $setting.Name) {
             $DefaultConfiguration.$($setting.Name) = $setting.Value
@@ -245,6 +324,46 @@ function Import-JitConfiguration {
     return $DefaultConfiguration
 }
 
+<#
+.SYNOPSIS
+    Exports the JIT configuration and publishes its location.
+.DESCRIPTION
+    Serializes the supplied configuration object as JSON to the specified path. A
+    missing parent directory is created automatically, and an existing file is
+    overwritten.
+
+    After the file has been written successfully, the function stores its path in
+    the machine-level JustInTimeConfig environment variable and mirrors the value
+    into the current process. This makes the exported configuration available to
+    later commands immediately and to new processes on the computer.
+
+    File-system and environment changes participate in ShouldProcess. Under WhatIf,
+    no state is changed and the function returns true so the calling configuration
+    workflow can complete its planning pass.
+.PARAMETER Configuration
+    JIT configuration object to serialize as JSON.
+.PARAMETER Path
+    Destination path of the JIT.config file. Local and UNC paths are supported.
+.OUTPUTS
+    System.Boolean
+    Returns true after the configuration is exported or when the operation is
+    approved as a WhatIf planning step.
+.EXAMPLE
+    Export-JitConfiguration -Configuration $config `
+        -Path "\\contoso.com\SYSVOL\contoso.com\Just-In-Time\JIT.config"
+
+    Writes the configuration to SYSVOL and publishes the path through the
+    JustInTimeConfig environment variable.
+.EXAMPLE
+    Export-JitConfiguration -Configuration $config `
+        -Path "C:\ProgramData\T1JIT\JIT.config" -WhatIf
+
+    Displays the planned export without creating the directory, writing the file,
+    or changing environment variables.
+.NOTES
+    File creation, JSON serialization, and environment-variable errors are allowed
+    to propagate to the caller.
+#>
 function Export-JitConfiguration {
     [CmdletBinding(SupportsShouldProcess = $true)]
     param (
@@ -254,22 +373,57 @@ function Export-JitConfiguration {
         [string]$Path
     )
 
+    # Treat an approved WhatIf plan as success so interactive save loops do not repeat.
     if (-not $PSCmdlet.ShouldProcess($Path, "Save JIT configuration and update the machine environment variable")) {
         return $true
     }
 
+    # Create the complete destination directory before replacing the configuration file.
     $parentPath = Split-Path -Path $Path -Parent
     if (-not (Test-Path -LiteralPath $parentPath -PathType Container)) {
         $null = New-Item -Path $parentPath -ItemType Directory -Force -ErrorAction Stop
     }
 
+    # Publish the path only after the JSON file has been written successfully.
     $Configuration | ConvertTo-Json | Out-File -LiteralPath $Path -Force -ErrorAction Stop
     [Environment]::SetEnvironmentVariable("JustInTimeConfig", $Path, [EnvironmentVariableTarget]::Machine)
+    # Machine-level changes are not reflected in the current process automatically.
     $env:JustInTimeConfig = $Path
 
     return $true
 }
 
+<#
+.SYNOPSIS
+    Publishes the JIT configuration path as an environment variable.
+.DESCRIPTION
+    Writes the supplied path to the machine-level JustInTimeConfig environment
+    variable so new processes and scheduled tasks can locate the central JIT.config
+    file.
+
+    After the machine-level value has been written successfully, the function mirrors
+    it into the current PowerShell process. This makes the new path available without
+    restarting the current session. Both changes are skipped under WhatIf.
+.PARAMETER Path
+    Full local or UNC path to the JIT.config file. The function publishes the path
+    but does not validate, create, or read the referenced file.
+.OUTPUTS
+    None.
+.EXAMPLE
+    Set-JitConfigurationEnvironment `
+        -Path "\\contoso.com\SYSVOL\contoso.com\Just-In-Time\JIT.config"
+
+    Publishes the central SYSVOL configuration path for the computer and the current
+    PowerShell process.
+.EXAMPLE
+    Set-JitConfigurationEnvironment -Path "C:\ProgramData\T1JIT\JIT.config" -WhatIf
+
+    Displays the planned machine-level environment change without modifying either
+    environment scope.
+.NOTES
+    Writing a machine-level environment variable requires sufficient local privileges.
+    Errors from the .NET environment API are allowed to propagate to the caller.
+#>
 function Set-JitConfigurationEnvironment {
     [CmdletBinding(SupportsShouldProcess = $true)]
     param (
@@ -277,12 +431,45 @@ function Set-JitConfigurationEnvironment {
         [string]$Path
     )
 
+    # Guard both environment scopes with one confirmation to avoid divergent values.
     if ($PSCmdlet.ShouldProcess("JustInTimeConfig", "Set machine environment variable to '$Path'")) {
+        # Persist first so the process value changes only after the machine update succeeds.
         [Environment]::SetEnvironmentVariable("JustInTimeConfig", $Path, [EnvironmentVariableTarget]::Machine)
+        # Machine-level changes are not imported into the current process automatically.
         $env:JustInTimeConfig = $Path
     }
 }
 
+<#
+.SYNOPSIS
+    Creates the delegation configuration file when it does not exist.
+.DESCRIPTION
+    Ensures that the specified delegation configuration file exists. If the file is
+    already present, the function returns without changing its contents.
+
+    For a missing file, the parent directory is created first when necessary, followed
+    by an empty delegation file. Directory creation and file creation use separate
+    ShouldProcess confirmations. If creation of a missing parent directory is declined
+    or skipped under WhatIf, the function returns before attempting to create the file.
+.PARAMETER Path
+    Full local or UNC path of the delegation configuration file to create.
+.OUTPUTS
+    None.
+.EXAMPLE
+    Set-JitDelegationFile `
+        -Path "\\contoso.com\SYSVOL\contoso.com\Just-In-Time\Tier1delegation.config"
+
+    Creates the SYSVOL directory when needed and then creates an empty delegation
+    configuration file. An existing file is left unchanged.
+.EXAMPLE
+    Set-JitDelegationFile `
+        -Path "C:\ProgramData\T1JIT\Tier1delegation.config" -WhatIf
+
+    Displays the planned directory or file creation without changing the file system.
+.NOTES
+    File-system and access errors are allowed to propagate to the caller. The function
+    creates an empty file only; delegation entries are managed separately.
+#>
 function Set-JitDelegationFile {
     [CmdletBinding(SupportsShouldProcess = $true)]
     param (
@@ -290,25 +477,70 @@ function Set-JitDelegationFile {
         [string]$Path
     )
 
+    # Preserve existing delegation rules and make repeated calls idempotent.
     if (Test-Path -LiteralPath $Path -PathType Leaf) {
         return
     }
 
+    # A delegation file may target a SYSVOL path whose parent has not been created yet.
     $parentPath = Split-Path -Path $Path -Parent
     if (-not (Test-Path -LiteralPath $parentPath -PathType Container)) {
+        # Do not attempt file creation when creation of its required parent is skipped.
         if (-not $PSCmdlet.ShouldProcess($parentPath, "Create delegation configuration directory")) {
             return
         }
         $null = New-Item -Path $parentPath -ItemType Directory -Force -ErrorAction Stop
     }
 
+    # File creation has its own confirmation when the destination directory exists.
     if (-not $PSCmdlet.ShouldProcess($Path, "Create delegation configuration file")) {
         return
     }
 
+    # Create an empty control file without overwriting an existing file discovered above.
     $null = New-Item -Path $Path -ItemType File -ErrorAction Stop
 }
 
+<#
+.SYNOPSIS
+    Collects interactive identity, delegation, and logging settings.
+.DESCRIPTION
+    Prompts the operator for the administrator-account prefix and group managed service
+    account name. Empty answers retain the values already present in Configuration.
+    The GMSA prompt repeats until its name contains between 5 and 14 characters.
+
+    With AdvancedSetup, the operator can enable or disable delegation. Without it,
+    delegation is enabled automatically. When delegation is enabled, the function
+    collects the control-file path and attempts to create a missing file. Creation
+    failures produce a warning and do not stop the remaining configuration prompts.
+
+    Finally, the function collects the debug-log directory. Environment-variable
+    expressions such as %TEMP% are expanded for validation, but the original expression
+    is retained in Configuration so it resolves in the runtime account's context. The
+    prompt repeats until the expanded value is an absolute local or UNC path.
+.PARAMETER Configuration
+    JIT configuration object whose current values are displayed as prompt defaults.
+    The object is updated in place and returned.
+.PARAMETER AdvancedSetup
+    Prompts the operator to enable or disable delegation. Without this switch,
+    EnableDelegation is set to true without an additional prompt.
+.OUTPUTS
+    System.Management.Automation.PSCustomObject
+    Returns the same configuration object after applying the selected values.
+.EXAMPLE
+    $config = Read-JitIdentityConfiguration -Configuration $config
+
+    Collects the standard identity and logging settings and enables delegation.
+.EXAMPLE
+    $config = Read-JitIdentityConfiguration `
+        -Configuration $config -AdvancedSetup
+
+    Also prompts whether delegation should be enabled before requesting its file path.
+.NOTES
+    The function validates only the GMSA name length and whether the expanded debug path
+    is rooted. Additional account and file-system validation occurs later in the setup
+    workflow.
+#>
 function Read-JitIdentityConfiguration {
     [CmdletBinding()]
     param (
@@ -317,11 +549,13 @@ function Read-JitIdentityConfiguration {
         [switch]$AdvancedSetup
     )
 
+    # An empty answer preserves the prefix imported from the existing configuration.
     $adminPrefix = Read-Host -Prompt "Admin Prefix for local administrators [$($Configuration.AdminPreFix)]"
     if ($adminPrefix) {
         $Configuration.AdminPreFix = $adminPrefix
     }
 
+    # Repeat until either the existing or newly entered GMSA name has a valid length.
     do {
         $gmsaName = Read-Host -Prompt "Group managed service account name [$($Configuration.GroupManagedServiceAccountName)]"
         if (-not $gmsaName) {
@@ -334,6 +568,7 @@ function Read-JitIdentityConfiguration {
     } while (-not $gmsaName)
     $Configuration.GroupManagedServiceAccountName = $gmsaName
 
+    # Standard setup enables delegation; advanced setup exposes the opt-out prompt.
     $enableDelegation = if ($AdvancedSetup) {
         (Read-Host -Prompt "Enable the delegation mode? (Y/N)[Y]") -ne "n"
     } else {
@@ -342,6 +577,7 @@ function Read-JitIdentityConfiguration {
     $Configuration.EnableDelegation = $enableDelegation
 
     if ($enableDelegation) {
+        # A blank answer keeps the current control-file location.
         $delegationFile = Read-Host -Prompt "File location of the delegation control file [$($Configuration.DelegationConfigPath)]"
         if ($delegationFile) {
             $Configuration.DelegationConfigPath = $delegationFile
@@ -349,6 +585,7 @@ function Read-JitIdentityConfiguration {
             $delegationFile = $Configuration.DelegationConfigPath
         }
 
+        # File creation is best effort so identity and logging setup can still complete.
         try {
             Set-JitDelegationFile -Path $delegationFile
         }
@@ -357,6 +594,7 @@ function Read-JitIdentityConfiguration {
         }
     }
 
+    # Validate expanded paths but retain tokens such as %TEMP% for runtime resolution.
     do {
         $debugLogPath = Read-Host -Prompt "Debug log directory [$($Configuration.DebugLogPath)]"
         if ([string]::IsNullOrWhiteSpace($debugLogPath)) {
@@ -371,6 +609,7 @@ function Read-JitIdentityConfiguration {
     } while ([string]::IsNullOrWhiteSpace($debugLogPath))
     $Configuration.DebugLogPath = $debugLogPath
 
+    # Return the mutated object so callers can continue the configuration pipeline.
     return $Configuration
 }
 
@@ -394,6 +633,7 @@ function Add-LogonAsABatchJobPrivilege
     .NOTES
         Author: Andreas Lucas
         Date: 2021-10-10
+        Requires local administrator privileges and the Windows secedit utility.
     #>
     [CmdletBinding(SupportsShouldProcess = $true)]
     param (
@@ -401,11 +641,12 @@ function Add-LogonAsABatchJobPrivilege
         [string]$Sid
     )
 
+    # Treat the SID as one protected operation because secedit updates local policy.
     if (-not $PSCmdlet.ShouldProcess($Sid, 'Grant the "Log on as a batch job" privilege')) {
         return
     }
 
-    #Temporary files for secedit
+    # Use isolated policy files in the current account's temporary directory.
     $tempPath = [System.IO.Path]::GetTempPath()
     $import = Join-Path -Path $tempPath -ChildPath "import.inf"
     if(Test-Path $import) { Remove-Item -Path $import -Force }
@@ -413,29 +654,29 @@ function Add-LogonAsABatchJobPrivilege
     if(Test-Path $export) { Remove-Item -Path $export -Force }
     $secedt = Join-Path -Path $tempPath -ChildPath "secedt.sdb"
     if(Test-Path $secedt) { Remove-Item -Path $secedt -Force }
-    #Export the current configuration
+    # Export the effective local security policy before changing one user right.
     secedit /export /cfg $export | Out-Null
     if ($false -eq  (Test-Path $export)){
         Write-Host 'Administrator privileges required to set "Logon AS Batch job permission" please add the privilege manually'
         Return
     }
-    #search for the current SID assigned to the SeBatchJob privilege
+    # Preserve existing trustees and append the SID only when it is not assigned already.
     $SIDs = (Select-String $export -Pattern "SeBatchLogonRight").Line
     if (!($SIDs.Contains($Sid)))
     {
-        #create a new temporary security configuration file
+        # Build the minimal security template required to update SeBatchLogonRight.
         foreach ($line in @("[Unicode]", "Unicode=yes", "[System Access]", "[Event Audit]", "[Registry Values]", "[Version]", "signature=`"`$CHICAGO$`"", "Revision=1", "[Profile Description]", "Description=GrantLogOnAsABatchJob security template", "[Privilege Rights]", "$SIDs,*$sid"))
         {
             Add-Content $import $line
         }
-        #configure privileges
+        # Import and apply the template, then refresh Group Policy before cleanup.
         secedit /import /db $secedt /cfg $import | Out-Null
         secedit /configure /db $secedt | Out-Null
         gpupdate /force | Out-Null
         Remove-Item -Path $import -Force
         Remove-Item -Path $secedt -Force
     }
-    #remove all temporary files   
+    # Always remove the exported policy after the assignment check completes.
     Remove-Item -Path $export -Force
     
 }
@@ -460,6 +701,9 @@ function CreateOU {
         System.Boolean
         Returns $true when all required OUs exist or are created successfully.
         Returns $false if creation fails, including access denied scenarios.
+    .NOTES
+        The function ignores DC components and creates missing OU components from the
+        domain root toward the leaf. Existing OUs are not modified.
     #>
 
     [CmdletBinding ( SupportsShouldProcess)]
@@ -470,18 +714,18 @@ function CreateOU {
         [string]$DomainDNS
     )
     try{
-        #load the OU path into array to create the entire path step by step
+        # Resolve the target domain and split the requested distinguished-name path.
         $DomainDN = (Get-ADDomain -Server $DomainDNS).DistinguishedName
         $aryOU=$OUPath.Split(",").Trim()
         $OUBuildPath = ","+$DomainDN
         
-        #walk through the entire domain
+        # Reverse the components so parent OUs are available before their children.
         [array]::Reverse($aryOU)
         $aryOU|ForEach-Object {
-            #ignore 'DC=' values
+            # Domain components come from Get-ADDomain and must not be created as OUs.
             if ($_ -like "ou=*") {
                 $OUName = $_ -ireplace [regex]::Escape("ou="), ""
-                #check if OU already exists
+                # Keep existing OUs unchanged; create only the missing hierarchy element.
                 if (Get-ADOrganizationalUnit -Filter "distinguishedName -eq '$($_+$OUBuildPath)'") {
                     Write-Debug "$($_+$OUBuildPath) already exists no actions needed"
                 } else {
@@ -491,7 +735,7 @@ function CreateOU {
                         New-ADOrganizationalUnit -Name $OUName -Path $OUBuildPath.Substring(1) -Server $DomainDNS
                     }
                 }
-                #adding current OU to 'BuildOUPath' for next iteration
+                # Use this OU as the parent path for the next, more specific component.
                 $OUBuildPath = ","+$_+$OUBuildPath
             }
 
@@ -511,6 +755,31 @@ function CreateOU {
     Return $true
 }
 
+<#
+.SYNOPSIS
+    Creates, authorizes, and installs the JIT group managed service account.
+.DESCRIPTION
+    Ensures the configured GMSA exists, permits the local computer to retrieve its
+    managed password, installs the account locally, validates it, and grants the
+    Log on as a batch job right.
+.PARAMETER Configuration
+    JIT configuration containing the GMSA name and domain.
+.OUTPUTS
+    Microsoft.ActiveDirectory.Management.ADServiceAccount
+    Returns the configured GMSA. Under WhatIf no account object is returned.
+.EXAMPLE
+    $serviceAccount = Set-JitServiceAccount -Configuration $config
+
+    Creates or updates the configured GMSA, authorizes the local computer, installs
+    the account locally, and grants its batch-logon right.
+.EXAMPLE
+    Set-JitServiceAccount -Configuration $config -WhatIf
+
+    Displays the planned GMSA operations without changing Active Directory or the
+    local computer.
+.NOTES
+    Active Directory module access and local administrator privileges are required.
+#>
 function Set-JitServiceAccount {
     [CmdletBinding(SupportsShouldProcess = $true)]
     param (
@@ -519,6 +788,7 @@ function Set-JitServiceAccount {
     )
 
     $accountName = $Configuration.GroupManagedServiceAccountName
+    # AD lookups cannot reliably model a not-yet-created account, so WhatIf stops here.
     if ($WhatIfPreference) {
         $null = $PSCmdlet.ShouldProcess($accountName, "Create or update group managed service account")
         $null = $PSCmdlet.ShouldProcess($accountName, "Install group managed service account locally")
@@ -526,11 +796,13 @@ function Set-JitServiceAccount {
         return $null
     }
 
+    # Create the account only when it is not already present in the configured domain.
     $serviceAccount = Get-ADServiceAccount -Filter "Name -eq '$accountName'" -Server $Configuration.Domain
     if ($null -eq $serviceAccount -and $PSCmdlet.ShouldProcess($accountName, "Create group managed service account")) {
         New-ADServiceAccount -Name $accountName -DisplayName $accountName -DNSHostName "$accountName.$($Configuration.Domain)" -Server $Configuration.Domain
     }
 
+    # Resolve the canonical account object required by all subsequent local operations.
     $serviceAccount = Get-ADServiceAccount -Identity $accountName -Server $Configuration.Domain -ErrorAction SilentlyContinue
     if ($null -eq $serviceAccount) {
         if ($WhatIfPreference) {
@@ -539,6 +811,7 @@ function Set-JitServiceAccount {
         throw "The group managed service account '$accountName' could not be resolved."
     }
 
+    # Preserve existing password retrievers while authorizing the local computer.
     $computerDistinguishedName = (Get-ADComputer -Identity $env:COMPUTERNAME).DistinguishedName
     $allowedPrincipals = @((Get-ADServiceAccount -Identity $accountName -Properties PrincipalsAllowedToRetrieveManagedPassword).PrincipalsAllowedToRetrieveManagedPassword)
     $allowedPrincipalDistinguishedNames = @($allowedPrincipals | ForEach-Object {
@@ -562,6 +835,7 @@ function Set-JitServiceAccount {
         }
     }
 
+    # Install the GMSA locally only when its managed password cannot yet be validated.
     if (-not (Test-ADServiceAccount -Identity $accountName)) {
         if ($PSCmdlet.ShouldProcess($accountName, "Install group managed service account locally")) {
             Install-ADServiceAccount -Identity $serviceAccount
@@ -572,10 +846,36 @@ function Set-JitServiceAccount {
         throw "Validation of the group managed service account '$accountName' failed."
     }
 
+    # Scheduled tasks running as the GMSA require the batch-logon user right.
     Add-LogonAsABatchJobPrivilege -Sid $serviceAccount.SID.Value
     return $serviceAccount
 }
 
+<#
+.SYNOPSIS
+    Grants the JIT service account control of the administrator-group OU.
+.DESCRIPTION
+    Reads the OU security descriptor and adds an inheritable GenericAll access rule
+    for the GMSA when an equivalent rule is not already present.
+.PARAMETER Configuration
+    JIT configuration containing the administrator-group OU.
+.PARAMETER ServiceAccount
+    GMSA object whose SID receives the access rule. A null value is accepted for
+    WhatIf planning.
+.OUTPUTS
+    None.
+.EXAMPLE
+    Set-JitOuPermission -Configuration $config -ServiceAccount $serviceAccount
+
+    Grants the configured GMSA inheritable full control over the JIT group OU.
+.EXAMPLE
+    Set-JitOuPermission -Configuration $config -ServiceAccount $null -WhatIf
+
+    Displays the planned permission update without requiring a resolved account.
+.NOTES
+    The ActiveDirectory provider must be available and the caller must be authorized
+    to modify the target OU security descriptor.
+#>
 function Set-JitOuPermission {
     [CmdletBinding(SupportsShouldProcess = $true)]
     param (
@@ -587,15 +887,18 @@ function Set-JitOuPermission {
     )
 
     $targetPath = "AD:\$($Configuration.OU)"
+    # Return before dereferencing ServiceAccount when this is a WhatIf planning pass.
     if (-not $PSCmdlet.ShouldProcess($targetPath, "Grant the JIT service account full control")) {
         return
     }
 
+    # Avoid adding a duplicate access rule when the account SID is already present.
     $acl = Get-Acl -Path $targetPath
     if ($acl.Sddl.Contains($ServiceAccount.SID)) {
         return
     }
 
+    # Apply GenericAll to the OU and all descendant objects through inheritance.
     $identity = [System.Security.Principal.IdentityReference]$ServiceAccount.SID
     $rights = [System.DirectoryServices.ActiveDirectoryRights]::GenericAll
     $accessType = [System.Security.AccessControl.AccessControlType]::Allow
@@ -605,6 +908,29 @@ function Set-JitOuPermission {
     Set-Acl -Path $targetPath -AclObject $acl
 }
 
+<#
+.SYNOPSIS
+    Creates the required Windows event logs and sources.
+.DESCRIPTION
+    Creates the configured JIT event log and source when missing and registers the
+    Tier1LocalAdminGroup source in the Windows Application log. Existing logs and
+    sources are preserved.
+.PARAMETER Configuration
+    JIT configuration containing EventLog and EventSource.
+.OUTPUTS
+    None.
+.EXAMPLE
+    Set-JitEventLog -Configuration $config
+
+    Creates the configured JIT event log and registers the group-management source in
+    the Application log when either is missing.
+.EXAMPLE
+    Set-JitEventLog -Configuration $config -WhatIf
+
+    Displays missing event-log registrations without modifying the local computer.
+.NOTES
+    Registering Windows event logs and sources requires local administrator privileges.
+#>
 function Set-JitEventLog {
     [CmdletBinding(SupportsShouldProcess = $true)]
     param (
@@ -612,12 +938,14 @@ function Set-JitEventLog {
         [pscustomobject]$Configuration
     )
 
+    # Create the custom log and its configured source as a single idempotent operation.
     $eventLogExists = Get-EventLog -List | Where-Object { $_.LogDisplayName -eq $Configuration.EventLog }
     if ($null -eq $eventLogExists -and $PSCmdlet.ShouldProcess($Configuration.EventLog, "Create event log with source '$($Configuration.EventSource)'")) {
         New-EventLog -LogName $Configuration.EventLog -Source $Configuration.EventSource
         Write-EventLog -LogName $Configuration.EventLog -Source $Configuration.EventSource -EventId 1 -Message "JIT configuration created"
     }
 
+    # Tier1LocalAdminGroup reports operational failures through the Application log.
     $groupManagementEventSource = "T1JIT Tier1LocalAdminGroup"
     $groupManagementEventSourcePath = "HKLM:\SYSTEM\CurrentControlSet\Services\EventLog\Application\$groupManagementEventSource"
     if (-not (Test-Path -LiteralPath $groupManagementEventSourcePath) -and
@@ -626,6 +954,44 @@ function Set-JitEventLog {
     }
 }
 
+<#
+.SYNOPSIS
+    Registers the recurring group-management and event-driven elevation tasks.
+.DESCRIPTION
+    Creates missing scheduled tasks under the configured task folder. The group task
+    starts at boot and repeats at GroupManagementTaskRerun intervals. The elevation
+    task reacts to configured JIT request events and permits parallel instances.
+.PARAMETER Configuration
+    JIT configuration containing the GMSA, event, and repetition settings.
+.PARAMETER InstallationDirectory
+    Directory containing Tier1LocalAdminGroup.ps1 and ElevateUser.ps1.
+.PARAMETER TaskPath
+    Windows Task Scheduler folder for both tasks.
+.PARAMETER GroupManagementTaskName
+    Name of the recurring server group-management task.
+.PARAMETER ElevateUserTaskName
+    Name of the event-triggered user-elevation task.
+.OUTPUTS
+    None.
+.EXAMPLE
+    Set-JitScheduledTask -Configuration $config `
+        -InstallationDirectory "C:\Program Files\Just-In-Time" `
+        -TaskPath "\Just-In-Time-Privilege" `
+        -GroupManagementTaskName "Tier 1 Local Group Management" `
+        -ElevateUserTaskName "Elevate User"
+
+    Registers any missing JIT scheduled tasks under the configured task folder.
+.EXAMPLE
+    Set-JitScheduledTask -Configuration $config `
+        -InstallationDirectory "C:\Program Files\Just-In-Time" `
+        -TaskPath "\Just-In-Time-Privilege" `
+        -GroupManagementTaskName "Tier 1 Local Group Management" `
+        -ElevateUserTaskName "Elevate User" -WhatIf
+
+    Displays only the task registrations that would be required.
+.NOTES
+    Existing tasks are preserved and are not reconfigured by this function.
+#>
 function Set-JitScheduledTask {
     [CmdletBinding(SupportsShouldProcess = $true)]
     param (
@@ -641,12 +1007,14 @@ function Set-JitScheduledTask {
         [string]$ElevateUserTaskName
     )
 
+    # Compare full task URIs so existing tasks in other folders do not suppress creation.
     $taskUris = @((Get-ScheduledTask).URI)
     $groupManagementTaskUri = "$TaskPath\$GroupManagementTaskName"
     $elevateUserTaskUri = "$TaskPath\$ElevateUserTaskName"
     $registerGroupManagementTask = $groupManagementTaskUri -notin $taskUris -and $PSCmdlet.ShouldProcess($groupManagementTaskUri, "Register and start scheduled task")
     $registerElevateUserTask = $elevateUserTaskUri -notin $taskUris -and $PSCmdlet.ShouldProcess($elevateUserTaskUri, "Register event-triggered scheduled task")
 
+    # Resolve the GMSA principal only when at least one task must be registered.
     if (-not $registerGroupManagementTask -and -not $registerElevateUserTask) {
         return
     }
@@ -655,6 +1023,7 @@ function Set-JitScheduledTask {
     $serviceAccount = Get-ADServiceAccount $Configuration.GroupManagedServiceAccountName
     $principal = New-ScheduledTaskPrincipal -UserId "$($domain.NetbiosName)\$($serviceAccount.SamAccountName)" -LogonType Password
 
+    # The group-management task starts at boot and repeats at the configured interval.
     if ($registerGroupManagementTask) {
         $action = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $InstallationDirectory + '\Tier1LocalAdminGroup.ps1"')
         $trigger = New-ScheduledTaskTrigger -AtStartup
@@ -663,6 +1032,7 @@ function Set-JitScheduledTask {
         $null = Start-ScheduledTask -TaskPath "$TaskPath\" -TaskName $GroupManagementTaskName
     }
 
+    # The elevation task receives the triggering event record ID and allows parallel runs.
     if ($registerElevateUserTask) {
         $action = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $InstallationDirectory + '\ElevateUser.ps1" -eventRecordID $(eventRecordID)') -WorkingDirectory $InstallationDirectory
         $triggerClass = Get-CimClass -ClassName MSFT_TaskEventTrigger -Namespace Root/Microsoft/Windows/TaskScheduler:MSFT_TaskEventTrigger
@@ -681,6 +1051,47 @@ function Set-JitScheduledTask {
 # Main program starts here
 #############################################################################################
 function Invoke-JitConfiguration {
+    <#
+    .SYNOPSIS
+        Runs the complete JIT configuration workflow.
+    .DESCRIPTION
+        Resolves or creates the JIT configuration, validates administrator and PAM
+        prerequisites, configures the GMSA and OU permissions, creates event sources,
+        and registers scheduled tasks. Interactive mode prompts for configurable values;
+        quiet mode consumes an existing configuration.
+    .PARAMETER InstallationDirectory
+        Directory containing the installed JIT scripts.
+    .PARAMETER AdvancedSetup
+        Enables advanced interactive configuration choices.
+    .PARAMETER Quiet
+        Suppresses interactive prompts and requires an existing configuration source.
+    .PARAMETER ConfigurationFile
+        Optional explicit path to JIT.config.
+    .PARAMETER ScriptVersion
+        Version persisted in the configuration object.
+    .OUTPUTS
+        System.Management.Automation.PSCustomObject
+        Returns the resulting configuration object on success.
+    .EXAMPLE
+        Invoke-JitConfiguration -InstallationDirectory "C:\Program Files\Just-In-Time" `
+            -ScriptVersion "0.1.20260908"
+
+        Runs the interactive setup and returns the resulting configuration object.
+    .EXAMPLE
+        Invoke-JitConfiguration -InstallationDirectory "C:\Program Files\Just-In-Time" `
+            -ConfigurationFile "\\contoso.com\SYSVOL\contoso.com\Just-In-Time\JIT.config" `
+            -ScriptVersion "0.1.20260908" -Quiet
+
+        Applies an existing configuration without interactive prompts.
+    .EXAMPLE
+        Invoke-JitConfiguration -InstallationDirectory "C:\Program Files\Just-In-Time" `
+            -ScriptVersion "0.1.20260908" -WhatIf -Verbose
+
+        Displays the planned configuration actions with detailed progress information.
+    .NOTES
+        Requires Windows PowerShell 5.1, the ActiveDirectory module, local administrator
+        privileges, and the Active Directory PAM optional feature.
+    #>
     [CmdletBinding(SupportsShouldProcess = $true)]
     param (
         $InstallationDirectory,
@@ -691,7 +1102,9 @@ function Invoke-JitConfiguration {
         [string]$ScriptVersion
     )
 
+# Keep the internal version name used by the legacy workflow synchronized with the parameter.
 $_scriptVersion = $ScriptVersion
+# Resolve the displayed target early; the actual default directory is assigned below.
 $configurationTarget = if ([string]::IsNullOrWhiteSpace($InstallationDirectory)) {
     (Get-Location).Path
 } else {
@@ -699,6 +1112,7 @@ $configurationTarget = if ([string]::IsNullOrWhiteSpace($InstallationDirectory))
 }
 Write-Verbose "Preparing JIT configuration for '$configurationTarget'."
 
+# Report missing elevation before any local or Active Directory mutation is attempted.
 if (!(New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){
     #Terminate script if it is not running as local administrator
     Write-Host "Administrator privileges required" -ForegroundColor Red
@@ -707,20 +1121,21 @@ if (!(New-Object Security.Principal.WindowsPrincipal([Security.Principal.Windows
 
 #region global variables 
 #region Default values
-$configFileName = "JIT.config" #The default name of the configuration file
-$STGroupManagementTaskName = "Tier 1 Local Group Management" #Name of the Schedule tasl to enumerate servers
-$StGroupManagementTaskPath = "\Just-In-Time-Privilege" #Is the schedule task folder
-$STElevateUser = "Elevate User" #Is the name of the Schedule task to elevate users
+# Define stable names shared by configuration export and scheduled-task registration.
+$configFileName = "JIT.config"
+$STGroupManagementTaskName = "Tier 1 Local Group Management"
+$StGroupManagementTaskPath = "\Just-In-Time-Privilege"
+$STElevateUser = "Elevate User"
+# Resolving the domain also verifies that the ActiveDirectory module is operational.
 try {
-    $ADDomainDNS = (Get-ADDomain).DNSRoot #$current domain DNSName. Testing the Powershell AD modules are working
+    $ADDomainDNS = (Get-ADDomain).DNSRoot
 }
 catch {
     Write-Error "Cannot determine AD domain - aborting!"
     return
 }
 #endregion
-#Checking the access to the installation directory and provide the system environment variable
-#Validate the installation directory and stop execution if installation directory doesn't exists
+# Use the current directory by default and reject an inaccessible explicit location.
 if (!($InstallationDirectory)){
     $InstallationDirectory = (Get-Location).Path
     Write-Host "Installation directory is $installationDirectory"
@@ -731,6 +1146,7 @@ if (!($InstallationDirectory)){
 #region validate configuration file for silent installation
 #the quiet paramter required the configuration script or the Just-In-Time environment. 
 #   The configuration scirpt will terminate if the configuraiton file is not accessible
+# Quiet setup requires an accessible explicit or process-level configuration source.
 if ($quiet){
     if (![string]::IsNullOrWhiteSpace($configurationFile)){
         if (!(Test-Path $configurationFile)){
@@ -754,7 +1170,7 @@ if ($quiet){
 }
 #endregion
 
-#Validate the Active Directory PAW feature is activated. If not the script will terminate
+# Time-limited group membership depends on the forest-wide PAM optional feature.
 if (!((Get-ADOptionalFeature -Filter "name -eq 'Privileged Access Management Feature'").EnabledScopes)){
     $enablePamCommand = "Enable-ADOptionalFeature ""Privileged Access Management Feature"" -Scope ForestOrConfigurationSet -Target $((Get-ADForest).Name)"
     Write-Host "Active Directory PAM feature is not enabled" -ForegroundColor Red
@@ -764,7 +1180,8 @@ if (!((Get-ADOptionalFeature -Filter "name -eq 'Privileged Access Management Fea
     Write-Host "Aborting!" -ForegroundColor Red
     return
 }
-#region Creating the configuratin object with default values and read the existing configuration file it it exists. 
+#region Create or import configuration
+# Merge existing values onto domain-derived defaults before prompting or provisioning.
 $domain = Get-ADDomain
 $config = Get-JitDefaultConfiguration -ScriptVersion $_scriptVersion -DomainDns $ADDomainDNS -DomainDistinguishedName $domain.DistinguishedName
 
@@ -777,11 +1194,12 @@ catch {
 }
 
 #endregion
-#Definition of the AD group prefix. Use the default value if the question is not answerd
+# Interactive setup collects identity and logging settings before provisioning the GMSA.
 if (!$quiet){
     $config = Read-JitIdentityConfiguration -Configuration $config -AdvancedSetup:$AdvancedSetup
 } 
 #region GMSA
+# Provision and validate the service identity before assigning dependent permissions.
 try {
     $oGmsa = Set-JitServiceAccount -Configuration $config
 }
@@ -791,8 +1209,9 @@ catch {
 }
 #endregion
 
+# Quiet mode keeps all imported interactive settings unchanged.
 if (!$quiet){
-    #Definition of the AD OU where the AD groups are stored
+    # Accept an existing administrator-group OU or create its missing hierarchy.
     do{
         $OU = Read-Host -Prompt "OU for the local administrator groups [$($config.OU)]"
         if ($OU -eq ""){
@@ -806,7 +1225,6 @@ if (!$quiet){
                 if (CreateOU -OUPath $OU -DomainDNS (Get-ADDomain).DNSRoot) {
                     Write-Host "'$OU' succesfully created" -ForegroundColor Green
                 }
-                # $OU = $null
             }
         } 
         catch {
@@ -814,7 +1232,8 @@ if (!$quiet){
             $OU = $null
         }
     }while ($null -eq $OU)
-    #Definition of the maximum time for elevated administrators
+
+    # Constrain maximum elevation to the supported range of 15 through 1440 minutes.
     do {
         [UINT16]$MaxMinutes = Read-Host "Maximum elevated time [$($config.MaxElevatedTime)]"
         switch ($MaxMinutes) {
@@ -834,7 +1253,8 @@ if (!$quiet){
             }
         }
     } while ($MaxMinutes -eq 0) 
-    #Definition of the default elevation time
+
+    # Keep the default elevation between 15 minutes and the selected maximum.
     DO {
         [INT]$DefaultElevatedTime = Read-Host -Prompt "Default elevated time [$($config.DefaultElevatedTime)]"
         switch ($DefaultElevatedTime) {
@@ -859,6 +1279,7 @@ if (!$quiet){
         }
     } while($DefaultElevatedTime -eq 0)
 
+    # Resolve the Tier 0 exclusion group and persist its distinguished name.
     do{
         $T0computergroup = Read-Host -Prompt "Tier 0 computers group [$($config.Tier0ServerGroupName)]"
         if ($T0computergroup -eq ""){
@@ -879,12 +1300,15 @@ if (!$quiet){
         }
     } while ($T0computergroup -eq "")
 
+    # Advanced setup allows the default Tier 1 LDAP filter to be replaced.
     if ($AdvancedSetup){
         $LDAPT1Computers = Read-Host "LDAP query for Tier 1 computers [$($config.LDAPT1Computers)]"
         if ($LDAPT1Computers -ne ""){
             $config.LDAPT1Computers = $LDAPT1Computers
         }
     }
+
+    # Validate the Tier 0 OU as a relative path beneath the current domain root.
     do{
         $Tier0OUDN = Read-Host "Tier 0 OU realtive distinguished name [$($config.LDAPT0ComputerPath)]"
         if ($Tier0OUDN  -eq ""){
@@ -903,6 +1327,7 @@ if (!$quiet){
         }
     } while ($Tier0OUDN -eq "")
 
+    # Collect a group-management interval between 5 minutes and once per day.
     do{
         try{
             [int]$GroupManagementTaskRerun = Read-Host "Minutes to evaluate Tier 1 Admin groups[$($config.GroupManagementTaskRerun)]"
@@ -928,6 +1353,8 @@ if (!$quiet){
             $GroupManagementTaskRerun = $Null
         }
     } while (($GroupManagementTaskRerun -lt 5) -or ($GroupManagementTaskRerun -gt 1439))
+
+    # Rebuild the search-base list from entries confirmed during this interaction.
     $arySearchBase = @()
     foreach ($SearchBase in $config.T1Searchbase){
 #        if ($SearchBase -ne "<DomainRoot>"){
@@ -935,6 +1362,7 @@ if (!$quiet){
 #        }
     }
     $config.T1SearchBase = $arySearchBase
+    # Allow multiple relative or fully qualified distinguished-name search bases.
     do{
         Write-Host "Current searchbase for JIT members"
         Write-Host $config.T1Searchbase -Separator "`n"
@@ -956,17 +1384,21 @@ if (!$quiet){
         }
     } while ($SearchBase -ne "N") 
     if (!$config.T1Searchbase) {
+        # An empty selection searches from the current domain root.
         $config.T1Searchbase += "<DomainRoot>"
     }
     #endregion
+
+    # Prefer the published path; otherwise suggest the domain SYSVOL location.
     if ((-not $env:JustInTimeConfig) -or ($env:JustInTimeConfig -eq "")) {
-        #Writing configuration file
         $DomainDNS = (Get-ADDomain).DNSRoot
         $DefaultJITConfigPath = "\\$DomainDNS\SYSVOL\$DomainDNS\Just-in-Time\JIT.config"
         Write-Host "It is recommended to store the configuration file on a central storage like $DefaultJITConfigPath"
     } else {
         $DefaultJITConfigPath = $env:JustInTimeConfig
     }
+
+    # Retry until the configuration file and environment reference are saved together.
     $configSaved = $false
     do {
         $configFileName = Read-Host "Provide a path to store the configuration file[$DefaultJITConfigPath]"
@@ -992,15 +1424,18 @@ if (!$quiet){
     } while ($configSaved -eq $false)
 }
 
+# Permission assignment requires the final configured administrator-group OU to exist.
 if (-not (Get-ADOrganizationalUnit -Identity $config.OU -Server $config.Domain -ErrorAction SilentlyContinue)) {
     throw "The configured JIT administrator group OU '$($config.OU)' does not exist."
 }
 Set-JitOuPermission -Configuration $config -ServiceAccount $oGmsa
 
-#region create eventlog and register EventSource id required
+#region Event infrastructure
+# Register event infrastructure before tasks that depend on those sources are started.
 Set-JitEventLog -Configuration $config
 #endregion
-#region createing Scheduled Task Section
+#region Scheduled tasks
+# Register the recurring inventory task and event-triggered elevation task.
 try {
     Set-JitScheduledTask -Configuration $config -InstallationDirectory $InstallationDirectory -TaskPath $StGroupManagementTaskPath -GroupManagementTaskName $STGroupManagementTaskName -ElevateUserTaskName $STElevateUser
 }
@@ -1009,12 +1444,14 @@ catch {
     return
 }
 #endregion
+# Remind interactive operators that enabling delegation also requires delegation rules.
 if ($config.EnableDelegation){
     Write-Host "do not forget to configure your OU delegation"
     Write-Host "to allow the group Server-Admins on OU=Server,OU=contoso,OU=com use the command"
     Write-Host "To add a delegation use the command: Add-JitDelegation -OU ""OU=Server,DC=contoso,DC=com"" -AdObject ""contoso\Server-Admins"""
 }
 
+# Emit the final effective object for callers and installation scripts.
 Write-Verbose "JIT configuration completed successfully."
 return $config
 }
