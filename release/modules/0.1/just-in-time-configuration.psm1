@@ -19,323 +19,222 @@ inability to use the sample scripts or documentation, even if Microsoft has been
 possibility of such damages
 #>
 
-$configurationModuleVersion = "0.1.240816"
-$DefaultconfigFileName = "JIT.config" #The default name of the configuration file
-$DefaultSTGroupManagementTaskName = "Tier 1 Local Group Management" #Name of the Schedule tasl to enumerate servers
-$DefaultStGroupManagementTaskPath = "\Just-In-Time-Privilege" #Is the schedule task folder
-$DefaultSTElevateUser = "Elevate User" #Is the name of the Schedule task to elevate users
-$RegExDistinguishedName = "((OU|CN)=[^,]+,)*DC="
-
 #region Functions
-function New-ADDGuidMap
-{
-    <#
-    .SYNOPSIS
-        Creates a guid map for the delegation part
-    .DESCRIPTION
-        Creates a guid map for the delegation part
-    .EXAMPLE
-        PS C:\> New-ADDGuidMap
-    .OUTPUTS
-        Hashtable
-    .NOTES
-        Author: Constantin Hager
-        Date: 06.08.2019
-    #>
-    $rootdse = Get-ADRootDSE
-    $guidmap = @{ }
-    $GuidMapParams = @{
-        SearchBase = ($rootdse.SchemaNamingContext)
-        LDAPFilter = "(schemaidguid=*)"
-        Properties = ("lDAPDisplayName", "schemaIDGUID")
-    }
-    Get-ADObject @GuidMapParams | ForEach-Object { $guidmap[$_.lDAPDisplayName] = [System.GUID]$_.schemaIDGUID }
-    return $guidmap
-}
-<#
-    This function add a SID to the "Logon as a Batch Job" privilege
-#>
-function Add-LogonAsABatchJobPrivilege 
-{
-    <#
-    .SYNOPSIS
-        Assign the Logon As A Batch Job privilege to a SID
-    .DESCRIPTION
-        Assign the Logon As A Batch Job privilege to a SID
-    .EXAMPLE
-        Add-LogonAsABatchJob -SID "S-1-5-0"
-    .OUTPUTS
-        none
-    .NOTES
-        Author: Andreas Lucas
-        Date: 2021-10-10
-    #>
-    param ($Sid)
-    #Temporary files for secedit
-    $tempPath = [System.IO.Path]::GetTempPath()
-    $import = Join-Path -Path $tempPath -ChildPath "import.inf"
-    if(Test-Path $import) { Remove-Item -Path $import -Force }
-    $export = Join-Path -Path $tempPath -ChildPath "export.inf"
-    if(Test-Path $export) { Remove-Item -Path $export -Force }
-    $secedt = Join-Path -Path $tempPath -ChildPath "secedt.sdb"
-    if(Test-Path $secedt) { Remove-Item -Path $secedt -Force }
-    #Export the current configuration
-    secedit /export /cfg $export
-    if ($false -eq  (Test-Path $export)){
-        Write-Host 'Administrator privileges required to set "Logon AS Batch job permission" please add the privilege manually'
-        Return
-    }
-    #search for the current SID assigned to the SeBatchJob privilege
-    $SIDs = (Select-String $export -Pattern "SeBatchLogonRight").Line
-    if (!($SIDs.Contains($Sid)))
-    {
-        #create a new temporary security configuration file
-        foreach ($line in @("[Unicode]", "Unicode=yes", "[System Access]", "[Event Audit]", "[Registry Values]", "[Version]", "signature=`"`$CHICAGO$`"", "Revision=1", "[Profile Description]", "Description=GrantLogOnAsABatchJob security template", "[Privilege Rights]", "$SIDs,*$sid"))
-        {
-            Add-Content $import $line
-        }
-        #configure privileges
-        secedit /import /db $secedt /cfg $import
-        secedit /configure /db $secedt
-        gpupdate /force
-        Remove-Item -Path $import -Force
-        Remove-Item -Path $secedt -Force
-    }
-    #remove all temporary files   
-    Remove-Item -Path $export -Force
-    
-}
-
-function CreateOU {
-    <# Function create the entire OU path of the relative distinuished name without the domain component. This function
-    is required to provide the same OU structure in the entrie forest
-    .SYNOPSIS 
-        Create OU path in the current $DomainDNS
-    .DESCRIPTION
-        create OU and sub OU to build the entire OU path. As an example on a DN like OU=Computers,OU=Tier 0,OU=Admin in
-        contoso. The funtion create in the 1st round the OU=Admin if requried, in the 2nd round the OU=Tier 0,OU=Admin
-        and so on till the entrie path is created
-    .PARAMETER OUPath 
-        the relative OU path withou domain component
-    .PARAMETER DomainDNS
-        Domain DNS Name
-    .EXAMPLE
-        CreateOU -OUPath "OU=Test,OU=Demo" -DomainDNS "contoso.com"
-    .OUTPUTS
-        $True
-            if the OUs are sucessfully create
-        $False
-            If at least one OU cannot created. It the user has not the required rights, the function will also return $false 
-    #>
-
-    [CmdletBinding ( SupportsShouldProcess)]
-    param (
-        [Parameter(Mandatory)]
-        [string]$OUPath,
-        [Parameter (Mandatory)]
-        [string]$DomainDNS
-    )
-    try{
-        #check if OU already exist
-        if ([ADSI]::Exists("LDAP://$OUPath")){
-            $success = $true
-            return $success
-        }
-        #load the OU path into array to create the entire path step by step
-        $DomainDN = (Get-ADDomain -Server $DomainDNS).DistinguishedName
-        $aryOU=$OUPath.Split(",").Trim()
-        $OUBuildPath = ","+$DomainDN
-        
-        #walk through the entire domain
-        [array]::Reverse($aryOU)
-        $aryOU|ForEach-Object {
-            #ignore 'DC=' values
-            if ($_ -like "ou=*") {
-                $OUName = $_ -ireplace [regex]::Escape("ou="), ""
-                #check if OU already exists
-                if (Get-ADOrganizationalUnit -Filter "distinguishedName -eq '$($_+$OUBuildPath)'") {
-                    Write-Debug "$($_+$OUBuildPath) already exists no actions needed"
-                } else {
-                    Write-Host "'$($_+$OUBuildPath)' doesn't exist. Creating OU" -ForegroundColor Green
-                    New-ADOrganizationalUnit -Name $OUName -Path $OUBuildPath.Substring(1) -Server $DomainDNS                        
-                    
-                }
-                #adding current OU to 'BuildOUPath' for next iteration
-                $OUBuildPath = ","+$_+$OUBuildPath
-            }
-
-
-        }
- 
-    } 
-    catch [System.UnauthorizedAccessException]{
-        Write-Host "Access denied to create $OUPath in $domainDNS"
-        Return $false
-    } 
-    catch{
-        Write-Host "A error occured while create OU Structure"
-        Write-Host $Error[0].CategoryInfo.GetType()
-        Return $false
-    }
-    Return $true
-}
-
-
-function Read-JIT.Configuration{
-    param(
-        [Parameter (Mandatory=$false, Position=0)]
-        [string]$configurationFile
-    )
-    #region configuration object
-    try {
-        $ADDomainDNS = (Get-ADDomain).DNSRoot #$current domain DNSName. Testing the Powershell AD modules are working
-    }
-    catch {
-        Write-Output "Cannot determine AD domain - aborting!"
-        return
-    }
-    #build the default configuration object
-    $config = New-Object PSObject
-    $config | Add-Member -MemberType NoteProperty -Name "ConfigScriptVersion"            -Value $_scriptVersion
-    $config | Add-Member -MemberType NoteProperty -Name "ConfigurationModulVersion"      -Value $configurationModuleVersion
-    $config | Add-Member -MemberType NoteProperty -Name "ConfigVersion"                  -Value "20240816"
-    $config | Add-Member -MemberType NoteProperty -Name "AdminPreFix"                    -Value "Admin_"
-    $config | Add-Member -MemberType NoteProperty -Name "OU"                             -Value "OU=JIT-Administrator Groups,OU=Tier 1,OU=Admin,$((Get-ADDomain).DistinguishedName)"
-    $config | Add-Member -MemberType NoteProperty -Name "MaxElevatedTime"                -Value 1440
-    $config | Add-Member -MemberType NoteProperty -Name "DefaultElevatedTime"            -Value 60
-    $config | Add-Member -MemberType NoteProperty -Name "ElevateEventID"                 -Value 100
-    $config | Add-Member -MemberType NoteProperty -Name "Tier0ServerGroupName"           -Value "Tier 0 Computers"
-    $config | Add-Member -MemberType NoteProperty -Name "LDAPT0Computers"                -Value "(&(ObjectClass=Computer)(!(ObjectClass=msDS-GroupManagedServiceAccount))(!(PrimaryGroupID=516))(!(PrimaryGroupID=521)))" #Deprecated Tier 0 computer identified by Tier 0 group membership
-    $config | Add-Member -MemberType NoteProperty -Name "LDAPT0ComputerPath"             -Value "OU=Tier 0,OU=Admin"
-    $config | Add-Member -MemberType NoteProperty -Name "LDAPT1Computers"                -Value "(&(OperatingSystem=*Windows*)(ObjectClass=Computer)(!(ObjectClass=msDS-GroupManagedServiceAccount))(!(PrimaryGroupID=516))(!(PrimaryGroupID=521)))" #added 20231201 LDAP query to search for Tier 1 computers
-    $config | Add-Member -MemberType NoteProperty -Name "EventSource"                    -Value "T1Mgmt"
-    $config | Add-Member -MemberType NoteProperty -Name "EventLog"                       -Value "Tier 1 Management"
-    $config | Add-Member -MemberType NoteProperty -Name "GroupManagementTaskRerun"       -Value 5
-    $config | Add-Member -MemberType NoteProperty -Name "GroupManagedServiceAccountName" -Value "T1GroupMgmt"
-    $config | Add-Member -MemberType NoteProperty -Name "Domain"                         -Value $ADDomainDNS
-    $config | Add-Member -MemberType NoteProperty -Name "DelegationConfigPath"           -Value "$InstallationDirectory\Tier1delegation.config" #Parameter added is the path to the delegation config file
-    $config | Add-Member -MemberType NoteProperty -Name "EnableDelegation"               -Value $true
-    $config | Add-Member -MemberType NoteProperty -Name "EnableMultiDomainSupport"       -Value $true
-    $config | Add-Member -MemberType NoteProperty -Name "T1Searchbase"                   -Value @("<DomainRoot>")
-    $config | Add-Member -MemberType NoteProperty -Name "DomainSeparator"                -Value "#"
-    #endregion
-    try{
-        if ($configurationFile -eq ""){
-            if ($Null -eq $env:JustInTimeConfig){
-                if (Test-Path -Path $env:JustInTimeConfig){
-                    $existingconfig = get-content $env:JustInTimeConfig | ConvertFrom-Json
-                } else {
-                    $existingconfig = $Null
-                }
-            } 
-        } else {
-            if (Test-Path -Path $configurationFile){
-                    $existingconfig = Get-Content -Path $configurationFile | ConvertFrom-Json
-            } else {
-                $existingconfig = $null
-            }
-        }
-        if ($null -eq $existingconfig ){
-            return $config
-        }
-        if ($existingconfig.ConfigVersion -gt $config.ConfigVersion){
-            Write-Host "Invalid configuration model $($existingconfig.ConfigVersion)"
-            return $null
-        }
-        #Replace the default values with the existing values
-        foreach ($setting in ($existingconfig | Get-Member -MemberType NoteProperty)){
-            $config.$($setting.Name) = $existingconfig.$($setting.Name)
-        }
-        $config.ConfigurationModulVersion = $configurationModuleVersion
-        return $config
-    }
-    catch{
-        Throw $Error[0]
-    }
-}
-
-function Write-JIT.Configuration{
-
-}
-function Update-JIT.GMSA{
-
-}
-function Create-JIT.ScheduleTask{
-    $config = Read-JIT.Configuration
-    $STprincipal = New-ScheduledTaskPrincipal -UserId "$((Get-ADDomain).NetbiosName)\$((Get-ADServiceAccount $config.GroupManagedServiceAccountName).SamAccountName)" -LogonType Password
-If (!((Get-ScheduledTask).URI -contains "$StGroupManagementTaskPath\$STGroupManagementTaskName"))
-{
-    try {
-        $STaction  = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $InstallationDirectory + '\Tier1LocalAdminGroup.ps1"') 
-        $STTrigger = New-ScheduledTaskTrigger -AtStartup 
-        $STTrigger.Repetition = $(New-ScheduledTaskTrigger -Once -at 7am -RepetitionInterval (New-TimeSpan -Minutes $($config.GroupManagementTaskRerun))).Repetition                      
-        Register-ScheduledTask -Principal $STprincipal -TaskName $STGroupManagementTaskName -TaskPath $StGroupManagementTaskPath -Action $STaction -Trigger $STTrigger
-        Start-ScheduledTask -TaskPath "$StGroupManagementTaskPath\" -TaskName $STGroupManagementTaskName
-        If (!((Get-ScheduledTask).URI -contains "$StGroupManagementTaskPath\$STElevateUser"))
-        {
-            <#
-            create s schedule task who is triggered by eventlog entry in the event Log Tier 1 Management
-            #>
-            $STaction = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $InstallationDirectory + '\ElevateUser.ps1" -eventRecordID $(eventRecordID)') -WorkingDirectory $InstallationDirectory
-            $CIMTriggerClass = Get-CimClass -ClassName MSFT_TaskEventTrigger -Namespace Root/Microsoft/Windows/TaskScheduler:MSFT_TaskEventTrigger
-            $Trigger = New-CimInstance -CimClass $CIMTriggerClass -ClientOnly
-            $Trigger.Subscription = "<QueryList><Query Id=""0"" Path=""$($config.EventLog)""><Select Path=""$($config.EventLog)"">*[System[Provider[@Name='$($config.EventSource)'] and EventID=$($config.ElevateEventID)]]</Select></Query></QueryList>"
-            $Trigger.Enabled = $true
-            $Trigger.ValueQueries = [CimInstance[]]$(Get-CimClass -ClassName MSFT_TaskNamedValue -Namespace Root/Microsoft/Windows/TaskScheduler:MSFT_TaskNamedValue)
-            $Trigger.ValueQueries[0].Name = "eventRecordID"
-            $Trigger.ValueQueries[0].Value = "Event/System/EventRecordID"
-            $ElevateUserSettings = New-ScheduledTaskSettingsSet -MultipleInstances Parallel 
-            Register-ScheduledTask -Principal $STprincipal -TaskName $STElevateUser -TaskPath $StGroupManagementTaskPath -Action $STaction -Trigger $Trigger -Settings $ElevateUserSettings
-        }                        
-    }
-    catch [System.UnauthorizedAccessException] {
-        Write-Host "Schedule task cannot registered." -ForegroundColor Red
-    }
-}
-}
 function Add-JitServerOU{
+    <#
+    .SYNOPSIS
+        Adds an Active Directory search base to the JIT server configuration.
+    .DESCRIPTION
+        Reads the JIT configuration from the file identified by the
+        JustInTimeConfig environment variable and determines which domain in the
+        current forest owns the supplied distinguished name. If the AD object exists
+        and is not already configured, its distinguished name is appended to
+        T1Searchbase and the JSON configuration file is rewritten.
+
+        Existing entries are left unchanged. Although the command is intended for
+        organizational units, the current validation accepts any AD object whose
+        distinguished name can be resolved.
+    .PARAMETER OU
+        Distinguished name of the search base, including its domain components.
+        The value can be supplied through the pipeline.
+    .EXAMPLE
+        Add-JitServerOU -OU "OU=Member Servers,DC=contoso,DC=com"
+
+        Adds the Member Servers OU to T1Searchbase when it exists and is not already
+        configured.
+    .EXAMPLE
+        "OU=Member Servers,DC=contoso,DC=com" | Add-JitServerOU
+
+        Supplies the distinguished name through the pipeline.
+    .INPUTS
+        System.String.
+    .OUTPUTS
+        None.
+    .NOTES
+        This function is exported by the Just-In-time module. It requires a valid
+        JustInTimeConfig environment variable, a readable and writable JSON
+        configuration file, and access to the ActiveDirectory module and target
+        forest.
+
+        An invalid or unreachable distinguished name causes an ArgumentException.
+    #>
+
     param (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [string]$OU
     )
+
+    # Load the persisted configuration that will receive the additional search base.
     $config = Get-Content $env:JustInTimeConfig | ConvertFrom-Json
-    #Search for dnsdomain
+
+    # Extract the domain DN suffix from the supplied distinguished name.
     $DomainDN = [regex]::Match($OU,"dc=.+").Value
+
+    # Find the forest domain whose distinguished name matches the extracted suffix.
     foreach ($ADDomainDNS in (Get-ADForest).Domains){
         IF ($DomainDN -eq $(Get-ADDomain -Server $ADDomainDNS).DistinguishedName){
             break;
         }
     }
+
+    # Resolve the object in its owning domain before persisting it as a search base.
     if ((Get-ADObject -Filter "DistinguishedName -eq '$OU'" -server $ADDomainDNS)){
         if ($config.T1Searchbase -contains $OU){
+            # Keep the operation idempotent and inform interactive callers.
             Write-Host "$OU is already defined" -ForegroundColor Yellow
         } else {
+            # Append the DN and rewrite the configuration with the updated array.
             $config.T1Searchbase += $OU
             ConvertTo-Json $config | Out-File $env:JustInTimeConfig -Confirm:$false
         }
     } else {
+        # Reject values that do not identify an object in the selected forest domain.
         throw [System.ArgumentException]::new("Invalid DistinguishedName", $OU)
     }
 }
 function Get-JitServerOU{
+    <#
+    .SYNOPSIS
+        Returns the configured Active Directory search bases for JIT servers.
+    .DESCRIPTION
+        Reads the JSON configuration file identified by the JustInTimeConfig
+        environment variable. The configured T1Searchbase entries are displayed as
+        a readable list, while the complete configuration object is written to the
+        success pipeline for further processing.
+    .EXAMPLE
+        Get-JitServerOU
+
+        Displays all configured JIT server search bases and returns the complete
+        configuration object.
+    .EXAMPLE
+        $searchBases = (Get-JitServerOU).T1Searchbase
+
+        Displays the configured search bases and stores them for further processing.
+    .OUTPUTS
+        System.Management.Automation.PSCustomObject. The complete deserialized JIT
+        configuration object.
+    .NOTES
+        This function is exported by the Just-In-time module. It requires a valid
+        JustInTimeConfig environment variable and a readable JSON configuration file.
+    #>
+
+    # Keep presentation on the host stream so only the configuration object enters
+    # the success pipeline.
     $config = Get-Content $env:JustInTimeConfig | ConvertFrom-Json
-    return $config.T1Searchbase
+    $searchBases = @($config.T1Searchbase)
+
+    Write-Host "Configured JIT server search bases:" -ForegroundColor Cyan
+    if ($searchBases.Count -eq 0) {
+        Write-Host "  No search bases are configured." -ForegroundColor Yellow
+    } else {
+        foreach ($searchBase in $searchBases) {
+            Write-Host "  - $searchBase"
+        }
+    }
+
+    return $config
 }
+function Write-JitConfigurationJsonAtomically {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$InputObject,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    $resolvedPath = [IO.Path]::GetFullPath($Path)
+    $temporaryPath = "$resolvedPath.$([Guid]::NewGuid().ToString('N')).tmp"
+    $backupPath = "$temporaryPath.bak"
+
+    try {
+        ConvertTo-Json -InputObject $InputObject -Depth 10 |
+            Out-File -LiteralPath $temporaryPath -Confirm:$false
+
+        if (Test-Path -LiteralPath $resolvedPath -PathType Leaf) {
+            [IO.File]::Replace($temporaryPath, $resolvedPath, $backupPath)
+        }
+        else {
+            [IO.File]::Move($temporaryPath, $resolvedPath)
+        }
+    }
+    finally {
+        Remove-Item -LiteralPath $temporaryPath -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $backupPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
 function Remove-JITServerOU{
+    <#
+    .SYNOPSIS
+        Removes an Active Directory search base from the JIT server configuration.
+    .DESCRIPTION
+        Reads the JSON configuration file identified by the JustInTimeConfig
+        environment variable. If the supplied distinguished name is present in
+        T1Searchbase, the function removes it and all entries with the same ComputerOU
+        from the configured delegation file. Both configuration files are rewritten
+        when necessary. Missing search-base entries leave the files unchanged and
+        produce an informational message.
+    .PARAMETER OU
+        Distinguished name of the search base to remove. The value can be supplied
+        through the pipeline.
+    .EXAMPLE
+        $removed = Remove-JITServerOU -OU "OU=Member Servers,DC=contoso,DC=com"
+
+        Removes the Member Servers OU and its delegation references, then stores the
+        removed configuration data in $removed.
+    .EXAMPLE
+        "OU=Member Servers,DC=contoso,DC=com" | Remove-JITServerOU
+
+        Supplies the distinguished name through the pipeline.
+    .INPUTS
+        System.String.
+    .OUTPUTS
+        System.Management.Automation.PSCustomObject. Returns the removed OU, the
+        number of removed delegation references, and the removed delegation entries.
+    .NOTES
+        This function is exported by the Just-In-time module. It requires a valid
+        JustInTimeConfig environment variable and a readable and writable JSON
+        configuration file.
+    #>
+
     param(
         [Parameter (Mandatory = $true, ValueFromPipeline = $true)]
         [string]$OU
     )
-    $config = Get-Content $env:JustInTimeConfig | ConvertFrom-Json
+
+    # Load the main configuration and preserve the configured spelling of the OU.
+    $config = Get-Content -LiteralPath $env:JustInTimeConfig -Raw | ConvertFrom-Json
     if ($config.T1Searchbase -contains $OU){
-        $tempSerachBase = @()
-        foreach ($sb in $config.T1Searchbase){
-            if ($sb -ne $OU){
-                $tempSerachBase += $sb
+        $removedOU = @($config.T1Searchbase | Where-Object { $_ -eq $OU })[0]
+        $remainingSearchBases = @($config.T1Searchbase | Where-Object { $_ -ne $OU })
+        $removedDelegations = @()
+        $delegationConfigPath = [string]$config.DelegationConfigPath
+
+        # Remove every delegation that targets the removed server search base.
+        if (-not [string]::IsNullOrWhiteSpace($delegationConfigPath) -and
+            (Test-Path -LiteralPath $delegationConfigPath -PathType Leaf)) {
+            $currentDelegations = @(Get-Content -LiteralPath $delegationConfigPath -Raw | ConvertFrom-Json)
+            $removedDelegations = @($currentDelegations | Where-Object { $_.ComputerOU -eq $OU })
+
+            if ($removedDelegations.Count -gt 0) {
+                $remainingDelegations = @($currentDelegations | Where-Object { $_.ComputerOU -ne $OU })
+                Write-JitConfigurationJsonAtomically -InputObject $remainingDelegations -Path $delegationConfigPath
             }
         }
-        $config.T1Searchbase = $tempSerachBase
-        ConvertTo-Json $config | Out-File $env:JustInTimeConfig -Confirm:$false
+
+        # Persist the server search-base change after stale delegations are removed.
+        $config.T1Searchbase = $remainingSearchBases
+        ConvertTo-Json -InputObject $config -Depth 10 |
+            Out-File -LiteralPath $env:JustInTimeConfig -Confirm:$false
+
+        # Return one object so callers can continue processing the removed data.
+        return [PSCustomObject]@{
+            OU                             = $removedOU
+            RemovedDelegationCount         = $removedDelegations.Count
+            RemovedDelegations             = $removedDelegations
+        }
     } else {
         Write-Host "$OU is not defined" -ForegroundColor Yellow
     }
@@ -345,28 +244,37 @@ function Remove-JITServerOU{
 
 <#
 .SYNOPSIS
-    Import the configuration from JIT.config file
+    Loads the JIT configuration through the KjitCore library.
 .DESCRIPTION
-    Reading the JIT.config from the System variable or a expicite JIT configuration file. 
-    The function return the configuration as JIT config object
-    This is a module private function
+    Resolves and loads KjitCore.dll, including its local dependencies, and delegates
+    configuration loading to KjitCore.KjitCore.LoadJitConfiguration.
+
+    An explicit ConfigurationFile value takes precedence over the JustInTimeConfig
+    environment variable. Existing files are converted to absolute paths. Non-file
+    values are passed unchanged as Active Directory configuration common names. If
+    neither source is specified, the default common name "Jit-Configuration" is used.
 .PARAMETER configurationFile
-    this is a optional parameter to use a dedicated configuration file.
-    If this parameter is not available the function read the configuration files
-    from the in the $env:JustInTimeConfig varaible or from the current directory
+    Optional configuration file path or Active Directory configuration common name.
 .INPUTS
-    The path to the configuration file as string
+    None. Pipeline input is not supported.
 .OUTPUTS
-    JIT config object as PSObject 
+    The configuration object returned by KjitCore.
 .EXAMPLE
     Get-JITConfig
-    Tries to read the JIT configuration from the path in the SYSTEM variable JustInTimeConfig. 
-    If the environement is not available or the file doesn't exist, the function tries to read 
-    the configuration file from the current directory
-    Get-JITConfig .\jit.config
-        Read the configuration from the path
+
+    Loads the source in JustInTimeConfig, or the default Active Directory object when
+    the environment variable is empty.
+.EXAMPLE
     Get-JITConfig -ConfigurationFile .\jit.config
-        Read the configuration from the path
+
+    Loads the configuration from the specified JSON file.
+.EXAMPLE
+    Get-JITConfig -ConfigurationFile "Jit-Configuration-Test"
+
+    Loads the Active Directory configuration with the specified common name.
+.NOTES
+    This function is exported by the Just-In-time module. KjitCore.dll must be present
+    in a supported module, development, release, or debug location.
 #>
 function Get-JITconfig{
     param(
@@ -374,6 +282,18 @@ function Get-JITconfig{
         [string]$configurationFile
     )
     function Resolve-KjitCoreAssemblyPath {
+        <#
+        .SYNOPSIS
+            Locates the KjitCore assembly used by the module.
+        .DESCRIPTION
+            Searches known module, source-build, and packaged-output locations in
+            precedence order and returns the first existing KjitCore.dll as an
+            absolute provider path. This is a private helper for Get-JITconfig.
+        .OUTPUTS
+            System.String. The absolute path to KjitCore.dll.
+        #>
+
+        # Prefer assemblies deployed beside the module before development build outputs.
         $candidates = @(
             (Join-Path -Path $PSScriptRoot -ChildPath "KjitCore.dll"),
             (Join-Path -Path $PSScriptRoot -ChildPath "..\KjitCore.dll"),
@@ -397,10 +317,25 @@ function Get-JITconfig{
     }
 
     function Resolve-JitConfigurationSource {
+        <#
+        .SYNOPSIS
+            Resolves the source passed to the KjitCore configuration loader.
+        .DESCRIPTION
+            Uses a non blank explicit value first, followed by JustInTimeConfig, and
+            finally the Active Directory common name "Jit-Configuration". Existing
+            files are returned as absolute paths; other values remain common names.
+            This is a private helper for Get-JITconfig.
+        .PARAMETER InputValue
+            Optional explicit configuration file path or Active Directory common name.
+        .OUTPUTS
+            System.String. An absolute file path or Active Directory common name.
+        #>
+
         param(
             [string]$InputValue
         )
 
+        # Explicit input always takes precedence over the environment variable.
         if (-not [string]::IsNullOrWhiteSpace($InputValue)) {
             $trimmed = $InputValue.Trim()
             if (Test-Path -LiteralPath $trimmed -PathType Leaf) {
@@ -427,6 +362,20 @@ function Get-JITconfig{
     }
 
     function Import-KjitCoreDependencies {
+        <#
+        .SYNOPSIS
+            Preloads local dependency assemblies required by KjitCore.
+        .DESCRIPTION
+            Attempts to load known dependencies from the KjitCore assembly directory
+            in dependency order. Individual failures are suppressed so the subsequent
+            KjitCore load can return the actionable error. This is a private helper for
+            Get-JITconfig.
+        .PARAMETER KjitCoreAssemblyPath
+            Absolute path to KjitCore.dll. Its parent directory is searched.
+        .OUTPUTS
+            None.
+        #>
+
         param(
             [Parameter(Mandatory = $true)]
             [string]$KjitCoreAssemblyPath
@@ -456,6 +405,7 @@ function Get-JITconfig{
         }
     }
 
+    # Reject a conflicting KjitCore version that cannot be unloaded from this session.
     $assemblyPath = Resolve-KjitCoreAssemblyPath
     $alreadyLoadedAssembly = [AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { $_.GetName().Name -eq "KjitCore" } | Select-Object -First 1
     if ($null -ne $alreadyLoadedAssembly -and -not [string]::IsNullOrWhiteSpace($alreadyLoadedAssembly.Location)) {
@@ -466,6 +416,7 @@ function Get-JITconfig{
         }
     }
 
+    # Load KjitCore only once per session.
     if (-not ("KjitCore.KjitCore" -as [type])) {
         try {
             Import-KjitCoreDependencies -KjitCoreAssemblyPath $assemblyPath
@@ -480,6 +431,7 @@ function Get-JITconfig{
         throw "KjitCore type was not loaded successfully."
     }
 
+    # Let KjitCore interpret absolute paths as files and other values as AD common names.
     $source = Resolve-JitConfigurationSource -InputValue $configurationFile
     return [KjitCore.KjitCore]::LoadJitConfiguration($source)
 }

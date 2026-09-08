@@ -104,13 +104,31 @@ function Copy-ServiceFiles {
         Write-Error "Source service folder not found: $SourceServiceFolder"
         exit 1
     }
+
+    $resolvedSourceFolder = (Resolve-Path -LiteralPath $SourceServiceFolder -ErrorAction Stop).ProviderPath
+    $resolvedTargetFolder = [IO.Path]::GetFullPath($TargetServiceFolder)
+    if ($resolvedSourceFolder.TrimEnd('\') -eq $resolvedTargetFolder.TrimEnd('\')) {
+        throw "Source and target service folders must be different: $resolvedSourceFolder"
+    }
+
+    Write-Host "Service source folder: $resolvedSourceFolder"
+    Write-Host "Service target folder: $resolvedTargetFolder"
+
     # Ensure target folder is clean before copying
-    if (Test-Path -Path $TargetServiceFolder) {
-        Remove-Item -Path $TargetServiceFolder -Recurse -Force
+    if (Test-Path -LiteralPath $resolvedTargetFolder) {
+        Remove-Item -LiteralPath $resolvedTargetFolder -Recurse -Force -ErrorAction Stop
     }
     # Create target folder and copy files
-    New-Item -Path $TargetServiceFolder -ItemType Directory -Force | Out-Null
-    Copy-Item -Path (Join-Path $SourceServiceFolder "*") -Destination $TargetServiceFolder -Recurse -Force
+    New-Item -Path $resolvedTargetFolder -ItemType Directory -Force -ErrorAction Stop | Out-Null
+    Get-ChildItem -LiteralPath $resolvedSourceFolder -Force -ErrorAction Stop |
+        Copy-Item -Destination $resolvedTargetFolder -Recurse -Force -ErrorAction Stop
+
+    $copiedExecutable = Join-Path $resolvedTargetFolder "KjitWeb.exe"
+    if (-not (Test-Path -LiteralPath $copiedExecutable -PathType Leaf)) {
+        throw "KjitWeb.exe was not copied from '$resolvedSourceFolder' to '$resolvedTargetFolder'."
+    }
+
+    Write-Host "Service files copied successfully."
 }
 
 <#
@@ -755,8 +773,19 @@ Write-Host "Debug log path: $DebugLogPath"
 $existing = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue # Check if a service with the same name already exists. If it does, we will stop and remove it before proceeding with the installation of the new service. This allows us to handle upgrades or reconfigurations of the service without leaving behind old service instances that could cause confusion or conflicts.
 if ($existing) {
     Write-Host "Stopping existing service..."
-    Stop-Service -Name $ServiceName -Force -ErrorAction SilentlyContinue
-    sc.exe delete $ServiceName | Out-Null # We use sc.exe to delete the service because it provides a more reliable way to remove the service entry from the SCM database, especially in cases where the service may be in a failed state or when there are issues with the service control manager. After issuing the delete command, we wait for the service to be fully removed before proceeding with the installation of the new service, which helps to prevent conflicts and ensure a clean installation.
+    Stop-Service -Name $ServiceName -Force -ErrorAction Stop
+    $existing.WaitForStatus(
+        [System.ServiceProcess.ServiceControllerStatus]::Stopped,
+        [TimeSpan]::FromSeconds(30)
+    )
+    if ($existing.Status -ne [System.ServiceProcess.ServiceControllerStatus]::Stopped) {
+        throw "Service '$ServiceName' did not stop within 30 seconds."
+    }
+
+    & sc.exe delete $ServiceName | Out-Null # We use sc.exe to delete the service because it provides a more reliable way to remove the service entry from the SCM database, especially in cases where the service may be in a failed state or when there are issues with the service control manager. After issuing the delete command, we wait for the service to be fully removed before proceeding with the installation of the new service, which helps to prevent conflicts and ensure a clean installation.
+    if ($LASTEXITCODE -ne 0) {
+        throw "Service '$ServiceName' could not be marked for deletion. sc.exe exited with code $LASTEXITCODE."
+    }
 
     Write-Host "Waiting for service to be fully removed..."
     $waited = 0

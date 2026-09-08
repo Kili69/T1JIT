@@ -28,6 +28,11 @@ possibility of such damages
         The new function now support the configuration from the AD or JSON file
 #>
 
+[CmdletBinding()]
+param(
+    [switch]$SkipVersionCheck
+)
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
@@ -38,12 +43,14 @@ $versionPath = Join-Path $repoRoot "VERSION"
 $fileVersionsPath = Join-Path $repoRoot "file-versions.json"
 $kjitWebRoot = Join-Path $repoRoot "src/C#/Kjitweb"
 $csprojPath = Join-Path $kjitWebRoot "KjitWeb.csproj"
-$publishOutputDir = Join-Path $kjitWebRoot "publish-service"
+$releaseBuildRoot = Join-Path $kjitWebRoot "obj/ReleasePackage"
+$dotnetArtifactsDir = Join-Path $releaseBuildRoot "artifacts"
+$publishOutputDir = Join-Path $releaseBuildRoot "publish-service"
 
 $kjitCoreRoot = Join-Path $repoRoot "src/C#/KjitCore"
 $kjitCoreProjPath = Join-Path $kjitCoreRoot "KjitCore.csproj"
-$kjitCoreNet48BuildDir = Join-Path $kjitCoreRoot "bin/Release/net48"
-$kjitCoreDllSource = Join-Path $kjitCoreNet48BuildDir "KjitCore.dll"
+$kjitCoreOutputDir = Join-Path $releaseBuildRoot "KjitCore"
+$kjitCoreDllSource = Join-Path $kjitCoreOutputDir "KjitCore.dll"
 
 $psSourceRoot = Join-Path $repoRoot "src/PowerShell"
 $psModulesSourceDir = Join-Path $psSourceRoot "modules"
@@ -104,8 +111,12 @@ function Copy-SanitizedJsonConfig {
 
 # Main script execution starts here
 
-& $versionScriptPath -Check
+if (-not $SkipVersionCheck) {
+    & $versionScriptPath -Check
+}
 $releaseVersion = (Get-Content $versionPath -Raw).Trim()
+
+Remove-Item $releaseBuildRoot -Recurse -Force -ErrorAction SilentlyContinue
 
 Remove-Item $releaseRoot -Recurse -Force -ErrorAction SilentlyContinue # Clean up any existing release folder to ensure a fresh start.
 
@@ -125,7 +136,7 @@ Copy-Item (Join-Path $psScriptsSourceDir "*.ps1") $releaseRoot -Force
 Copy-Item (Join-Path $psModulesSourceDir "*") $releaseModulesDir -Recurse -Force
 
 Write-Host "Building KjitCore (net48)..."
-dotnet build $kjitCoreProjPath -c Release -f net48
+dotnet build $kjitCoreProjPath -c Release -f net48 --artifacts-path $dotnetArtifactsDir -o $kjitCoreOutputDir
 if ($LASTEXITCODE -ne 0) {
     throw "KjitCore build failed (dotnet build exit code: $LASTEXITCODE)."
 }
@@ -139,8 +150,7 @@ New-Item -Path $releaseModulesVersionDir -ItemType Directory -Force | Out-Null
 Copy-Item $kjitCoreDllSource (Join-Path $releaseModulesVersionDir "KjitCore.dll") -Force
 
 Write-Host "Building KjitWeb service..."
-Remove-Item $publishOutputDir -Recurse -Force -ErrorAction SilentlyContinue
-dotnet publish $csprojPath -c Release -r win-x64 --self-contained true -o $publishOutputDir "-p:InformationalVersion=$releaseVersion"
+dotnet publish $csprojPath -c Release -r win-x64 --self-contained true --artifacts-path $dotnetArtifactsDir -o $publishOutputDir "-p:InformationalVersion=$releaseVersion"
 if ($LASTEXITCODE -ne 0) {
     throw "KjitWeb build failed (dotnet publish exit code: $LASTEXITCODE)."
 }

@@ -14,10 +14,11 @@ inability to use the sample scripts or documentation, even if Microsoft has been
 possibility of such damages
 
 .SYNOPSIS
-    Versions files staged for a Git commit.
+    Versions staged files and refreshes the distributable release directory.
 .DESCRIPTION
-    Runs build/Update-Version.ps1 in staged mode and adds the generated repository
-    version metadata to the current commit. Any error stops the commit.
+    Runs build/Update-Version.ps1 in staged mode, builds release from the current
+    source tree with that version, and adds the generated metadata and release files
+    to the current commit. Any error stops the commit.
 #>
 
 Set-StrictMode -Version Latest
@@ -35,7 +36,26 @@ try {
         throw "Unable to stage VERSION and file-versions.json."
     }
 
-    Write-Host "Staged files and version metadata are ready for commit." -ForegroundColor Green
+    & (Join-Path $repoRoot "build/release_build.ps1") -SkipVersionCheck
+
+    git -C $repoRoot add -- release
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to stage the refreshed release directory."
+    }
+
+    $releaseVersion = (Get-Content (Join-Path $repoRoot "release/VERSION") -Raw).Trim()
+    $repositoryVersion = (Get-Content (Join-Path $repoRoot "VERSION") -Raw).Trim()
+    if ($releaseVersion -ne $repositoryVersion) {
+        throw "Release version '$releaseVersion' does not match repository version '$repositoryVersion'."
+    }
+
+    $releaseDll = Join-Path $repoRoot "release/kjibweb/publish-service/KjitWeb.dll"
+    $productVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo($releaseDll).ProductVersion
+    if ($productVersion -notlike "$repositoryVersion+*") {
+        throw "Release KjitWeb version '$productVersion' does not match repository version '$repositoryVersion'."
+    }
+
+    Write-Host "Staged files, version metadata, and release $repositoryVersion are ready for commit." -ForegroundColor Green
 }
 catch {
     Write-Error $_

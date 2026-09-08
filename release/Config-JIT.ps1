@@ -190,56 +190,31 @@ function Get-JitDefaultConfiguration {
     )
 
     return [pscustomobject][ordered]@{
-        # General script and environment settings
-        # Configuration properties for the JIT script and environment
-        # the script version who created the configuration file
         ConfigScriptVersion            = $ScriptVersion
-        # prefix for admin accounts
         AdminPreFix                    = "Admin_"
-        # the organizational unit for JIT administrator groups
         OU                             = "OU=JIT-Administrator Groups,OU=Tier 1,OU=Admin,$DomainDistinguishedName"
-        # maximum elevated time in minutes
         MaxElevatedTime                = 1440
-        # default elevated time in minutes
         DefaultElevatedTime            = 60
-        # event ID for elevation events
         ElevateEventID                 = 100
-        # tier 0 server group name
         Tier0ServerGroupName           = "Tier 0 Computers"
-        # LDAP filter for tier 0 computers
         LDAPT0Computers                = "(&(ObjectClass=Computer)(!(ObjectClass=msDS-GroupManagedServiceAccount))(!(PrimaryGroupID=516))(!(PrimaryGroupID=521)))"
-        # LDAP path for tier 0 computers
         LDAPT0ComputerPath             = "OU=Tier 0,OU=Admin"
-        # LDAP filter for tier 1 computers
         LDAPT1Computers                = "(&(OperatingSystem=*Windows*)(ObjectClass=Computer)(!(ObjectClass=msDS-GroupManagedServiceAccount))(!(PrimaryGroupID=516))(!(PrimaryGroupID=521)))"
-        # event source for logging
         EventSource                    = "T1Mgmt"
-        # event log name for logging
         EventLog                       = "Tier 1 Management"
-        # path for debug logs
         DebugLogPath                   = "%TEMP%"
-        # number of times to rerun group management tasks
         GroupManagementTaskRerun       = 5
-        # name of the group managed service account
         GroupManagedServiceAccountName = "T1GroupMgmt"
-        # domain DNS name
         Domain                         = $DomainDns
-        # path to delegation configuration file
         DelegationConfigPath           = "\\$DomainDns\SYSVOL\$DomainDns\Just-In-time\Tier1delegation.config"
-        # flag to enable delegation
         EnableDelegation               = $true
-        # flag to enable multi-domain support
         EnableMultiDomainSupport       = $true
-        # search base for tier 1
         T1Searchbase                   = @("<DomainRoot>")
-        # domain separator character
         DomainSeparator                = "#"
-        # flag to use managed by for delegation
         UseManagedByforDelegation      = $true
         MaxConcurrentServer            = 50
     }
 }
-
 
 function Import-JitConfiguration {
     <#
@@ -348,48 +323,47 @@ function Import-JitConfiguration {
     return $DefaultConfiguration
 }
 
+<#
+.SYNOPSIS
+    Exports the JIT configuration and publishes its location.
+.DESCRIPTION
+    Serializes the supplied configuration object as JSON to the specified path. A
+    missing parent directory is created automatically, and an existing file is
+    overwritten.
 
+    After the file has been written successfully, the function stores its path in
+    the machine-level JustInTimeConfig environment variable and mirrors the value
+    into the current process. This makes the exported configuration available to
+    later commands immediately and to new processes on the computer.
+
+    File-system and environment changes participate in ShouldProcess. Under WhatIf,
+    no state is changed and the function returns true so the calling configuration
+    workflow can complete its planning pass.
+.PARAMETER Configuration
+    JIT configuration object to serialize as JSON.
+.PARAMETER Path
+    Destination path of the JIT.config file. Local and UNC paths are supported.
+.OUTPUTS
+    System.Boolean
+    Returns true after the configuration is exported or when the operation is
+    approved as a WhatIf planning step.
+.EXAMPLE
+    Export-JitConfiguration -Configuration $config `
+        -Path "\\contoso.com\SYSVOL\contoso.com\Just-In-Time\JIT.config"
+
+    Writes the configuration to SYSVOL and publishes the path through the
+    JustInTimeConfig environment variable.
+.EXAMPLE
+    Export-JitConfiguration -Configuration $config `
+        -Path "C:\ProgramData\T1JIT\JIT.config" -WhatIf
+
+    Displays the planned export without creating the directory, writing the file,
+    or changing environment variables.
+.NOTES
+    File creation, JSON serialization, and environment-variable errors are allowed
+    to propagate to the caller.
+#>
 function Export-JitConfiguration {
-    <#
-    .SYNOPSIS
-        Exports the JIT configuration and publishes its location.
-    .DESCRIPTION
-        Serializes the supplied configuration object as JSON to the specified path. A
-        missing parent directory is created automatically, and an existing file is
-        overwritten.
-
-        After the file has been written successfully, the function stores its path in
-        the machine-level JustInTimeConfig environment variable and mirrors the value
-        into the current process. This makes the exported configuration available to
-        later commands immediately and to new processes on the computer.
-
-        File-system and environment changes participate in ShouldProcess. Under WhatIf,
-        no state is changed and the function returns true so the calling configuration
-        workflow can complete its planning pass.
-    .PARAMETER Configuration
-        JIT configuration object to serialize as JSON.
-    .PARAMETER Path
-        Destination path of the JIT.config file. Local and UNC paths are supported.
-    .OUTPUTS
-        System.Boolean
-        Returns true after the configuration is exported or when the operation is
-        approved as a WhatIf planning step.
-    .EXAMPLE
-        Export-JitConfiguration -Configuration $config `
-            -Path "\\contoso.com\SYSVOL\contoso.com\Just-In-Time\JIT.config"
-
-        Writes the configuration to SYSVOL and publishes the path through the
-        JustInTimeConfig environment variable.
-    .EXAMPLE
-        Export-JitConfiguration -Configuration $config `
-            -Path "C:\ProgramData\T1JIT\JIT.config" -WhatIf
-
-        Displays the planned export without creating the directory, writing the file,
-        or changing environment variables.
-    .NOTES
-        File creation, JSON serialization, and environment-variable errors are allowed
-        to propagate to the caller.
-    #>
     [CmdletBinding(SupportsShouldProcess = $true)]
     param (
         [Parameter(Mandatory)]
@@ -418,9 +392,7 @@ function Export-JitConfiguration {
     return $true
 }
 
-
-function Set-JitConfigurationEnvironment {
-    <#
+<#
 .SYNOPSIS
     Publishes the JIT configuration path as an environment variable.
 .DESCRIPTION
@@ -451,6 +423,7 @@ function Set-JitConfigurationEnvironment {
     Writing a machine-level environment variable requires sufficient local privileges.
     Errors from the .NET environment API are allowed to propagate to the caller.
 #>
+function Set-JitConfigurationEnvironment {
     [CmdletBinding(SupportsShouldProcess = $true)]
     param (
         [Parameter(Mandatory)]

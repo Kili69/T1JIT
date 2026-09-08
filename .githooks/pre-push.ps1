@@ -91,7 +91,9 @@ foreach ($update in $refUpdates) {
             throw "Unable to inspect commit $commit."
         }
         $historyCommitFiles = @("History.md", "VERSION", "file-versions.json")
-        $otherChangedFiles = @($changedFiles | Where-Object { $_ -notin $historyCommitFiles })
+        $otherChangedFiles = @($changedFiles | Where-Object {
+            $_ -notin $historyCommitFiles -and $_ -notlike "release/*"
+        })
         if ($changedFiles -contains "History.md" -and $otherChangedFiles.Count -eq 0) {
             continue
         }

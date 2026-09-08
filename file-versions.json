@@ -1,10 +1,30 @@
 {
-  "version": "0.1.20260908.9",
+  "version": "0.1.20260908.10",
   "files": [
     {
-      "path": "History.md",
-      "version": "0.1.20260908.9",
-      "sha256": "0fce0fe22992cbbe321d683522b9dc0fb2e0ae150795ecac97f93ff15eab3d6d"
+      "path": ".githooks/pre-commit.ps1",
+      "version": "0.1.20260908.10",
+      "sha256": "5527e68bfd892069009dfe01e774123a01858f2d6db90f5ded63050a217c28e9"
+    },
+    {
+      "path": ".githooks/pre-push.ps1",
+      "version": "0.1.20260908.10",
+      "sha256": "6ee1f1c44dae32ed7394d564552c437b6e4f506beeed6909bf28eca69b731195"
+    },
+    {
+      "path": "build/release_build.ps1",
+      "version": "0.1.20260908.10",
+      "sha256": "d43db139b7f2a8ba861e4a9536bd374b251ce4ebc51208dca73c4623ee4eda23"
+    },
+    {
+      "path": "src/C#/Kjitweb/install-kjitweb.ps1",
+      "version": "0.1.20260908.10",
+      "sha256": "0260601667e4daca039d33c88856fe96d44e3e1802f97cd33f4078cd792412d1"
+    },
+    {
+      "path": "src/C#/Kjitweb/Services/ActiveDirectoryService.cs",
+      "version": "0.1.20260908.10",
+      "sha256": "c90d8820328492041fe17309874af1b5928fd28640a2184d47252a42be615455"
     }
   ]
 }

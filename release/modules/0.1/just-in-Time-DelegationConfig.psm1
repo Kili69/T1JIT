@@ -17,94 +17,55 @@ interruption, loss of business information, or other pecuniary loss) arising out
 inability to use the sample scripts or documentation, even if Microsoft has been advised of the 
 possibility of such damages
 #>
-<#
-.Synopsis
-    This script configures the delegation configuration 
-
-.DESCRIPTION
-    This module creates or updates a delegation configuration 
-
-.EXAMPLE
-    .\DelegationConfig.ps1
-
-.INPUTS
-.PARAMETER action
-    ShowCurrentDelegation
-        Displays the current delegation file
-    AddDelegation
-        Adds a new OU delegation configuration. This parameter requres the OU path and the user/group name
-    RemoveDelegation
-        Removes a OU path from the delegation configuration
-    RemoveUserOrGroup
-        Remove a existing user / group from a OU delegation. This paramter support 
-            UPN (myuser@contoso.com)
-            SAM account names (contoso\mygroup)
-            CommonName (mygroup)
-.PARAMETER OU
-    Is the distinguised name of the JIT delegation OU. this parameter is used on the actions:
-        AddDelegation
-        RemoveDelegation
-        RemoveUserOrGroup
-.PARAMETER ADUserOrGroup
-    is the user / group name which should be added / remvoed from the delegation configuration. This parameter is used on the actions:
-        AddDelegation
-        RemoveUserOrGroup
-.PARAMETER configFileName
-    is the path to the delegation.config file. If this parameter should be used if the jit.config file is not located in the current directory
-
-.OUTPUTS
-   delegation.config
-.EXAMPLE
-    delegationconfig.ps1
-        shows the current delegation configuration
-    delegationconfig.ps1 -action showCurrentDelegation
-        shows the current delegation configuration
-    delegationconfig.ps1 -action AddDelegation -OU "OU=Servers,DC=contoso,DC=com" -ADUserOrGroup "contoso\mygroup"
-        add the mygroup to OU=Servers,DC=contoso,DC=com delegation. mygroup can now get access to any computer in this OU
-    delegationconfig.ps1 -action RemoveDelegation .OU "OU=Servers,DC=contoso,DC=com"
-        removes the entire OU from the configuration
-    delegationconfig.ps1 -action RemoveUserOrGroup -OU "OU=Servers,DC=contoso,DC=com" -ADUserOrGroup "myuser@contoso.com"
-        removes the access for myuser@contoso.com from O=Servers,DC=contoso,DC=com
-.NOTES
-    Version Tracking
-    20231029 
-    Version 0.1
-        - First internal release
-    0.1.20240122
-        - Bug fix
-        -interactive support
-    0.1.20240126
-        - Bug fix on JSON writing
-    0.1.20240726
-        - Using the environment variable $end:JustIntimeConfig if the parameter configFileName is not provided
-    0.1.20241005
-        -the script converted into a powershell model commands. New PScomands are:
-            "Get-JitDelegation"
-            "Remove-JitDelegation"
-            "Add-JitDelegation"
-    0.1.2024.1006
-        fixing bug, if the delegation file doesnt exists
-    
-#>
-<#
-    script parameters
-#>
-
 
 function ValidateOU {
+    <#
+    .SYNOPSIS
+        Validates an Active Directory organizational unit distinguished name.
+    .DESCRIPTION
+        Verifies that the supplied value has the expected OU distinguished-name
+        format, belongs to a domain in the current Active Directory forest, and can
+        be resolved as an Active Directory object in that domain.
+
+        If the value is empty or invalid, the function displays an error when
+        applicable and interactively prompts for another OU path until validation
+        succeeds. This is a private helper used when adding a JIT delegation.
+    .PARAMETER OU
+        Distinguished name of the organizational unit to validate, for example
+        "OU=Servers,DC=contoso,DC=com". When omitted or invalid, the function prompts
+        interactively for a replacement value.
+    .EXAMPLE
+        ValidateOU -OU "OU=Servers,DC=contoso,DC=com"
+
+        Validates the OU against the current forest and returns its distinguished
+        name when it exists.
+    .INPUTS
+        None. Pipeline input is not supported.
+    .OUTPUTS
+        System.String. The validated organizational unit distinguished name.
+    .NOTES
+        Requires the ActiveDirectory PowerShell module, access to the current forest,
+        and an interactive host when the initial value is empty or invalid.
+    #>
+
     param(
         [Parameter (Position = 1)]
         [String]$OU
     )  
+
+    # Repeat validation until an OU from a known forest domain can be resolved.
     $DomainDNS = ""    
     Do {
         if ($OU -eq ""){
             $OU=Read-Host "OU path"
         }
+
+        # Require one or more OU components followed by the domain components.
         if (!($OU -match "^(OU=[^,]+,)+(DC=[^,]+,)+DC=.+")){
             Write-Host "Invalid OU path" -ForegroundColor Red
             $OU= ""
         } else {
+            # Determine which forest domain owns the supplied distinguished name.
             $DomainDN = $OU -replace "^(OU=[^,]+,)+"
             Foreach ($ForestDomain in (Get-ADForest).Domains){
                 if ((Get-ADDomain -Server $ForestDomain).DistinguishedName -eq $domainDN){
@@ -117,6 +78,7 @@ function ValidateOU {
                 Write-Host "Invalid domain" -ForegroundColor Red
                 $OU=""
             } else {
+                # Accept the value only when the directory object exists in that domain.
                 If ($Null -eq (Get-ADObject -Filter 'DistinguishedName -eq $OU' -Server $DomainDNS)){
                     Write-Host "Invalid OU path" -ForegroundColor Red
                     $OU=""
@@ -127,30 +89,77 @@ function ValidateOU {
     return $OU
 }
 function Get-Sid{
+    <#
+    .SYNOPSIS
+        Resolves an Active Directory user or group name to its SID.
+    .DESCRIPTION
+        Resolves an Active Directory object by using one of three input formats:
+        a user principal name, a DOMAIN\Name value, or a common name. User principal
+        names are searched through a discovered Global Catalog. DOMAIN\Name values
+        are resolved in the matching domain of the current forest, and common names
+        are resolved through the default Active Directory connection.
+
+        If Name is empty, or if no SID is found, the function interactively prompts
+        for another user or group name until resolution succeeds. This is a private
+        helper used by the JIT delegation commands.
+    .PARAMETER Name
+        Active Directory user or group identifier. Supported formats are a user
+        principal name such as "user@contoso.com", a domain-qualified name such as
+        "CONTOSO\Server-Admins", or a common name such as "Server-Admins".
+    .EXAMPLE
+        Get-Sid -Name "user@contoso.com"
+
+        Resolves the user through the Global Catalog and returns its SID value.
+    .EXAMPLE
+        Get-Sid -Name "CONTOSO\Server-Admins"
+
+        Finds the forest domain with the CONTOSO NetBIOS name and resolves the group
+        in that domain.
+    .INPUTS
+        None. Pipeline input is not supported.
+    .OUTPUTS
+        System.String. The SID value of the resolved Active Directory object.
+    .NOTES
+        Requires the ActiveDirectory PowerShell module, access to a Global Catalog,
+        and an interactive host when the supplied name cannot be resolved.
+    #>
+
     param (
         [Parameter ()]
         [string] $Name
     )
+
+    # Discover a Global Catalog once for forest-wide UPN lookups.
     $OSID = ""
     $GC = (Get-ADDomainController -Discover -Service GlobalCatalog)
     do{
+        # Request an identifier interactively when none was supplied or resolved.
         if ($Name -eq ""){
             $Name = Read-Host "Domain user or Group"
         }
+
+        # Select the lookup strategy from the identifier format.
         switch -Wildcard ($Name){
-            "*@*" { 
+            "*@*" {
+                # Resolve a user principal name across the forest through the GC.
                 $OSID= (Get-ADObject -Filter{UserprincipalName -eq $Name} -Server $GC -Properties ObjectSID).ObjectSid.Value
             }
             "*\*" {
+                # Split DOMAIN\Name and map the NetBIOS domain name to its DNS name.
                 $UserNetBiosName = $Name.Split("\")
                 $UserName = $UserNetBiosName[1]
                 $DomainDNS = (Get-ADForest).Domains | Where-Object {(Get-ADDomain -Server $_).NetBiosName -eq $userNetBiosName[0]}
+
+                # Resolve the SAM account name in the selected forest domain.
                 $OSID= (Get-ADObject -Filter{SamAccountName -like $UserName} -Server $DomainDNS -Properties ObjectSId).ObjectSID.Value
             }
             Default {
+                # Treat all other input as a common name in the default AD context.
                 $OSID = (Get-ADObject -Filter {cn -eq $Name} -Properties ObjectSID).ObjectSid.Value
             }
         }
+
+        # Reset Name after an unsuccessful lookup so the next iteration prompts.
         if ($Null -eq $OSID ){
             $Name = ""
         }
@@ -158,7 +167,89 @@ function Get-Sid{
     return $OSID
 }
 
+function Write-JitJsonFileAtomically {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$InputObject,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    $resolvedPath = [IO.Path]::GetFullPath($Path)
+    $temporaryPath = "$resolvedPath.$([Guid]::NewGuid().ToString('N')).tmp"
+    $backupPath = "$temporaryPath.bak"
+
+    try {
+        ConvertTo-Json -InputObject $InputObject -Depth 10 |
+            Out-File -LiteralPath $temporaryPath -Confirm:$false
+
+        if (Test-Path -LiteralPath $resolvedPath -PathType Leaf) {
+            [IO.File]::Replace($temporaryPath, $resolvedPath, $backupPath)
+        }
+        else {
+            [IO.File]::Move($temporaryPath, $resolvedPath)
+        }
+    }
+    finally {
+        Remove-Item -LiteralPath $temporaryPath -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $backupPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
 function Update-JitDelegation {
+    <#
+    .SYNOPSIS
+        Reads or updates the persisted JIT delegation configuration.
+    .DESCRIPTION
+        Provides the internal implementation for the exported JIT delegation
+        commands. The Action parameter selects one of four operations:
+
+        ShowCurrentDelegation reads all delegation entries, translates their stored
+        SIDs to NT account names, and returns objects containing OU and SID properties.
+        AddDelegation validates an OU, resolves a user or group to its SID, and adds
+        the SID to a new or existing OU entry. RemoveDelegation removes the complete
+        entry for an OU. RemoveUserOrGroup removes one resolved SID from an OU entry.
+
+        Mutating actions rewrite the delegation JSON file identified by
+        DelegationConfigPath in the loaded JIT configuration. This is a private helper
+        used by Add-JitDelegation, Remove-JitDelegation, and Get-JitDelegation.
+    .PARAMETER action
+        Operation to perform. Accepted values are ShowCurrentDelegation,
+        AddDelegation, RemoveDelegation, and RemoveUserOrGroup. If omitted, the
+        current delegation configuration is returned.
+    .PARAMETER OU
+        Distinguished name of the computer OU affected by an add or remove operation.
+    .PARAMETER ADUserOrGroup
+        Active Directory user or group identifier to add to, or remove from, the OU
+        delegation. Get-Sid resolves this value to the SID stored in the JSON file.
+    .PARAMETER configFileName
+        Optional JIT configuration source passed to Get-JitConfig. When omitted,
+        Get-JitConfig applies its normal source-resolution rules.
+    .EXAMPLE
+        Update-JitDelegation -action ShowCurrentDelegation
+
+        Returns the configured OUs and their translated NT account names.
+    .EXAMPLE
+        Update-JitDelegation -action AddDelegation -OU "OU=Servers,DC=contoso,DC=com" -ADUserOrGroup "CONTOSO\Server-Admins"
+
+        Adds the resolved group SID to the delegation entry for the Servers OU.
+    .EXAMPLE
+        Update-JitDelegation -action RemoveDelegation -OU "OU=Servers,DC=contoso,DC=com"
+
+        Removes the complete delegation entry for the Servers OU.
+    .INPUTS
+        None. Pipeline input is not supported.
+    .OUTPUTS
+        System.Boolean for mutating actions. ShowCurrentDelegation returns
+        System.Management.Automation.PSCustomObject instances with OU and SID
+        properties.
+    .NOTES
+        Requires a readable JIT configuration, access to its DelegationConfigPath,
+        and Active Directory connectivity for validation and SID translation.
+    #>
+
     [CmdletBinding(DefaultParameterSetName = 'ShowCurrentDelegation')]
     param (
     [Parameter(Position = 1)]
@@ -171,20 +262,28 @@ function Update-JitDelegation {
     [Parameter (Position = 3)]
     [string]$configFileName    
 )
+    # Resolve the main JIT configuration, optionally from an explicit source.
     $CurrentDelegation = @()
     if ($null -eq $configFileName){
         $config = Get-JitConfig
     } else {
         $config = Get-JitConfig -configurationFile $configFileName
     }
+
+    # Load existing delegation entries; a missing file represents an empty database.
     if ((Test-Path $config.DelegationConfigPath)){
         $CurrentDelegation += Get-Content "$($config.DelegationConfigPath)" | ConvertFrom-Json 
     } 
+
+    # Dispatch the requested read or mutation operation.
     switch ($action) {
         'AddDelegation' {
+            # Validate both sides of the delegation before changing persisted data.
             $OU= ValidateOU -OU $OU
             $ObjectSId = Get-Sid $ADUserOrGroup
             $NewEntry = $true
+
+            # Reuse an existing OU entry and append the SID only when it is new.
             if ($CurrentDelegation.Count -gt 0){
                 for ($i = 0; $i -lt $CurrentDelegation.Count; $i++){
                     if ($CurrentDelegation[$i].ComputerOU -eq $OU){
@@ -196,31 +295,38 @@ function Update-JitDelegation {
                     }
                 }
             }
+
+            # Create the first delegation entry for an OU not yet in the file.
             if ($NewEntry){
                 $Delegation = New-Object psobject
                 $Delegation | Add-Member NoteProperty "ComputerOU" -Value $OU 
                 $Delegation | Add-Member NoteProperty "ADObject" -Value @($ObjectSID)
                 $CurrentDelegation += $Delegation
             }
-            #Writing configuration file
-            ConvertTo-Json $CurrentDelegation  | Out-File $config.DelegationConfigPath -Confirm:$false
+
+            # Persist the complete delegation collection after the add operation.
+            Write-JitJsonFileAtomically -InputObject $CurrentDelegation -Path $config.DelegationConfigPath
             return $true
         }
         'RemoveDelegation'{
+            # Rebuild the collection without entries for the requested OU.
             $tempDelegation = @()
             for ($i = 0; $i -lt $CurrentDelegation.count; $i++){
                 if ($CurrentDelegation[$i].ComputerOU -ne $OU){
                     $tempDelegation += $CurrentDelegation[$i]
                 }
             }
-            #Writing configuration file
-            ConvertTo-Json $tempDelegation | Out-File $config.DelegationConfigPath -Confirm:$false
+
+            # Persist the filtered delegation collection.
+            Write-JitJsonFileAtomically -InputObject $tempDelegation -Path $config.DelegationConfigPath
             return $true
         }
         'RemoveUserOrGroup'{
+            # Resolve the account and locate its OU delegation entry.
             $ObjectSID = Get-Sid $ADUserOrGroup
             for ($i = 0; $i -lt $CurrentDelegation.count;$i++){
                 if ($CurrentDelegation[$i].ComputerOU -eq $OU){
+                    # Rebuild the OU's SID list without the resolved account SID.
                     $tempSIDList = @()
                     Foreach ($SID in $CurrentDelegation[$i].ADObject){
                         if ($SID -ne $ObjectSId){
@@ -228,12 +334,15 @@ function Update-JitDelegation {
                         }
                     }
                     $CurrentDelegation[$i].ADObject = $tempSIDList
-                    ConvertTo-Json $CurrentDelegation | Out-File $config.DelegationConfigPath -Confirm:$false
+
+                    # Persist the modified OU entry and stop after the first match.
+                    Write-JitJsonFileAtomically -InputObject $CurrentDelegation -Path $config.DelegationConfigPath
                     return $true    
                 }
             }
         }
         Default {
+            # Translate stored SIDs into readable NT account names for callers.
             $retVal = @()
             For($iOU= 0; $iOU -lt $CurrentDelegation.Count; $iOU++){
                 $arySID = @()
@@ -241,6 +350,8 @@ function Update-JitDelegation {
                     $SID = New-Object System.Security.Principal.SecurityIdentifier($CurrentDelegation[$iOU].ADObject[$iSID])
                     $arySID +=$SID.Translate([System.Security.Principal.NTAccount]).Value
                 }
+
+                # Return one presentation object per configured computer OU.
                 $OUdelegation = New-Object PSObject
                 $OUdelegation | Add-Member -MemberType NoteProperty -Name OU -Value $CurrentDelegation[$iOU].ComputerOU
                 $OUdelegation | Add-Member -MemberType NoteProperty -Name SID -Value $arySID
@@ -269,7 +380,54 @@ function Add-JitDelegation {
     return Update-JitDelegation -action AddDelegation -OU $OU -ADUserOrGroup $ADobject
 }
 
-function  Remove-JitDelegation {
+function Remove-JitDelegation {
+    <#
+    .SYNOPSIS
+        Removes an OU delegation or one delegated Active Directory object.
+    .DESCRIPTION
+        Removes delegation data for the specified organizational unit. When
+        ADObject is omitted, the complete delegation entry for the OU is removed.
+        When ADObject is supplied, only the resolved user or group SID is removed
+        from that OU entry.
+
+        By default, the function asks for interactive confirmation before changing
+        the delegation configuration. Force suppresses that prompt. The actual JSON
+        update is performed by the private Update-JitDelegation helper.
+    .PARAMETER OU
+        Distinguished name of the organizational unit whose delegation should be
+        changed, for example "OU=Servers,DC=contoso,DC=com".
+    .PARAMETER ADObject
+        Optional Active Directory user or group to remove from the OU delegation.
+        Supported identifiers are the formats accepted by Get-Sid, including UPN,
+        DOMAIN\Name, and common name. If omitted, the complete OU entry is removed.
+    .PARAMETER Force
+        Removes the delegation without displaying an interactive confirmation prompt.
+    .EXAMPLE
+        Remove-JitDelegation -OU "OU=Servers,DC=contoso,DC=com"
+
+        Prompts for confirmation and then removes the complete delegation entry for
+        the Servers OU.
+    .EXAMPLE
+        Remove-JitDelegation -OU "OU=Servers,DC=contoso,DC=com" -ADObject "CONTOSO\Server-Admins"
+
+        Prompts for confirmation and then removes the Server-Admins group SID from
+        the Servers OU delegation.
+    .EXAMPLE
+        Remove-JitDelegation -OU "OU=Servers,DC=contoso,DC=com" -Force
+
+        Removes the complete OU delegation without prompting for confirmation.
+    .INPUTS
+        None. Pipeline input is not supported.
+    .OUTPUTS
+        System.Boolean. Returns $true when Update-JitDelegation performs the selected
+        removal and $false when the caller declines confirmation. No value is returned
+        when an individual AD object is not found in the specified OU entry.
+    .NOTES
+        This function is exported by the Just-In-time module. It requires a valid JIT
+        and delegation configuration. Removing an individual AD object additionally
+        requires Active Directory connectivity to resolve its SID.
+    #>
+
     param (
         [Parameter(Mandatory = $true, Position = 0)]
         [string]$OU,
@@ -277,32 +435,41 @@ function  Remove-JitDelegation {
         [string]$ADObject,
         [switch]$Force
     )
+
+    # Reject values that are not syntactically valid distinguished names.
     $pattern = '^((CN|OU|DC)=[^,]+,)*(CN|OU|DC)=[^,]+$'
     if ($ou -notmatch $pattern){
         throw [System.FormatException]::new("$OU is not a valid distinguishedname for a organizational unit")
     }
+
+    # Without ADObject, remove the complete delegation entry for the OU.
     if (-not $ADObject){
         if ($Force){
+            # Force bypasses the interactive safety prompt.
             return Update-JitDelegation -action RemoveDelegation -OU $OU
         } else {
             $confirmation = Read-Host "Do you want to remove the OU $OU from the JIT access database (Y/N)"
             if ($confirmation -eq 'Y' -or $confirmation -eq 'y') {
                 return Update-JitDelegation -action RemoveDelegation -OU $OU
             } else {
+                # Report cancellation without modifying the delegation file.
                 return $false
             }
         }
     } else {
+        # Resolve and validate the user or group before attempting SID removal.
         if ($null -eq (Get-Sid $ADobject)){
             throw [Microsoft.ActiveDirectory.Management.ADIdentityNotFoundException]::new("$ADObject doesn't exist")
         }
         if ($Force){
+            # Remove only the resolved account SID without prompting.
             return Update-JitDelegation -action RemoveUserOrGroup -OU $OU -ADUserOrGroup $ADObject 
         } else {
             $confirmation = Read-Host "Do you want to remove the $ADobject from $OU (Y/N)"
             if ($confirmation -eq 'Y' -or $confirmation -eq 'y'){
                 return Update-JitDelegation -action RemoveUserOrGroup -OU $OU -ADUserOrGroup $ADObject
             } else {
+                # Report cancellation without modifying the delegation file.
                 return $false
             }
         }
@@ -310,5 +477,38 @@ function  Remove-JitDelegation {
 }
 
 function Get-JitDelegation{
+    <#
+    .SYNOPSIS
+        Returns the configured JIT delegations in a readable form.
+    .DESCRIPTION
+        Reads the persisted delegation configuration through Update-JitDelegation.
+        Stored security identifiers are translated to NT account names, and one
+        pipeline object is returned for each configured organizational unit.
+    .EXAMPLE
+        Get-JitDelegation
+
+        Returns all configured organizational units and their delegated users or
+        groups.
+    .EXAMPLE
+        Get-JitDelegation | Where-Object OU -eq "OU=Servers,DC=contoso,DC=com"
+
+        Returns the delegation entry for the specified organizational unit.
+    .EXAMPLE
+        Get-JitDelegation | Select-Object -ExpandProperty SID
+
+        Returns the translated NT account names from all delegation entries.
+    .INPUTS
+        None. Pipeline input is not supported.
+    .OUTPUTS
+        System.Management.Automation.PSCustomObject. Each object contains an OU
+        property with the organizational unit distinguished name and a SID property
+        containing the translated NT account names.
+    .NOTES
+        This function is exported by the Just-In-time module. It requires a readable
+        JIT and delegation configuration as well as Active Directory connectivity for
+        translating stored SIDs to NT account names.
+    #>
+
+    # Use the shared dispatcher to load entries and translate their stored SIDs.
     return Update-JitDelegation -action ShowCurrentDelegation
 }

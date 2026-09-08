@@ -1,95 +1,30 @@
 {
-  "version": "0.1.20260907.11",
+  "version": "0.1.20260908.10",
   "files": [
     {
-      "path": ".githooks/pre-commit",
-      "version": "0.1.20260907.11",
-      "sha256": "59a4f2b88e02242b287acd196d2b0962cb04772d65949bbb9762e6e181b840e5"
-    },
-    {
       "path": ".githooks/pre-commit.ps1",
-      "version": "0.1.20260907.11",
-      "sha256": "ca30e43aeceb75712cd1d9c877f314b1d1c2f47abed514ab4664578b2cfd7a49"
+      "version": "0.1.20260908.10",
+      "sha256": "5527e68bfd892069009dfe01e774123a01858f2d6db90f5ded63050a217c28e9"
     },
     {
-      "path": "build/Update-Version.ps1",
-      "version": "0.1.20260907.11",
-      "sha256": "d134a5057ca73498bddd620289b9aa7bd30f99f3b3b074985cbdce7163a3ad94"
+      "path": ".githooks/pre-push.ps1",
+      "version": "0.1.20260908.10",
+      "sha256": "6ee1f1c44dae32ed7394d564552c437b6e4f506beeed6909bf28eca69b731195"
     },
     {
-      "path": "docs/Installation.md",
-      "version": "0.1.20260907.11",
-      "sha256": "4569e830c7da7492b4ce3a14687b896a5e18245c6acd0dc8ec1d4b4f8d2718d9"
-    },
-    {
-      "path": "README.md",
-      "version": "0.1.20260907.11",
-      "sha256": "00f555aca038ca3d9127a8c07e1c7dbba24889bb0e7b8cd0a65290a3b72f2d8f"
-    },
-    {
-      "path": "release/install-JIT.ps1",
-      "version": "0.1.20260907.11",
-      "sha256": "2ee416b2db18184eb804829ce05db5330c7beadc72632a2cea84a194ce3246d1"
-    },
-    {
-      "path": "src/C#/Kjitweb/Controllers/HomeController.cs",
-      "version": "0.1.20260907.11",
-      "sha256": "b8694635199aa4f5f2093854fbaeca77c5641f8ef9da130ca60957991d795c77"
+      "path": "build/release_build.ps1",
+      "version": "0.1.20260908.10",
+      "sha256": "d43db139b7f2a8ba861e4a9536bd374b251ce4ebc51208dca73c4623ee4eda23"
     },
     {
       "path": "src/C#/Kjitweb/install-kjitweb.ps1",
-      "version": "0.1.20260907.11",
-      "sha256": "5239c498e2b6f269eea0cc49254e32b263984156089aeb916b418d9bf79f5f42"
-    },
-    {
-      "path": "src/C#/Kjitweb/Models/ElevatedComputerViewModel.cs",
-      "version": "0.1.20260907.11",
-      "sha256": "14abcdaba34ce4a7b22bbfb5e8e84ae54440697141ce03c55332cf50ee831a29"
-    },
-    {
-      "path": "src/C#/Kjitweb/Models/ServerSelectionViewModel.cs",
-      "version": "0.1.20260907.11",
-      "sha256": "2d5fbc1e7a2e068853fbdff0b074755eca877d200c33f6ed6496fd37acc7550b"
-    },
-    {
-      "path": "src/C#/Kjitweb/Program.cs",
-      "version": "0.1.20260907.11",
-      "sha256": "4abec265d0373e8ce750fb66a444282ee7ec3d962beaea346af59bd29a9e49ee"
-    },
-    {
-      "path": "src/C#/Kjitweb/Resources/SharedResource.de.resx",
-      "version": "0.1.20260907.11",
-      "sha256": "3b2109d853eb4fd7b6953dbcd19b164c5547f64724336f8449b29fd37973b1a1"
-    },
-    {
-      "path": "src/C#/Kjitweb/Resources/SharedResource.en.resx",
-      "version": "0.1.20260907.11",
-      "sha256": "1758d08adde74d326d0be1d0560ac3e1241c056beee1929f8eda4d796a8a87f9"
+      "version": "0.1.20260908.10",
+      "sha256": "0260601667e4daca039d33c88856fe96d44e3e1802f97cd33f4078cd792412d1"
     },
     {
       "path": "src/C#/Kjitweb/Services/ActiveDirectoryService.cs",
-      "version": "0.1.20260907.11",
-      "sha256": "65c1b1bebd7c0c7ab1ab3ec27d8ada22e670295b01c8e73579bd2495d1fb1c24"
-    },
-    {
-      "path": "src/C#/Kjitweb/Services/IActiveDirectoryService.cs",
-      "version": "0.1.20260907.11",
-      "sha256": "1d970ec5f85d2895b2892ae129af7aa0fc5dc425861ed2c7c68d13c84e5d3c23"
-    },
-    {
-      "path": "src/C#/Kjitweb/Views/Home/Index.cshtml",
-      "version": "0.1.20260907.11",
-      "sha256": "bf118a0f65fecc9134a5a393ea24d78f98d9b561e9e0b08b02b312069682fd89"
-    },
-    {
-      "path": "src/C#/Kjitweb/Views/Shared/_Layout.cshtml",
-      "version": "0.1.20260907.11",
-      "sha256": "f9989a8cc3653fa1a4a588afeac66776266ddef6b3adb0e0fc493b807344912b"
-    },
-    {
-      "path": "src/Powershell/Scripts/install-JIT.ps1",
-      "version": "0.1.20260907.11",
-      "sha256": "59ed7c865c369b969c88b8a7f7b6bc0650807f51ed45b5437a4c37bf42949d01"
+      "version": "0.1.20260908.10",
+      "sha256": "c90d8820328492041fe17309874af1b5928fd28640a2184d47252a42be615455"
     }
   ]
 }

@@ -912,18 +912,24 @@ public class ActiveDirectoryService : IActiveDirectoryService
             tokens.Add(NormalizeSecurityIdentifier(claim.Value)); // If the claim is a group SID claim, we normalize the value of the claim (trimming whitespace and quotes, and converting to uppercase) and add it to the hash set of tokens. This ensures that the group SIDs are stored in a consistent format for efficient lookup when determining elevation groups based on group memberships. By normalizing the SIDs, we can avoid issues with formatting differences that may arise from different sources of claims or variations in how SIDs are represented.
         }
 
-        // Some authentication flows emit only a partial set of group SID claims.
-        // Always enrich with Windows identity groups and LDAP tokenGroups so delegation
-        // rules can match all effective memberships.
+        // Some authentication flows emit only a partial set of SID claims.
+        // Enrich them with the user SID and all effective group memberships so both
+        // direct-user and group delegation rules can match.
         var windowsIdentity = user.Identities.OfType<WindowsIdentity>().FirstOrDefault();
-        AddWindowsIdentityGroupTokens(windowsIdentity, tokens);
-        AddDirectoryTokenGroups(user.Identity?.Name, tokens);
+        AddWindowsIdentityTokens(windowsIdentity, tokens);
+        AddDirectoryIdentityTokens(user.Identity?.Name, tokens);
 
         return tokens;
     }
 
-    private static void AddWindowsIdentityGroupTokens(WindowsIdentity? identity, ISet<string> tokens)
+    private static void AddWindowsIdentityTokens(WindowsIdentity? identity, ISet<string> tokens)
     {
+        var userSid = identity?.User?.Value;
+        if (!string.IsNullOrWhiteSpace(userSid))
+        {
+            tokens.Add(NormalizeSecurityIdentifier(userSid));
+        }
+
         if (identity?.Groups == null)
         {
             return;
@@ -939,7 +945,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
         }
     }
 
-    private void AddDirectoryTokenGroups(string? identityName, ISet<string> tokens)
+    private void AddDirectoryIdentityTokens(string? identityName, ISet<string> tokens)
     {
         if (string.IsNullOrWhiteSpace(identityName))
         {
@@ -953,14 +959,22 @@ public class ActiveDirectoryService : IActiveDirectoryService
                 _domainLdapPath,
                 BuildUserLookupFilter(identityName),
                 SearchScope.Subtree,
-                "distinguishedName");
+                "distinguishedName",
+                "objectSid");
 
-            var userDn = userEntries.FirstOrDefault() is { } ue
-                ? ReadEntryAttribute(ue, "distinguishedName")
-                : null;
+            var userEntry = userEntries.FirstOrDefault();
+            var userDn = userEntry is null
+                ? null
+                : ReadEntryAttribute(userEntry, "distinguishedName");
 
             if (string.IsNullOrWhiteSpace(userDn))
                 return;
+
+            var objectSidAttribute = userEntry?.Attributes["objectSid"];
+            if (objectSidAttribute?[0] is byte[] objectSidBytes && objectSidBytes.Length > 0)
+            {
+                tokens.Add(NormalizeSecurityIdentifier(new SecurityIdentifier(objectSidBytes, 0).Value));
+            }
 
             // Step 2: base-scope search on the user DN for the tokenGroups constructed attribute.
             var tgEntries = LdapSearchPaged(

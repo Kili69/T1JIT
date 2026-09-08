@@ -30,12 +30,12 @@ Version 0.1.20241004
         This function validate the user is allowed to request administrator privileges on a server
     New-AdminRequest changed to use the Get-UserelevationStatus
 Version 0.1.20241023
-    New function to convert a distinguishedname into the correspongind DNS Name
+    New function to convert a distinguishedname into the corresponding DNS Name
 version 0.1.20241219 by Andreas Luy
     Changed group naming from NetBios to full Dns naming scheme
     moved Get-Jitconfig to Just-in-time-configuration.psm1
 version 0.1.2025016 by Kili
-    Fix a eroor if the DNS name of a server is assigned to more the one computer object
+    Fix a error if the DNS name of a server is assigned to more the one computer object
 version 0.1.20260413
     Return a error message if the requested user has no configured UPN. The UPN is required to use the delegation.config file. If the user has no UPN the function will terminate with a warning message
 version 0.1.20260908
@@ -45,22 +45,80 @@ version 0.1.20260908
 #>
 
 #region global variables
-[int]$_configBuildVersion = "20260413"
 $GC = Get-ADDomainController -Discover -Service "GlobalCatalog" -ForceDiscover
 $GlobalCatalogServer = "$($GC.HostName):3268"
 
 #endregion
 function ConvertFrom-DN2Dns {
+    <#
+    .SYNOPSIS
+        Resolves the DNS domain name contained in a distinguished name.
+    .DESCRIPTION
+        Extracts the domain components from an Active Directory distinguished name
+        and looks up the matching cross-reference object in the forest partitions
+        container. The DNS root of that partition is returned. This is a private
+        helper used when a computer found through the Global Catalog must be queried
+        again in its owning domain.
+    .PARAMETER DistinguishedName
+        Active Directory distinguished name containing one or more DC components.
+        The value can be supplied through the pipeline.
+    .EXAMPLE
+        ConvertFrom-DN2Dns -DistinguishedName "CN=Server01,OU=Servers,DC=contoso,DC=com"
+
+        Returns "contoso.com" when the partition exists in the current forest.
+    .INPUTS
+        System.String.
+    .OUTPUTS
+        System.String. The DNS root of the matching Active Directory partition.
+    .NOTES
+        Requires the ActiveDirectory PowerShell module and access to the current
+        forest configuration partition.
+    #>
+
     param(
         [Parameter(Mandatory= $true, ValueFromPipeline)]
         [string]$DistinguishedName
     )
 
+    # Keep only the domain components from the supplied distinguished name.
     $DistinguishedName = [regex]::Match($DistinguishedName,"(dc=[^,]+,)*dc=.+$",[System.Text.RegularExpressions.RegexOptions]::IgnoreCase).Value
+
+    # Resolve the partition cross-reference and return its DNS root.
     return (Get-ADObject -Filter "nCname -eq '$DistinguishedName'" -Searchbase (Get-ADForest).PartitionsContainer -Properties dnsroot).DnsRoot
 }
 
 function Write-ScriptMessage {
+    <#
+    .SYNOPSIS
+        Writes a request-module message to the host or success pipeline.
+    .DESCRIPTION
+        Centralizes message output for interactive and UI callers. In UI mode, the
+        message is written to the success pipeline so the caller can display it. In
+        console mode, the message is written to the host with a color selected from
+        its severity. This is a private helper used by the exported request commands.
+    .PARAMETER Message
+        Text to display or return.
+    .PARAMETER Severity
+        Message severity. Information uses gray, Warning uses yellow, and Error uses
+        red in console mode. The default is Information.
+    .PARAMETER UIused
+        When $true, writes Message to the success pipeline instead of directly to the
+        host. The default is $false.
+    .EXAMPLE
+        Write-ScriptMessage -Message "Request accepted"
+
+        Displays an informational message in gray on the console host.
+    .EXAMPLE
+        Write-ScriptMessage -Message "User not found" -Severity Warning -UIused $true
+
+        Returns the warning text through the success pipeline for a UI caller.
+    .INPUTS
+        None. Pipeline input is not supported.
+    .OUTPUTS
+        System.String when UIused is $true. No success-pipeline output is produced in
+        console mode.
+    #>
+
     param (
         [Parameter (Mandatory, Position=0)]
         [string] $Message,
@@ -70,9 +128,12 @@ function Write-ScriptMessage {
         [Parameter (Mandatory=$false, Position=2)]
         [bool]$UIused = $false
     )
+
+    # UI callers receive plain text through the success pipeline.
     If ($UIused){
         Write-Output $Message
     } else {
+        # Console callers receive a severity-colored host message.
         switch ($Severity) {
             'Warning' { $ForegroundColor = 'Yellow'}
             'Error'   { $ForegroundColor = 'Red'}
@@ -84,29 +145,38 @@ function Write-ScriptMessage {
 
 <#
 .SYNOPSIS
-    Searching the user object in the entire forest with the user PAC
+    Resolves an Active Directory user and loads its authorization group SIDs.
 .DESCRIPTION
-    This function searches a user in the entire forest and add the all group membership
-    SID as a hashtable to the object
-.PARAMETER USER
-    If the name of the user. The username can be in the UPN or Domain\Name format. if the
-    domain name is not part of the parameter, the user will be searched in the current domain
+    Accepts a user identifier or an existing Active Directory user object. String
+    identifiers can be a user principal name, DOMAIN\UserName, or SAM account name.
+    After resolving the user, the function queries the object again in its owning
+    domain to load TokenGroups, which contains the recursive authorization group SIDs.
+
+    This is a private helper used by New-AdminRequest and Get-AdminStatus.
+.PARAMETER User
+    User to resolve. Supported string formats are UPN, DOMAIN\UserName, and SAM account
+    name. An existing AD user object can also be supplied. An empty string selects the
+    currently logged-on Windows user.
 .INPUTS
-    The name of the user
+    None. Pipeline input is not supported.
 .OUTPUTS
-    ActiveDirectoy.ADUser object
+    Microsoft.ActiveDirectory.Management.ADUser with TokenGroups loaded, or $null when
+    no matching user can be found.
 .EXAMPLE
-    Get-User
-        return the current user object
-.EXAMPLE 
-    Get-User myuser@contoso.com
-        searches for the user with the user principal name myuser@contoso.com in the forest
+    Get-User -User "user@contoso.com"
+
+    Resolves the UPN through the forest Global Catalog and loads TokenGroups from the
+    user's domain.
 .EXAMPLE
-    Get-User contos\myuser
-        searches for the user myuser in the contos domain
+    Get-User -User "CONTOSO\user"
+
+    Resolves the SAM account name in the forest domain whose NetBIOS name is CONTOSO.
 .EXAMPLE
-    Get-User myuser
-        searches for the user myuser in the current domain
+    Get-User -User "user"
+
+    Resolves the SAM account name in the current domain.
+.NOTES
+    Requires the ActiveDirectory PowerShell module and access to the user's domain.
 #>
 function Get-User{
     param(
@@ -114,25 +184,26 @@ function Get-User{
         [Parameter(Mandatory=$true,Position=0)]
         $User
     )
+
+    # Resolve string identifiers according to their naming format.
     if ($User -is [string]){
-        #determine the user parameter format. The function support the format UPN, Domain\UserName, UserName
         switch ($user){
             ""{
-                #searching for the current user object in AD
+                # Resolve the currently logged-on user in the default domain context.
                 $oUser = get-ADuser $env:UserName -Properties ObjectSID,CanonicalName  
                 break
             }
             ({$_ -like "*@*"}){
-                #searching for the user in the UPN format
+                # Search a UPN forest-wide through the previously discovered GC.
                 $oUser = get-ADUser -Filter "UserPrincipalName -eq '$User'" -Server $GlobalCatalogServer -Properties ObjectSID,CanonicalName
                 break
             }
             ({$_ -like "*\*"}){
-                #searching for the user in a specified domain
-                #enumerate all domains in the forest and compare the domain netbios name with the parameter domain
+                # Match DOMAIN\UserName to a forest domain by its NetBIOS name.
                 foreach ($DomainDNS in (GEt-ADForest).Domains){
                     $Domain == Get-ADDomain -Server $DomainDNS
                     if ($Domain.NetBIOSName -eq $user.split("\")[0]){
+                        # Query the selected domain by SAM account name.
                         $oUser = get-aduser -Filter "SamAccountName -eq $($user.split("\")[1])" -Server $DomainDNS -Properties ObjectSID,CanonicalName
                         break
                     }
@@ -140,59 +211,66 @@ function Get-User{
                 breaK
             }
             Default {
+                # Resolve an unqualified SAM account name in the current domain.
                 $oUser = Get-aduser -Filter "SamAccountName -eq '$User'" -Properties ObjectSID,CanonicalName
             }
         }
     } else {
+        # Reuse an AD user object supplied by an internal caller.
         $oUser = $User
     }
-    #To enumerate the recursive memberof SID of the user a 2nd LDAP query is needed. The recursive memberof SID stored in the TokenGroups 
-    # attribute
-    #extrating the domain component from the user distinguishedname
+
+    # Stop when the initial lookup did not resolve a user.
     if ($null -eq $oUser){
-        #can't find user object in the global catalog
         return $null
-    } else {   
-            #enumerating the Domain DNS name from the user distinguished name
-            $userDomainDNSName = $oUser.CanonicalName.split("/")[0]
-            #searching the user with the TokenGroups attribute
-            $oUser = Get-ADUser -LDAPFilter "(ObjectClass=user)" -SearchBase $ouser.DistinguishedName -SearchScope Base -Server $userDomainDNSName -Properties TokenGroups, CanonicalName, UserPrincipalName, SamAccountName
-            return $oUser    
-     }
+    } else {
+        # TokenGroups is not reliably available through the GC, so query the user
+        # again in the owning domain using a base-scope LDAP search.
+        $userDomainDNSName = $oUser.CanonicalName.split("/")[0]
+        $oUser = Get-ADUser -LDAPFilter "(ObjectClass=user)" -SearchBase $ouser.DistinguishedName -SearchScope Base -Server $userDomainDNSName -Properties TokenGroups, CanonicalName, UserPrincipalName, SamAccountName
+        return $oUser
+    }
 }
 
 #region Exported functions
+function Get-UserElevationStatus{
 <#
+.SYNOPSIS
+    Tests whether a user may request elevation on a computer.
 .DESCRIPTION
-    This command validate a user is allowed to get acces to a server. It compares the user SID and the groups the user is member of
-    with the managedby attribute and the delegation config
+    Resolves the specified user and computer in Active Directory and evaluates the
+    configured JIT delegation rules. When enabled, the computer's ManagedBy attribute
+    is checked first. If it does not grant access, matching computer-OU entries in the
+    delegation configuration are compared with the user's SID and recursive TokenGroups.
 .PARAMETER ServerName
-    Is the name of the target computer. This parameter support the format
-    - as DNS Hostname
-    - as server name of the local domain
-    - as NetBiosName in the format <domain>\<servername>
-    - as canonical name in the format <DNS domain>/<ou>/<servername>
+    Target computer. Supported forms are DNS hostname, computer name in the local
+    domain, DOMAIN\ComputerName, and DNS-domain/OU/ComputerName canonical name.
 .PARAMETER UserName
-    is the name ob the user. This paramter support the format
-    -as User principal name
-    -as user name of the local domain
-    -as netbios name in the format <domain>\<servername>
-    -as canonical name in the format <DNS>/<OU>/<serverName>
-.PARAMETER Delegationconfig
-    The full qualified path to the delegation.config JSON file
-.PARAMETER AllowManagedbyAttribute
-    if this parameter is $true, the computer attribute "ManagedBy" will be used to validate a server
+    User to authorize. Supported forms are UPN, user name in the local domain,
+    DOMAIN\UserName, and DNS-domain/OU/UserName canonical name.
+.PARAMETER DelegationConfig
+    Fully qualified path to the delegation configuration JSON file. Its entries map a
+    ComputerOU distinguished name to one or more authorized user or group SIDs.
+.PARAMETER AllowManagedByAttribute
+    When $true, permits the computer's ManagedBy user or group to grant access before
+    the delegation configuration is evaluated. The default is $true.
+.INPUTS
+    None. Pipeline input is not supported.
 .OUTPUTS
-    Return $true if the user is allowed to be elevated on the given computer
+    System.Boolean. Returns $true when a matching authorization is found; otherwise
+    returns $false, including when the user or computer cannot be resolved.
 .EXAMPLE
     Get-UserElevationStatus -ServerName "Server0" -UserName "AA" -DelegationConfig "\\contoso.com\SYSVOL\contoso.com\Just-In-Time\Delegation.config"
+
+    Tests a local-domain computer and user against ManagedBy and the delegation file.
 .EXAMPLE
     Get-UserElevationStatus -ServerName "Server0.contoso.com" -UserName "AA@contoso.com" -DelegationConfig "\\contoso.com\SYSVOL\contoso.com\Just-In-Time\Delegation.config"
-.EXAMPLE
-    Get-UserElevationStatus -ServerName "Server0" -UserName "AA" 
 
+    Resolves both objects forest-wide using their DNS-based names.
+.NOTES
+    Requires the ActiveDirectory PowerShell module and read access to the delegation
+    configuration when delegation checking is enabled.
 #>
-function Get-UserElevationStatus{
     param(
         [Parameter (mandatory=$true, Position=0)]
         [string]$ServerName,
@@ -201,31 +279,32 @@ function Get-UserElevationStatus{
         [Parameter (Mandatory=$false, Position=2)]
         [string]$DelegationConfig,
         [Parameter (Mandatory=$false)]
-        [bool]$AllowManagebyAttribute = $true
+        [Alias('AllowManagebyAttribute')]
+        [bool]$AllowManagedByAttribute = $true
     )
-    #Import the delegation.config file
+
+    # Resolve both principals before evaluating either authorization source.
     try {
         #region user
         $user = $null
         switch -Wildcard ($UserName) {
-            #the parameter UserName is formated as user principal name
+            # Resolve a UPN through the GC, then load TokenGroups from its domain.
             "*@*" {  
                 $user = Get-ADUser -Filter "UserPrincipalName -eq '$UserName'" -Server $GlobalCatalogServer -Properties CanonicalName
                 $userdomain = [regex]::Match($User.CanonicalName,"[^/]+").Value
                 $user = Get-ADUser -LDAPFilter '(ObjectClass=User)' -SearchBase $user.DistinguishedName -SearchScope Base -Server $userdomain -Properties "TokenGroups"
                 break
             }
-            #the parameter UserName is formated as 
+            # Resolve a canonical DNS-domain/path/user name.
             "*/*"{
                 $uhelper = [regex]::Match($userName,"^([^/]+).*?/([^/]+)$")
                 $user = Get-ADUser -Identity $uhelper.Groups[2].Value -Server $uhelper.Groups[1].Value
                 $user = Get-ADUser -LDAPFilter '(ObjectClass=User)' -SearchBase $user.DistinguishedName -SearchScope Base -Server $uhelper.Groups[1].Value -Properties "TokenGroups"
                 break
             }
-            #the parameter UserName is formated as netbios domain name with username
+            # Resolve DOMAIN\UserName by matching the domain NetBIOS name.
             "*\*" {
                 $uhelper = [regex]::Match($UserName,"([^\\]+)\\(.+)")
-                #getting the netbios name from each domain in the forest
                 Foreach ($domainRoot in (Get-ADForest).Domains){
                     $ADDomain = Get-ADDomain -server $domainRoot
                     if ($ADDomain.NetbiosName -eq $uhelper.Groups[1].Value){                    
@@ -236,7 +315,7 @@ function Get-UserElevationStatus{
                 }
                 break
             }
-            #the parameter UserName is formated as local domain user
+            # Resolve an unqualified user in the current domain.
             Default {
                 $user = Get-ADUser -Identity $UserName      
                 $user = Get-ADUser -LDAPFilter '(ObjectClass=User)' -SearchBase $user.DistinguishedName -SearchScope Base -Properties "TokenGroups"
@@ -245,10 +324,11 @@ function Get-UserElevationStatus{
         }
         #endregion
         #region searching computer
+        # Resolve the computer according to its supplied naming format.
         switch -Wildcard ($ServerName) {
             "*.*" {
                 $Computer = Get-ADComputer -Filter "DNSHostName -eq '$ServerName'" -Server $GlobalCatalogServer
-                #The global catalog does not contains the ManagedBy attribute
+            # The GC omits ManagedBy, so repeat the query in the owning domain.
                 if ($Computer.GetType().Name -ne "ADcomputer"){
                     Write-Host "The computer $serverName is not available in AD. Please validate the DNS name of the computer object (Get-UserElevationState)" -ForegroundColor Red  
                     return $false
@@ -270,20 +350,21 @@ function Get-UserElevationStatus{
                 $uhelper = [regex]::Match($ServerName,"([^\\]+)\\(.+)")
                 $DnsDomainName = (Get-ADObject -Filter "netbiosname -eq '$($uhelper.Groups[1].Value))'" -SearchBase (Get-ADForest).PartitionsContainer -Properties dnsroot).dnsroot
                 if ($DnsDomainName -eq ""){
-                    Write-Host "The computer $DnsDomainName is not available in AD. Please validate the computer is availabe (Get-UserElevationState)" -ForegroundColor Red
+                    Write-Host "The computer $DnsDomainName is not available in AD. Please validate the computer is available (Get-UserElevationState)" -ForegroundColor Red
                     return $false
                 }
                 $Computer = Get-ADComputer -Filter "CN -eq '$($uhelper.Groups[2].Value)'" -Server $uhelper.Groups[1].Value -server $DnsDomainName
                 if ($Computer.GetType().Name -ne "ADcomputer"){
-                    Write-Host "The comuter $serverName is not available in AD. Please validate the computer is availabe (Get-UserElevationState)" -ForegroundColor Red
+                    Write-Host "The computer $serverName is not available in AD. Please validate the computer is available (Get-UserElevationState)" -ForegroundColor Red
                     return $false
                 }    
                 break
             }
             Default{
+                # Resolve an unqualified computer in the current domain.
                 $Computer = Get-ADcomputer -Filter "CN -eq '$ServerName'" -Properties Managedby
                 if ($Computer.GetType().Name -ne "ADcomputer"){
-                    Write-Host "The computer $serverName is not available in AD. Please validate the computer is availble (Get-UserElevationState)" -ForegroundColor Red
+                    Write-Host "The computer $serverName is not available in AD. Please validate the computer is available (Get-UserElevationState)" -ForegroundColor Red
                     return $false
                 }
                 break
@@ -292,6 +373,7 @@ function Get-UserElevationStatus{
         #endregion
     }
     catch [Microsoft.ActiveDirectory.Management.ADIdentityNotFoundException] {
+        # A missing identity is an authorization failure, not a terminating result.
         if ($null -eq $user){
             Write-Host "Cannot find user $userName " -ForegroundColor Red
         } else {
@@ -299,8 +381,9 @@ function Get-UserElevationStatus{
         }
         return $false
     }
-    #check the ManagedBy attribute is available 1st if not use delegation.config
-    if ($null -ne $Computer.ManagedBy -and $AllowManagebyAttribute){
+
+    # Grant access when the user is the ManagedBy principal or belongs to its group.
+    if ($null -ne $Computer.ManagedBy -and $AllowManagedByAttribute){
         $oManagedBy = Get-ADObject -Filter "DistinguishedName -eq '$($Computer.ManagedBy)'" -Server $GlobalCatalogServer -Properties ObjectSID, CanonicalName
         Switch ($oManagedBy.ObjectClass){
             "User"{
@@ -320,7 +403,8 @@ function Get-UserElevationStatus{
             }
         }
     }
-    # no match with ManagedBy attribute, using delegation.config
+
+    # Compare the user and recursive group SIDs with delegations for the computer OU.
     if ($config.EnableDelegation){
         $oDelegation = Get-Content $DelegationConfig | ConvertFrom-Json 
         $ServerDelegations = $oDelegation | Where-Object {$Computer.DistinguishedName -like "*$($_.ComputerOU)"} 
@@ -335,57 +419,70 @@ function Get-UserElevationStatus{
             }
         }
     }
+
+    # No configured authorization source granted access.
     return $false
 }
 #endregion
 
-<#
-New-AdminRequest
-.SYNOPSIS
-    requesting administrator privileges to a server
-.DESCRIPTION
-    The New-JITRequestAdminAccess creates a new Event to request administrator privileges on a server.
-    This function validates the parameters and create the required event log entry
-.PARAMETER Server
-    Is the name of the server. The server can be in the format hostname or FQDN. This parameter is mandatory
-.PARAMETER Minutes
-    Is the requested a mount of administrator time in minutes. If the parameter is 0 or empty the configured
-    default value time will be used. The parameter cannot exceed the maximum elevation time. If the parameter
-    is greater the configured maximum elevation time, the time will be reduced to the maximum elevation time
-.PARAMETER User
-    This parameter is used if the request is for a different user then the calling user
-.PARAMETER UIused
-    This is a optional parameter to use the output for the PS GUID. If this parameter is $false (Default value)
-    the output will formated
-.INPUTS
-    The name of the server on postion 0
-    the amount of minutes on position 1
-.OUTPUTS
-    None
-.EXAMPLE
-    New-AdminAccess myhost.contoso.com
-        Create a administrator request for the current user for server myhost.compunter.com
-    New-AdminAccess myhost
-        Create a administrator request for the current user for the server myhost. My host must exists
-        in the forest necessarily in the current domain
-    New-AdminAccess myhost.contoso.com 30
-        Request administrator privileges for myhost.contoso.com for 30 minutes
-    New-AdminAccess -Server myhost.contoso.com -Minutes 30 -user myuser@contoso.com
-        Request administrator privileges for myhost.contoso.com for 30 minutes for user myuser@contoso.com
-#>
 function New-AdminRequest{
+    <#
+.SYNOPSIS
+    Creates a just-in-time administrator access request for a server.
+.DESCRIPTION
+    Loads the JIT configuration, resolves the requesting user and target computer in
+    Active Directory, enforces the configured concurrent-server and delegation rules,
+    and writes the validated request as JSON to the configured Windows event log.
+
+    For console callers, the requested duration is constrained to the configured
+    minimum, default, and maximum values. UI callers are expected to provide a duration
+    that has already been validated by the UI.
+.PARAMETER Server
+    Target computer name. Supported forms are an unqualified computer name, DNS
+    hostname, DNS-domain\ComputerName, or DOMAIN\ComputerName.
+.PARAMETER ServerDomain
+    Optional DNS domain used to resolve an unqualified Server name. This is useful in
+    multi-domain or multi-forest environments. Without it, the Global Catalog is used.
+.PARAMETER Minutes
+    Requested elevation duration in minutes. In console mode, 0 selects the configured
+    default, values below 15 become 15, and values above MaxElevatedTime are reduced to
+    that configured maximum.
+.PARAMETER User
+    User receiving administrator access. Supported values are accepted by Get-User. If
+    omitted, the currently logged-on Windows user is used.
+.PARAMETER UIused
+    When $true, returns status messages through the success pipeline for a UI caller and
+    skips the console-specific duration normalization. The default is $false.
+.INPUTS
+    None. Pipeline input is not supported.
+.OUTPUTS
+    System.String status messages when UIused is $true. In console mode, messages are
+    written to the host and no success-pipeline object is returned.
+.EXAMPLE
+    New-AdminRequest -Server "myhost.contoso.com"
+
+    Requests the configured default elevation duration for the current user.
+.EXAMPLE
+    New-AdminRequest -Server "myhost.contoso.com" -Minutes 30 -User "user@contoso.com"
+
+    Requests 30 minutes of administrator access for the specified user.
+.EXAMPLE
+    New-AdminRequest -Server "myhost" -ServerDomain "contoso.com" -Minutes 30
+
+    Resolves an unqualified server name in the specified DNS domain.
+.NOTES
+    Requires Active Directory access, the JIT configuration, and permission to write
+    to the configured Windows event log.
+    #>
+
     [CmdletBinding()]
     param(
-        # The name of the server requesting administrator privileges
         [Parameter(Mandatory = $true, Position=0 )]
         [string]$Server,
-        # The amount of minutes to request administrator privileges
-        #In Multi Forest environments you can provide the domain name instead of the FQDN
         [Parameter(Mandatory = $false)]
         [string]$ServerDomain,
         [Parameter(Mandatory = $false, Position=1)]
         [int]$Minutes = 0,
-        #If the request is for a different user
         [Parameter(Mandatory = $false)]
         [string]$User,
         [Parameter (Mandatory = $false)]
@@ -394,17 +491,13 @@ function New-AdminRequest{
 
     Write-Verbose "Preparing administrator request for server '$Server'."
 
-    #reading the current configuration
+    # Load all request limits, naming rules, and event-log settings.
     $config = Get-JITconfig
     Write-Verbose "Loaded JIT configuration for domain '$($config.Domain)'; delegation enabled: $($config.EnableDelegation)."
 
-    #The following part is only required if UI is NOT used
+    # Console requests normalize their duration against the configured limits.
     if (!$UIused) {
-
         #region validation of minutes
-        #if the value must be between 15 and the maximum configured value. If the value is lower then 15
-        #then the minutes variable will be set to 15
-        #if the parameter is 0 the parameter will be changed to the configured default value 
         switch ($Minutes) {
             0 {
                 $Minutes = $config.DefaultElevatedTime
@@ -423,12 +516,12 @@ function New-AdminRequest{
     }
 
     #region user evaluation
-    if (!$User) { # no user provided
-        # get current logged on user
+    # Default to the currently logged-on user when no recipient was supplied.
+    if (!$User) {
         $User = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name.split("\")[1]
     }
 
-    #terminate the function if the user object is not available in the AD forest
+    # Resolve the user and enforce the configured concurrent-elevation limit.
     Write-Verbose "Resolving requested user '$User'."
     $oUser = Get-User $User
     if ($Null -eq $oUser){
@@ -439,6 +532,8 @@ function New-AdminRequest{
     if ((Get-AdminStatus $oUser).count -gt $config.MaxConcurrentServer){
         Write-ScriptMessage "Elevation limit reached. retry in a couple of minutes" -UIused $UIused
     }
+
+    # Delegation accepts UPN and canonical-name identities; use the latter when UPN is unset.
     $authorizationUserName = [string]$oUser.UserPrincipalName
     if ([string]::IsNullOrWhiteSpace($authorizationUserName)) {
         $authorizationUserName = [string]$oUser.CanonicalName
@@ -450,15 +545,11 @@ function New-AdminRequest{
     }
     #endregion
 
-    #if the server variable contains a . the hostname is FQDN. The function searches for the computer
-    #object with this DNSHostName attribute. This function does not query the DNS it self. It is mandatory
-    #the primary DNS name is registered.
-    #if the server parameter is not as FQDN the function searches for the computername in the AD forest
-    #If multiple computers with the same name exists if the forest the function return a $null object
+    # Resolve the computer by NetBIOS-qualified, DNS, or unqualified name.
     Write-Verbose "Resolving target computer '$Server'$(if ($ServerDomain) { " in domain '$ServerDomain'" })."
     switch ($Server) {
         {$_ -like "*\*"}{
-            #Hostname format is NetBIOS
+            # Resolve DNS-domain\ComputerName or DOMAIN\ComputerName.
             $oNetBiosServerName = $server.Split("\")
             if ($oNetBiosServerName[0] -like "*.*"){
                 $oserver = Get-ADComputer -Filter "Name -eq '$($oNetBiosServerName[1])'" -Server $oNetBiosServerName[0] -Properties CanonicalName, ManagedBy
@@ -473,11 +564,12 @@ function New-AdminRequest{
             break
         }
         {$_ -like "*.*"}{
-            #Hostname format is DNS ServerName
+            # Resolve a DNS hostname forest-wide through the GC.
             $oServer = Get-ADcomputer -Filter "DNSHostName -eq '$Server'" -Server $GlobalCatalogServer -Properties CanonicalName, ManagedBy
             break
         }
         Default {
+            # Use an explicit domain when supplied; otherwise query the GC.
             if ($ServerDomain -eq ""){
                 $oServer = Get-ADComputer -Filter "Name -eq '$Server'" -Server $GlobalCatalogServer -Properties CanonicalName, ManagedBy
             } else {
@@ -485,21 +577,18 @@ function New-AdminRequest{
             }
         }
     }
-    #validate the server object exists. If the serverobject doesn't exists terminate the function
+
+    # Reject missing or ambiguous computer objects before creating a request.
     if ($null -eq $oServer){
         Write-ScriptMessage -Message "Can't find a server $server in the forest" -Severity Warning -UIused $UIused
         return
     }
-    #if multiple server object with the same name exists in the forest, terminate the function
     if ($oServer.GetType().Name -eq "Object[]"){
         Write-ScriptMessage -Message "Multiple computer found with this name $server in the current forest, Please use the DNS hostname instead " -Severity Warning -UIused $UIused 
         return
     }
     Write-Verbose "Resolved target computer DN '$($oServer.DistinguishedName)' with DNS hostname '$($oServer.DNSHostName)'."
-    # the group name in multidomain mode is
-    #   <AdminPreFix><Dns Domain Name><Seperator><server short name>
-    # in single mode
-    #   <AdminPreFix><Server name>
+    # Build the target admin-group name according to the deployment mode.
     if ($config.EnableMultiDomainSupport){
         #$ServerDomainDN = [regex]::Match($oserver.DistinguishedName,"DC=.*").value
         #$ServerDomainDNSName = (Get-ADForest).domains | Where-Object {(Get-ADDomain -Server $_ -ErrorAction SilentlyContinue).DistinguishedName -eq $ServerDomainDN}
@@ -517,7 +606,8 @@ function New-AdminRequest{
         Write-ScriptMessage -Message "Missing DNS Hostname entry on the computer object. Aborting elevation" -Severity Warning -UIused $UIused
         return
     }
-    #if delegation mode is activated, the function validates if the user is allowed to request access to this server
+
+    # Enforce per-server delegation before recording the elevation request.
     if ($config.EnableDelegation) {
         Write-Verbose "Checking delegation for '$authorizationUserName' on '$($oServer.DNSHostName)' using '$($config.DelegationConfigPath)'."
         if (!(Get-UserElevationStatus -ServerName $oServer.DNSHostName -UserName $authorizationUserName -DelegationConfig $config.DelegationConfigPath)){
@@ -526,7 +616,8 @@ function New-AdminRequest{
         }
         Write-Verbose "Delegation check succeeded."
     }
-    #Prepare the eventlog entry and write the JIT request to the Jit eventlog
+
+    # Serialize the validated request for the event-driven elevation processor.
     $ElevateUser = New-Object PSObject
     $ElevateUser | Add-Member -MemberType NoteProperty -Name "UserDN" -Value $oUser.DistinguishedName
     $ElevateUser | Add-Member -MemberType NoteProperty -Name "ServerGroup" -Value $ServerGroupName
@@ -541,67 +632,106 @@ function New-AdminRequest{
     }
     $ElevateUser | Add-Member -MemberType NoteProperty -Name "CallingUser" -Value $callingUser
     $EventMessage = ConvertTo-Json $ElevateUser
+
+    # Submit the request and notify the console or UI caller.
     Write-Verbose "Writing elevation request for group '$ServerGroupName' and $Minutes minute(s) to '$($config.EventLog)' with event ID $($config.ElevateEventID)."
     Write-EventLog -LogName $config.EventLog -Source $config.EventSource -EventId $config.ElevateEventID -Message $EventMessage
     Write-ScriptMessage -Message "The $($oUser.DistinguishedName) will be elevated soon" -Severity Information -UIused $UIused
 }
 
-<#
-This function shows the current request status for a user. 
-.PARAMETER User
-    Is the name of the user
-.PARAMETER UIused
-    Is a internal parameter for show messages in the UI mode
-.INPUTS
-    user object 
-.OUTPUTS
-    a list of server group name where the user is member of
-#>
 function Get-AdminStatus{
+    <#
+.SYNOPSIS
+    Returns the current just-in-time administrator assignments for a user.
+.DESCRIPTION
+    Resolves the supplied user and inspects the configured JIT administrator groups
+    with Active Directory member TTL information enabled. Each matching membership is
+    translated into a server name and its remaining lifetime in whole minutes. A
+    membership without TTL is reported as permanent.
+.PARAMETER User
+    User name or Active Directory user object to inspect. String values are resolved by
+    Get-User. If omitted, the currently logged-on user's SAM account name is used. The
+    value can be supplied through the pipeline.
+.PARAMETER UIused
+    When $true, writes a formatted status message for each assignment instead of
+    returning status objects. The default is $false.
+.INPUTS
+    System.String or Microsoft.ActiveDirectory.Management.ADUser.
+.OUTPUTS
+    PSCustomObject values with Server and TTL properties when UIused is $false. No
+    success-pipeline objects are returned in UI mode.
+.EXAMPLE
+    Get-AdminStatus
+
+    Returns active JIT administrator assignments for the current user.
+.EXAMPLE
+    Get-AdminStatus -User "user@contoso.com"
+
+    Resolves the specified user and returns one status object per matching JIT group.
+.EXAMPLE
+    Get-ADUser -Identity "user" | Get-AdminStatus
+
+    Checks assignments for an existing Active Directory user object from the pipeline.
+.NOTES
+    Requires the ActiveDirectory PowerShell module and permission to read the configured
+    JIT groups with member time-to-live information.
+    #>
+
     param(
-    # Name of the user
-    [Parameter(Mandatory=$false, Position=0, ValueFromPipeline = $true)]
-    $User,
-    [Parameter(Mandatory=$False)]
-    [bool]$UIused = $False
+        [Parameter(Mandatory=$false, Position=0, ValueFromPipeline = $true)]
+        $User,
+        [Parameter(Mandatory=$False)]
+        [bool]$UIused = $False
     )
+
+    # Default to the current Windows user, then load the JIT configuration.
     if ($null -eq $User){
         $user = $env:USERNAME
     }
     $config = Get-JITconfig
+
+    # Resolve string identifiers while preserving an AD user object from the pipeline.
     if ($user -is [string]){
         $User = Get-User $User
     }
     $retVal = @()
+
+    # Stop when the user cannot be resolved in Active Directory.
     if ($null -eq $User){
         Write-ScriptMessage -Message "cannot find user " -Severity Warning -UIused $UIused
         Return
     }
+
+    # Enumerate configured JIT groups with expiring-membership metadata.
     foreach ($Group in (Get-ADGroup -Filter * -SearchBase $config.OU -Properties Members -ShowMemberTimeToLive)){
         $UserisMember = $Group.Members | Where-Object {$_ -like "*$($User.DistinguishedName)"}
-        If ($null -ne $UserisMember){            
+        If ($null -ne $UserisMember){
+            # Decode the server identity from the configured group-name convention.
             if ($config.EnableMultiDomainSupport){
                 $Domain = (($Group.Name).Substring(($config.AdminPreFix).Length)).Split($config.DomainSeparator)[0]
                 $Server = (($Group.Name).Substring(($config.AdminPreFix).Length)).Split($config.DomainSeparator)[1]
-                #$Domain = [regex]::Match($Group.Name,"$($config.AdminPreFix)([^#]+)").Groups[1].Value
-                #$Server = [regex]::Match($Group.Name,"$($config.AdminPreFix)[^#]+#(.+)").Groups[1].Value
                 $TTLsec = [regex]::Match($UserisMember, "\d+").Value
             } else {
                 $Server = (($Group.Name).Substring(($config.AdminPreFix).Length))
-                #$Server = [regex]::Match($Group.Name,"$($config.AdminPreFix)(.+)").Groups[1].Value
                 $TTLsec = [regex]::Match($UserisMember, "\d+").Value
             }
+
+            # Convert AD's TTL seconds to whole minutes; no TTL means permanent.
             if ($TTLsec -eq ""){
                 $TimeValue = "permanent"    
             } else {
                 $TimeValue = [math]::Floor($TTLsec / 60)
-            }   
+            }
+
+            # Return a stable object shape for every active server assignment.
             $obj = new-Object PSObject
             $obj | Add-Member -MemberType NoteProperty -Name "Server" -Value "$domain\$server"
             $obj | Add-Member -MemberType NoteProperty -Name "TTL"    -Value "$TimeValue"
             $retVal += $obj
         }
     }
+
+    # UI callers receive formatted host messages; automation callers receive objects.
     if ($UIused){
         $retVal |ForEach-Object{Write-scriptMessage -Message "$User is elevated on $($_.Server) for $($_.TTL) minutes"}
     } else {
