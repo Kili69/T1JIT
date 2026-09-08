@@ -199,11 +199,19 @@ public class JitConfiguration
 		return searchBaseElement
 			.EnumerateArray()
 			.Where(item => item.ValueKind == JsonValueKind.String)
-			.Select(item => NormalizeLdapPath(item.GetString()))
+			.Select(item => NormalizeT1SearchBase(item.GetString()))
 			.Where(path => !string.IsNullOrWhiteSpace(path))
 			.Cast<string>()
 			.Distinct(StringComparer.OrdinalIgnoreCase)
 			.ToList();
+	}
+
+	private static string? NormalizeT1SearchBase(string? value)
+	{
+		var trimmed = value?.Trim().Trim('"', '\'');
+		return string.Equals(trimmed, "<DomainRoot>", StringComparison.OrdinalIgnoreCase)
+			? "<DomainRoot>"
+			: NormalizeLdapPath(trimmed);
 	}
 
 	// This helper method reads the DelegationConfigPath from the root element of the JSON document. 

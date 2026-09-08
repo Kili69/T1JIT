@@ -828,11 +828,17 @@ public class ActiveDirectoryService : IActiveDirectoryService
         // This allows the JIT configuration to define the search bases that the service will use for Active Directory queries, which can be useful for dynamically controlling the scope of searches based on JIT settings. If there are no valid T1SearchBaseLdapPaths in the JIT configuration, we log an error and throw an exception to prevent the service from starting without valid search bases, which are essential for its operation.
         if (jitConfig.T1SearchBaseLdapPaths.Count > 0)
         {
+            var resolvedSearchBases = jitConfig.T1SearchBaseLdapPaths
+                .Select(searchBase => QualifySearchBaseForDomain(searchBase, _domainLdapPath))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
             _logger.LogInformation(
-                "Server search bases loaded from JIT config file {FilePath}. Count: {Count}",
+                "Server search bases loaded from JIT config file {FilePath}. Count: {Count}. ResolvedBases=[{ResolvedBases}]",
                 jitConfig.JitConfigPath,
-                jitConfig.T1SearchBaseLdapPaths.Count);
-            return jitConfig.T1SearchBaseLdapPaths;
+                resolvedSearchBases.Count,
+                string.Join("; ", resolvedSearchBases));
+            return resolvedSearchBases;
         }
         // If there are no valid T1SearchBaseLdapPaths in the JIT configuration, we log an error and throw an exception to prevent the service from starting without valid search bases. 
         // This is a critical configuration issue, as the service relies on having valid search bases to function properly. By throwing an exception, we ensure that this issue is addressed during deployment or configuration rather than allowing the service to run in a broken state.
@@ -843,6 +849,27 @@ public class ActiveDirectoryService : IActiveDirectoryService
         // This forces administrators to address the configuration issue before the service can run, ensuring that it does not operate in a broken state.
         throw new InvalidOperationException(
             $"No valid T1Searchbase LDAP paths were found in JIT config file '{jitConfig.JitConfigPath}'.");
+    }
+
+    private static string QualifySearchBaseForDomain(string searchBase, string domainLdapPath)
+    {
+        if (searchBase.Equals("<DomainRoot>", StringComparison.OrdinalIgnoreCase))
+        {
+            return domainLdapPath;
+        }
+
+        var searchBaseDn = searchBase.StartsWith("LDAP://", StringComparison.OrdinalIgnoreCase)
+            ? searchBase["LDAP://".Length..]
+            : searchBase;
+        if (Regex.IsMatch(searchBaseDn, @"(^|,)\s*DC=", RegexOptions.IgnoreCase))
+        {
+            return $"LDAP://{searchBaseDn}";
+        }
+
+        var domainDn = domainLdapPath.StartsWith("LDAP://", StringComparison.OrdinalIgnoreCase)
+            ? domainLdapPath["LDAP://".Length..]
+            : domainLdapPath;
+        return $"LDAP://{searchBaseDn},{domainDn}";
     }
 
     // This helper method resolves the delegation rules from the JIT configuration. 
