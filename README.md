@@ -31,10 +31,13 @@
     - [Remove-JITServerOU](#remove-jitserverou)
     - [Add-jitdelegation](#add-jitdelegation)
     - [Add-JITServerOU](#add-jitserverou)
-- [Restrict KjitWeb access to trusted workstations with IPsec](#restrict-kjitweb-access-to-trusted-workstations-with-ipsec)
+- [Restrict KjitWeb access to trusted workstations](#restrict-kjitweb-access-to-trusted-workstations)
+    - [Restrict access using IPsec](#restrict-access-using-ipsec)
+    - [Restrict access using mutual authentication](#restrict-access-using-mutual-authentication)
 - [Developer information](#developer-information)
     - [Solution Structure](#solution-structure)
     - [Versioning](#versioning)
+    - [Creating a release](#creating-a-release)
 - [Contributing](#contributing)
 - [License](#-license)
 - [Updates](#updates)
@@ -224,6 +227,11 @@ The KJIT-Web service can be configured with the appsettings.json file. The confi
     - LogoPath: The path to the logo for the web interface. The default value is "/images/logo.png". The logo should be a square image with a size of 100x100 pixels.
     - CompanyName: The name of the company for the web interface. The default value is "Contoso Ltd.". The company name will be displayed in the header of the web interface.
 - AllowedHosts: The allowed hosts for the web interface. The default value is "*". The web interface will only be accessible from the specified hosts. To allow access from any host, set the value to "*".
+- DebugLog: The optional debug log configuration.
+    - If `DebugLog:Path` is omitted, KjitWeb writes `KjitWeb\debug.log` below the AppData directory of the account running the service. The standard Network Service installation therefore uses the Network Service profile rather than a hard-coded local path.
+    - The active log is limited to 1 MiB. Before an entry would exceed the limit, the current file is moved to `debug.sav`; an older `debug.sav` is replaced. Oversized individual entries are truncated and marked explicitly.
+    - A custom path can still be configured with `DebugLog:Path` or the `DebugLog__Path` environment variable. The configured service account must have write permission to that directory.
+    - When KjitWeb starts as a Windows service, it writes Application event `5001` with source `KjitWeb`. The event message contains the fully resolved debug log path.
 
 ## Setup addtional JIT servers
 
@@ -332,9 +340,13 @@ The Add-JITServerOU command can be used to add a server OU for the JIT-Solution.
     Add-JITServerOU -OU "OU=Server,DC=domain,DC=local"
         This will add the "OU=Server,DC=domain,DC=local" OU for the JIT-Solution. Any computer objects located in this OU or its child OUs will be considered as target servers for the JIT-Solution.
 
-## Restrict KjitWeb access to trusted workstations with IPsec
+## Restrict KjitWeb access to trusted workstations
 
-KjitWeb is a privileged access application and should only be reachable from trusted, managed workstations. In an Active Directory domain, Windows Defender Firewall with IPsec can enforce this restriction without changing the KjitWeb application. IPsec authenticates the client computer with its Kerberos computer account before Windows permits a connection to the KjitWeb TCP port. KjitWeb then performs its existing user authentication separately.
+KjitWeb is a privileged access application and should only be reachable from trusted, managed workstations. Two independent controls are available for restricting the source workstation: IPsec with Kerberos computer authentication, or mutual TLS authentication with an organization-issued workstation certificate. Both controls operate before KjitWeb performs its existing user authentication and JIT delegation checks.
+
+### Restrict access using IPsec
+
+In an Active Directory domain, Windows Defender Firewall with IPsec can enforce the workstation restriction without changing the KjitWeb application. IPsec authenticates the client computer with its Kerberos computer account before Windows permits a connection to the KjitWeb TCP port.
 
 The resulting access requirements are:
 
@@ -343,7 +355,7 @@ The resulting access requirements are:
 
 IPsec controls the source computer, not the user. Do not add user accounts to the trusted-workstation group.
 
-### Prerequisites
+#### Prerequisites
 
 - The KjitWeb server and trusted workstations are joined to the Active Directory domain or to domains with a working trust relationship.
 - The clients can reach a domain controller and obtain Kerberos tickets.
@@ -354,7 +366,7 @@ IPsec controls the source computer, not the user. Do not add user accounts to th
 
 IPsec authenticates and can protect the network connection, but HTTPS is still recommended for KjitWeb. In particular, Kerberos authentication by itself does not turn HTTP into a generally encrypted application channel, and Basic Authentication must never be transported over unencrypted HTTP.
 
-### 1. Create the trusted-workstation group
+#### 1. Create the trusted-workstation group
 
 Create a dedicated global security group, for example:
 
@@ -366,7 +378,7 @@ Add the **computer accounts** of the approved administrative workstations to thi
 
 Manage this group as a privileged access control. Use a controlled process for additions and removals, review membership regularly, and do not nest broad groups such as `Domain Computers`.
 
-### 2. Create a pilot Group Policy deployment
+#### 2. Create a pilot Group Policy deployment
 
 Create separate GPOs for the KjitWeb server and the trusted workstations. Link them first to small pilot OUs containing only the test systems:
 
@@ -385,7 +397,7 @@ Computer Configuration
 
 Use the Domain profile. Avoid enabling the rules for Public networks unless this is an explicit requirement.
 
-### 3. Configure the client IPsec rule
+#### 3. Configure the client IPsec rule
 
 In the trusted-client GPO, create a **Connection Security Rule** with the following intent:
 
@@ -400,7 +412,7 @@ In the trusted-client GPO, create a **Connection Security Rule** with the follow
 
 Requiring authentication gives the strongest enforcement. Requesting authentication is useful during the pilot phase while the server policy is being deployed. Restrict the endpoints and port as narrowly as the supported Windows version and the organization's IPsec policy permit.
 
-### 4. Configure the KjitWeb server IPsec rule
+#### 4. Configure the KjitWeb server IPsec rule
 
 In the server GPO, create the matching **Connection Security Rule**:
 
@@ -414,7 +426,7 @@ In the server GPO, create the matching **Connection Security Rule**:
 
 Use transport mode unless the network design specifically requires an IPsec tunnel. Ensure that the selected integrity and encryption algorithms are permitted by the organization's security baseline on both clients and server.
 
-### 5. Require secure inbound connections
+#### 5. Require secure inbound connections
 
 In the server GPO, create an inbound Windows Firewall rule for the KjitWeb port:
 
@@ -432,7 +444,7 @@ The KjitWeb installer can create a normal inbound allow rule named similar to `K
 
 Do not use `AllowedHosts` as a workstation security boundary. ASP.NET Core host filtering validates the HTTP `Host` header and does not authenticate the client computer.
 
-### 6. Deploy without locking out administrators
+#### 6. Deploy without locking out administrators
 
 Use this rollout order:
 
@@ -447,7 +459,7 @@ Use this rollout order:
 
 Keep console access available until both a positive and a negative test have succeeded. Do not start by applying a mandatory server rule to all systems, because a mismatched client rule or algorithm suite can block every remote connection.
 
-### 7. Validate and troubleshoot
+#### 7. Validate and troubleshoot
 
 Refresh Group Policy on the server and test workstation:
 
@@ -480,13 +492,101 @@ Get-NetFirewallRule -PolicyStore ActiveStore |
 
 Also inspect the Windows event logs under **Applications and Services Logs > Microsoft > Windows > Windows Firewall With Advanced Security** and verify Kerberos failures in the System and Security logs. Common causes are stale computer-group membership, incorrect DNS records, clock skew, unavailable domain controllers, inconsistent IPsec algorithms, NAT between endpoints, or an ordinary firewall rule that still permits the port.
 
-### Operational maintenance
+#### Operational maintenance
 
 - Review membership of `KjitWeb-Trusted-Workstations` regularly.
 - Remove retired or compromised computer accounts immediately and allow Active Directory replication to complete.
 - Monitor changes to the group and to the IPsec GPOs.
 - Retest both approved and unapproved workstations after firewall, network, operating-system, or security-baseline changes.
 - Keep HTTPS enabled even when IPsec is required.
+
+### Restrict access using mutual authentication
+
+KjitWeb can optionally require mutual TLS (mTLS). With mTLS, Kestrel presents the KjitWeb server certificate and also requires the workstation to present a trusted client certificate. KjitWeb validates the client certificate chain and requires every enhanced key usage (EKU) OID configured in `MutualTls:RequiredEkuOids`.
+
+mTLS is disabled by default and the KjitWeb installer does not ask whether it should be enabled. Enabling it is an explicit post-installation security decision. The KjitWeb service must be restarted after changing the configuration.
+
+When mTLS is enabled:
+
+- HTTPS connections without a client certificate are rejected during the TLS handshake.
+- Client certificates with an invalid trust chain or a missing required EKU are rejected.
+- HTTP requests are rejected with status `403`, preventing an HTTP binding from bypassing mTLS.
+- An empty `RequiredEkuOids` list prevents KjitWeb from starting, so an incomplete configuration cannot silently weaken the workstation restriction.
+
+#### 1. Prepare the certificate infrastructure
+
+Issue a TLS server certificate to the KjitWeb server. Its subject alternative name must contain the DNS name used by clients, for example `kjitweb.contoso.com`. Install the certificate and its private key in `Local Computer\Personal`. Grant `NT AUTHORITY\NETWORK SERVICE` read access to the private key because the standard installation runs KjitWeb under Network Service.
+
+Create a dedicated AD CS certificate template for the trusted workstations. The workstation certificate should have:
+
+- A non-exportable private key, preferably protected by a TPM.
+- The workstation DNS name in the subject alternative name.
+- The standard Client Authentication EKU `1.3.6.1.5.5.7.3.2`.
+- A private enterprise EKU dedicated to KjitWeb, for example `1.3.6.1.4.1.55555.1.1`. Replace this example with an OID below the organization's registered enterprise OID.
+
+Grant enroll and auto-enroll permissions for the workstation template only to a dedicated computer group such as `KjitWeb-Trusted-Workstations`. Do not grant enrollment to `Domain Computers`. The dedicated EKU is an authorization boundary only when the CA issues certificates containing it exclusively to approved workstations.
+
+Ensure that the KjitWeb server trusts the issuing CA and can reach the certificate revocation list or OCSP endpoint. Revocation checking is enabled by default.
+
+#### 2. Configure the KjitWeb HTTPS endpoint and mTLS
+
+Edit `C:\Program Files\KJITWEB\appsettings.Production.json`. Preserve the existing settings and add the following top-level sections:
+
+```json
+{
+    "Kestrel": {
+        "Endpoints": {
+            "Https": {
+                "Url": "https://*:5240",
+                "Certificate": {
+                    "Subject": "CN=kjitweb.contoso.com",
+                    "Store": "My",
+                    "Location": "LocalMachine",
+                    "AllowInvalid": false
+                }
+            }
+        }
+    },
+    "MutualTls": {
+        "Enabled": true,
+        "CheckCertificateRevocation": true,
+        "RequiredEkuOids": [
+            "1.3.6.1.5.5.7.3.2",
+            "1.3.6.1.4.1.55555.1.1"
+        ]
+    }
+}
+```
+
+Replace the server name and private EKU OID with the values used by the organization. Kestrel endpoint configuration takes precedence over the `ASPNETCORE_URLS` value created by the standard installer. Defining only the `Https` endpoint therefore removes the standard HTTP listener, while the application also rejects HTTP whenever mTLS is enabled.
+
+All entries in `RequiredEkuOids` are mandatory. Keeping both the standard Client Authentication EKU and the dedicated KjitWeb EKU ensures that a general-purpose client certificate is not sufficient.
+
+Restart the service:
+
+```powershell
+Restart-Service KjitWeb
+```
+
+If the service does not start, inspect the Application event log and verify the server-certificate subject, private-key permission, EKU OID syntax, and certificate trust chain. KjitWeb records startup configuration failures in the Application log.
+
+#### 3. Configure browser certificate selection
+
+The browser must be able to access the workstation certificate and its private key. Verify this with a pilot workstation before broad deployment. Microsoft Edge and Google Chrome can select a matching certificate automatically through the `AutoSelectCertificateForUrls` enterprise policy. Restrict that policy to the KjitWeb URL and the intended certificate issuer or subject pattern.
+
+Automatic selection is particularly important when multiple client certificates are available. Do not loosen private-key permissions beyond what is necessary for the browser process to use the workstation certificate.
+
+#### 4. Validate mTLS enforcement
+
+Perform all of the following tests:
+
+1. An approved workstation with the correct certificate can open `https://kjitweb.contoso.com:5240` and complete the existing Kerberos user authentication.
+2. A workstation without a client certificate is rejected before KjitWeb displays a page.
+3. A workstation with a trusted general-purpose client certificate but without the private KjitWeb EKU is rejected.
+4. A revoked or expired workstation certificate is rejected.
+5. `http://kjitweb.contoso.com:5240` is unavailable or returns `403` while mTLS is enabled.
+
+To disable mTLS, set `MutualTls:Enabled` to `false` and restart the service. Kestrel then stops requesting client certificates. Keep HTTPS enabled for transport protection even when mutual authentication is disabled.
 
 ## Developer information
 
@@ -544,14 +644,177 @@ Every `.ps1` file must contain the standard `Script Info` disclaimer used in
 `build/Update-Version.ps1`. The version update and GitHub workflow reject existing or new
 PowerShell scripts when any required disclaimer line is missing.
 
-Create a complete installation package in `Installationspackage` with:
+### Creating a release
+
+A release consists of a versioned Git commit, a generated installation package, a ZIP archive, a SHA-256 checksum, and a GitHub release. Development releases use the suffix `-test` and are marked as GitHub pre-releases. Production releases have no suffix and must be created from the approved production branch.
+
+The release must be built only after the documented push. `Push-GitHub.ps1` creates a final history commit, and the pre-commit hook assigns that commit a new repository version. Reading `VERSION` or building binaries before this step can therefore produce an artifact whose embedded version does not match the GitHub tag.
+
+#### 1. Prepare and validate the change
+
+Start from the branch that should be released and confirm the intended changes:
 
 ```powershell
-./build/New-InstallationPackage.ps1
+git status --short
+git branch --show-current
+git diff --check
 ```
 
-The script copies all required installation files from `release` to the package directory.
-Use `-BuildRelease` when `release` must be rebuilt before creating the package.
+Run the tests and builds required by the changed components. At minimum, build KjitWeb when its source changed and parse modified Windows PowerShell scripts with Windows PowerShell 5.1.
+
+Enable the repository hooks once per clone:
+
+```powershell
+git config core.hooksPath .githooks
+```
+
+Stage only the intended files and create the functional commit:
+
+```powershell
+git add -- <files>
+git commit -m "Describe the release change"
+```
+
+The pre-commit hook runs `Update-Version.ps1 -Staged` and adds the updated `VERSION` and `file-versions.json` to the commit. Do not bypass the hook for a release commit.
+
+#### 2. Create the documented push
+
+The working tree must be clean before running the repository push script:
+
+```powershell
+git status --short
+./build/Push-GitHub.ps1
+```
+
+The script fetches the remote branch, records outgoing commits and changed files in `History.md`, creates the versioned history commit, and pushes the branch. Direct GitHub pushes are rejected by the pre-push hook when the outgoing commits are not documented.
+
+After the push, capture the final version and immutable commit:
+
+```powershell
+$version = (Get-Content ./VERSION -Raw).Trim()
+$commit = (git rev-parse HEAD).Trim()
+$branch = (git branch --show-current).Trim()
+
+git status --short
+git rev-parse HEAD
+git rev-parse "origin/$branch"
+```
+
+The working tree must still be clean, and the local and remote commit IDs must match.
+
+#### 3. Build the installation package
+
+Use a temporary detached Git worktree so generated `release`, `publish-service`, and `Installationspackage` content does not modify the development worktree:
+
+```powershell
+$releaseWorktree = Join-Path $env:TEMP "T1JIT-release-$version"
+$artifactDirectory = Join-Path $env:TEMP "T1JIT-artifacts-$version"
+
+Remove-Item $releaseWorktree -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item $artifactDirectory -Recurse -Force -ErrorAction SilentlyContinue
+New-Item $artifactDirectory -ItemType Directory -Force | Out-Null
+
+git worktree add --detach $releaseWorktree $commit
+Push-Location $releaseWorktree
+try {
+    ./build/New-InstallationPackage.ps1 -BuildRelease
+}
+finally {
+    Pop-Location
+}
+```
+
+`New-InstallationPackage.ps1 -BuildRelease` performs the release build and copies the complete distributable content into `Installationspackage`. It also verifies that required files such as `install-JIT.ps1`, `KjitCore.dll`, and `KjitWeb.dll` exist.
+
+Confirm that the package version matches the release version:
+
+```powershell
+$packageVersion = (Get-Content (Join-Path $releaseWorktree "Installationspackage/VERSION") -Raw).Trim()
+if ($packageVersion -ne $version) {
+    throw "Package version '$packageVersion' does not match release version '$version'."
+}
+```
+
+#### 4. Create the archive and checksum
+
+For a development release, create assets with the `-test` suffix:
+
+```powershell
+$artifactName = "T1JIT-$version-test.zip"
+$archivePath = Join-Path $artifactDirectory $artifactName
+$checksumPath = "$archivePath.sha256"
+$packagePath = Join-Path $releaseWorktree "Installationspackage"
+
+Compress-Archive -Path (Join-Path $packagePath "*") -DestinationPath $archivePath -Force
+$hash = (Get-FileHash $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+"$hash  $artifactName" | Set-Content $checksumPath -Encoding ASCII
+```
+
+For a production release, use `T1JIT-$version.zip` without the `-test` suffix. Never reuse an existing version or overwrite assets belonging to an existing tag.
+
+Verify the archive before uploading it:
+
+```powershell
+Get-Item $archivePath, $checksumPath
+Get-FileHash $archivePath -Algorithm SHA256
+tar.exe -tf $archivePath | Select-Object -First 20
+```
+
+The archive must contain `VERSION`, `file-versions.json`, `install-JIT.ps1`, the PowerShell modules, and the KjitWeb installation files.
+
+#### 5. Create the GitHub release
+
+Install and authenticate GitHub CLI before creating a release:
+
+```powershell
+gh auth status
+```
+
+Create a development pre-release from a development branch such as `dev`:
+
+```powershell
+$tag = "v$version-test"
+
+gh release create $tag $archivePath $checksumPath `
+    --target $commit `
+    --title "T1JIT $version Test" `
+    --generate-notes `
+    --prerelease
+```
+
+For an approved production release, use a production tag and omit `--prerelease`:
+
+```powershell
+$tag = "v$version"
+
+gh release create $tag $archivePath $checksumPath `
+    --target $commit `
+    --title "T1JIT $version" `
+    --generate-notes
+```
+
+Create production releases only from the approved production commit. The value passed to `--target` is the captured commit ID rather than a moving branch name, ensuring that the tag identifies exactly the code used for the package.
+
+#### 6. Verify and clean up
+
+Verify the published tag, release type, and assets:
+
+```powershell
+gh release view $tag --json tagName,isPrerelease,targetCommitish,name,assets
+git ls-remote --tags origin $tag
+```
+
+Download the assets into a separate directory and verify the checksum independently when preparing a production release. Retain the checksum with the release assets.
+
+After successful verification, remove the temporary build worktree and artifacts as required:
+
+```powershell
+git worktree remove $releaseWorktree --force
+Remove-Item $artifactDirectory -Recurse -Force
+git worktree prune
+```
+
+Do not remove the temporary worktree until the GitHub assets have been uploaded and verified. If a build or upload fails, correct the cause and create a new repository version instead of replacing an already published production release.
 
 ## Contributing
 

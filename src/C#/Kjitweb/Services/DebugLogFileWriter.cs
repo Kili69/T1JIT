@@ -5,6 +5,8 @@ namespace KjitWeb.Services;
 public sealed class DebugLogFileWriter
 {
     private const long MaxLogFileSizeBytes = 1 * 1024 * 1024;
+    private const string TruncatedEntryMarker = "... [log entry truncated]";
+    private static readonly Encoding Utf8WithoutBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
     private readonly object _syncRoot = new();
     private readonly string _logFilePath;
 
@@ -12,7 +14,6 @@ public sealed class DebugLogFileWriter
     {
         _logFilePath = ResolveLogFilePath(configuration);
         EnsureDirectoryExists(_logFilePath);
-        RotateLogAtStartup(_logFilePath);
         WriteLine($"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss.fff zzz} | INFO | Debug log initialized. Path={_logFilePath}");
     }
 
@@ -49,8 +50,33 @@ public sealed class DebugLogFileWriter
     {
         lock (_syncRoot)
         {
-            File.AppendAllText(_logFilePath, line + Environment.NewLine, Encoding.UTF8);
+            var logEntry = LimitLogEntrySize(line);
+            RotateLogIfRequired(_logFilePath, Utf8WithoutBom.GetByteCount(logEntry));
+            File.AppendAllText(_logFilePath, logEntry, Utf8WithoutBom);
         }
+    }
+
+    private static string LimitLogEntrySize(string line)
+    {
+        var lineTerminator = Environment.NewLine;
+        var completeEntry = line + lineTerminator;
+        if (Utf8WithoutBom.GetByteCount(completeEntry) <= MaxLogFileSizeBytes)
+        {
+            return completeEntry;
+        }
+
+        var suffix = TruncatedEntryMarker + lineTerminator;
+        var availableContentBytes = checked((int)MaxLogFileSizeBytes - Utf8WithoutBom.GetByteCount(suffix));
+        var contentBuffer = new byte[availableContentBytes];
+        Utf8WithoutBom.GetEncoder().Convert(
+            line.AsSpan(),
+            contentBuffer.AsSpan(),
+            flush: true,
+            out _,
+            out var bytesUsed,
+            out _);
+
+        return Utf8WithoutBom.GetString(contentBuffer, 0, bytesUsed) + suffix;
     }
 
     private static string ResolveLogFilePath(IConfiguration configuration)
@@ -85,7 +111,7 @@ public sealed class DebugLogFileWriter
         Directory.CreateDirectory(directoryPath);
     }
 
-    private static void RotateLogAtStartup(string logFilePath)
+    private static void RotateLogIfRequired(string logFilePath, int incomingByteCount)
     {
         if (!File.Exists(logFilePath))
         {
@@ -93,7 +119,7 @@ public sealed class DebugLogFileWriter
         }
 
         var logFileInfo = new FileInfo(logFilePath);
-        if (logFileInfo.Length <= MaxLogFileSizeBytes)
+        if (logFileInfo.Length + incomingByteCount <= MaxLogFileSizeBytes)
         {
             return;
         }

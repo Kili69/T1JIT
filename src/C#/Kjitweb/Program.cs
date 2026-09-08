@@ -5,15 +5,42 @@ using Microsoft.AspNetCore.Authentication.Negotiate;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Hosting.WindowsServices;
 using System.Diagnostics;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using System.Security.Principal;
 
 try
 {
     // Create the web host and load configuration from appsettings, environment and arguments.
     var builder = WebApplication.CreateBuilder(args);
+    var mutualTlsOptions = builder.Configuration
+        .GetSection(MutualTlsOptions.SectionName)
+        .Get<MutualTlsOptions>() ?? new MutualTlsOptions();
+    var requiredMutualTlsEkuOids = mutualTlsOptions.RequiredEkuOids
+        .Where(oid => !string.IsNullOrWhiteSpace(oid))
+        .Select(oid => oid.Trim())
+        .Distinct(StringComparer.Ordinal)
+        .ToArray();
+
+    if (mutualTlsOptions.Enabled)
+    {
+        if (requiredMutualTlsEkuOids.Length == 0)
+        {
+            throw new InvalidOperationException(
+                "MutualTls:RequiredEkuOids must contain at least one EKU OID when mutual TLS is enabled.");
+        }
+
+        var invalidEkuOid = requiredMutualTlsEkuOids.FirstOrDefault(
+            oid => !Regex.IsMatch(oid, @"^\d+(\.\d+)+$", RegexOptions.CultureInvariant));
+        if (invalidEkuOid is not null)
+        {
+            throw new InvalidOperationException(
+                $"MutualTls:RequiredEkuOids contains an invalid OID: '{invalidEkuOid}'.");
+        }
+    }
 
     // Negotiate/NTLM handshakes are connection-oriented and can fail with HTTP/2 multiplexing.
     // Force HTTP/1.1 to prevent interleaved anonymous/authenticated requests on one connection.
@@ -22,6 +49,23 @@ try
         options.ConfigureEndpointDefaults(listenOptions =>
         {
             listenOptions.Protocols = HttpProtocols.Http1;
+        });
+
+        options.ConfigureHttpsDefaults(httpsOptions =>
+        {
+            httpsOptions.ClientCertificateMode = mutualTlsOptions.Enabled
+                ? ClientCertificateMode.RequireCertificate
+                : ClientCertificateMode.NoCertificate;
+            httpsOptions.CheckCertificateRevocation = mutualTlsOptions.CheckCertificateRevocation;
+
+            if (mutualTlsOptions.Enabled)
+            {
+                httpsOptions.ClientCertificateValidation = (certificate, _, policyErrors) =>
+                    MutualTlsCertificateValidator.Validate(
+                        certificate,
+                        policyErrors,
+                        requiredMutualTlsEkuOids);
+            }
         });
     });
 
@@ -135,6 +179,26 @@ try
         .Value;
 
     // Localization must run early so controllers/views resolve the correct culture.
+    if (mutualTlsOptions.Enabled)
+    {
+        app.Use(async (context, next) =>
+        {
+            if (!context.Request.IsHttps || await context.Connection.GetClientCertificateAsync() is null)
+            {
+                var logger = context.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("MutualTls");
+                logger.LogWarning(
+                    "Rejected request from {RemoteAddress} because mutual TLS is enabled but no HTTPS client certificate is available.",
+                    context.Connection.RemoteIpAddress?.ToString() ?? "unknown-address");
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return;
+            }
+
+            await next();
+        });
+    }
+
     app.UseRequestLocalization(requestLocalizationOptions);
     // Use HSTS and HTTPS redirection in production for better security, but allow HTTP in development and service modes for flexibility.
     if (!app.Environment.IsDevelopment())

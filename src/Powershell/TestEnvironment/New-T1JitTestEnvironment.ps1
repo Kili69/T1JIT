@@ -223,15 +223,15 @@ for ($ouIndex = 0; $ouIndex -lt $ouDefinitions.Count; $ouIndex++) {
     for ($computerNumber = 1; $computerNumber -le $computerCountForOu; $computerNumber++) {
         $computerName = "{0}-SRV{1:D2}" -f $ouDefinition.ComputerPrefix, $computerNumber
         $dnsHostName = "$computerName.$domainDnsName".ToLowerInvariant()
-        $computer = Get-ADComputer -Filter "SamAccountName -eq '$computerName`$'" @adParameters -Properties DNSHostName, OperatingSystem -ErrorAction SilentlyContinue
+        $computer = Get-ADComputer -Filter "SamAccountName -eq '$computerName`$'" @adParameters -Properties DNSHostName, Enabled, OperatingSystem -ErrorAction SilentlyContinue
 
         if ($null -eq $computer) {
             if ($PSCmdlet.ShouldProcess($computerName, "Create computer in $ouDistinguishedName")) {
-                New-ADComputer -Name $computerName -SamAccountName "$computerName`$" -DNSHostName $dnsHostName -OperatingSystem $operatingSystem -Path $ouDistinguishedName -Enabled $false @adParameters
+                New-ADComputer -Name $computerName -SamAccountName "$computerName`$" -DNSHostName $dnsHostName -OperatingSystem $operatingSystem -Path $ouDistinguishedName -Enabled $true @adParameters
             }
         }
-        elseif ($PSCmdlet.ShouldProcess($computerName, "Update DNSHostName and OperatingSystem")) {
-            Set-ADComputer -Identity $computer -DNSHostName $dnsHostName -OperatingSystem $operatingSystem @adParameters
+        elseif ($PSCmdlet.ShouldProcess($computerName, "Enable computer and update DNSHostName and OperatingSystem")) {
+            Set-ADComputer -Identity $computer -DNSHostName $dnsHostName -Enabled $true -OperatingSystem $operatingSystem @adParameters
         }
     }
 }

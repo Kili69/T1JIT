@@ -25,7 +25,7 @@ child OUs are then created:
 - `Terminal-Server`
 - `SQL`
 
-By default, the script distributes exactly 100 disabled computer accounts as
+By default, the script distributes exactly 100 enabled computer accounts as
 evenly as possible across the 13 role OUs. The first nine role OUs receive eight
 accounts and the remaining four receive seven. Computer names use the role
 prefix and a sequence number, for example `APP1-SRV01`, `FILE-SRV01`,
@@ -72,8 +72,9 @@ Alternatively, create five computers per OU:
 ```
 
 The script is idempotent. Existing OUs and groups are reused. Existing computer
-accounts receive the configured `OperatingSystem` and `DNSHostName` values. No
-objects are deleted, and newly created computer accounts remain disabled.
+accounts are enabled and receive the configured `OperatingSystem` and
+`DNSHostName` values. No objects are deleted. Newly created OUs have accidental-
+deletion protection disabled.
 After successfully creating an OU or security group, the script prints a status
 line containing the object's distinguished name. Existing objects do not produce
 a creation status line.
