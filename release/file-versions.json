@@ -1,15 +1,75 @@
 {
-  "version": "0.1.20260925.4",
+  "version": "0.1.20260925.6",
   "files": [
     {
       "path": "CHANGELOG.md",
-      "version": "0.1.20260925.4",
-      "sha256": "fa78c459c5e311c3de164de1a9038bd0d323cffb3c6e55fda1f5ffbade74c8e0"
+      "version": "0.1.20260925.6",
+      "sha256": "0c6a07d0f5f9abb8705dd48ffd3030e6d0856de48703d1e144336395bb5d2992"
     },
     {
       "path": "README.md",
-      "version": "0.1.20260925.4",
-      "sha256": "2f0bbbce6e4fbb30be8f7a5b1ac7c8eb59fe5b32c131f5161fff35cd0653712a"
+      "version": "0.1.20260925.6",
+      "sha256": "05500a4588085c7308a588824bc3a6f5bacd0158c5c64cce3be35391617ac02c"
+    },
+    {
+      "path": "release/Config-JIT.ps1",
+      "version": "0.1.20260925.6",
+      "sha256": "8f5e01bc42ad58e8a8c7d7fc44aef129e1a062fb0633578498f36238f7b53dab"
+    },
+    {
+      "path": "release/file-versions.json",
+      "version": "0.1.20260925.6",
+      "sha256": "765b80efcf018554528d3fae7415c9400d1b001fd3ef17809098ce61b80b8943"
+    },
+    {
+      "path": "release/install-JIT.ps1",
+      "version": "0.1.20260925.6",
+      "sha256": "dc294486c925432c41e10397429eb91e911b383dd53f04353551495e996e21ae"
+    },
+    {
+      "path": "release/kJITWeb/publish-service/de/KjitWeb.resources.dll",
+      "version": "0.1.20260925.6",
+      "sha256": "66a73c6b15814d1d9ebde815f398968fa2f49cd5cefa6218d2af039493b72f83"
+    },
+    {
+      "path": "release/kJITWeb/publish-service/en/KjitWeb.resources.dll",
+      "version": "0.1.20260925.6",
+      "sha256": "0d0fe514cc16a9151315c97d0b06fa9d61e985f76c06b13c225792dbab0672bb"
+    },
+    {
+      "path": "release/kJITWeb/publish-service/KjitWeb.dll",
+      "version": "0.1.20260925.6",
+      "sha256": "b1e51db0fa5029779d952469eb85b474b3afc4a804dbb2d84316e1c028027cc4"
+    },
+    {
+      "path": "release/kJITWeb/publish-service/KjitWeb.exe",
+      "version": "0.1.20260925.6",
+      "sha256": "c793ab75ced91bd840d3b33141b696ad5b8417d0b3fe01cd382d465b0eeb47aa"
+    },
+    {
+      "path": "release/kJITWeb/publish-service/KjitWeb.pdb",
+      "version": "0.1.20260925.6",
+      "sha256": "3b96e0225a1b597ce4e85878a5493c28ed6582572eaea09dee821c3262dde650"
+    },
+    {
+      "path": "release/modules/0.1/KjitCore.dll",
+      "version": "0.1.20260925.6",
+      "sha256": "2a6b916a6bd47dceb61cd5468e50ff1d5fcc2eb825ecf3ef4fd1be6d66cddfe4"
+    },
+    {
+      "path": "release/VERSION",
+      "version": "0.1.20260925.6",
+      "sha256": "319a45144f0ce350652d0814cd1b71403e967ad3a8f1792a331ff480f9352a9a"
+    },
+    {
+      "path": "src/Powershell/Scripts/Config-JIT.ps1",
+      "version": "0.1.20260925.6",
+      "sha256": "8f5e01bc42ad58e8a8c7d7fc44aef129e1a062fb0633578498f36238f7b53dab"
+    },
+    {
+      "path": "src/Powershell/Scripts/install-JIT.ps1",
+      "version": "0.1.20260925.6",
+      "sha256": "dc294486c925432c41e10397429eb91e911b383dd53f04353551495e996e21ae"
     }
   ]
 }

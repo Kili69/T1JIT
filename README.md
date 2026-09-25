@@ -150,7 +150,7 @@ required installation permission:
 
 ### Install Just-In-Time
 
-1. Run the install-JIT.ps1 script. This script will install the JIT-Solution on the current computer.
+1. Run the install-JIT.ps1 script. This script will install the JIT-Solution on the current computer. If it detects an existing installation (an existing `JIT.config` or a previously installed `Config-JIT.ps1`), it updates that installation instead: files are refreshed, the installation-directory prompt is skipped, and you are only asked for configuration settings introduced by a newer version. Add `-AdvancedSetup` to run the full setup wizard again.
 2. Move to the %ProgramFiles%\Just-IN-time folder and the config-Jit.ps1 script to configure the JIT-Solution. This script will ask for the required configuration parameters and write them to the config file.
 3. COnfigure the group policy to assign the local administrator rights on the target servers. The group policy should contain a preference to add the <AdminPrefix>%AD-DNSdomainname%<DomainSeparator>%<ComputerName>% to the local administrator group.
 4. (optional) Install the KJIT-Web service with the install-kjitweb.ps1 script. This script will install the KJIT-Web service on the current computer.
@@ -242,7 +242,7 @@ Optional parameters:
 ```
 
 > [!NOTE]
-> `update-kjitweb.ps1` must be run with administrator privileges. There is currently no equivalent update script for the core JIT PowerShell module; re-run `install-JIT.ps1` to overwrite an existing installation, which preserves the `JIT.config` path used by `Config-JIT.ps1`.
+> `update-kjitweb.ps1` must be run with administrator privileges. For the core JIT PowerShell module, re-run `install-JIT.ps1` on an existing installation: it now detects the existing `JIT.config` (or a previously installed `Config-JIT.ps1`) automatically, skips the installation-directory prompt, and only asks for configuration settings introduced by a newer version. Use `-AdvancedSetup` on `install-JIT.ps1`/`Config-JIT.ps1` to run the full setup wizard again.
 
 ### Using the KJIT-Web service
 

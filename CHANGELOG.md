@@ -32,6 +32,12 @@ published as a GitHub release.
   keeps a rollback backup, and preserves `appsettings*.json` and `app_data` so
   configuration and delegation data are not lost. See
   [Updating the KJIT-Web service](README.md#updating-the-kjit-web-service).
+- `install-JIT.ps1` now detects an existing Just-In-Time installation (via an existing
+  `JIT.config`/`JustInTimeConfig` environment variable, or a previously installed
+  `Config-JIT.ps1`) and updates it in place instead of running the full setup wizard
+  again. If a newer version introduces new configuration settings, only those new
+  settings are prompted for; use `-AdvancedSetup` to run the complete wizard again on
+  an existing installation.
 
 ### Changed
 

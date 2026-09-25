@@ -46,6 +46,12 @@ Version 0.1.20241227
     Fixing minor bugs
 Version 0.1.20250830
     The delegation-config.ps1 is replaced with PS-Module command Add-JitDelegation
+Version 0.1.20260925
+    Detects an existing installation by locating a previously saved JIT.config
+    (JitConfigFile parameter, JustInTimeConfig environment variable, or an existing
+    Config-JIT.ps1 in the target folder). When found, the installation directory
+    prompt is skipped and the resolved configuration file is passed automatically
+    to Config-JIT.ps1, which then runs in update mode.
 .NOTES
     The installation transcript is written to the current user's temporary directory.
 #>
@@ -114,12 +120,28 @@ if ([string]::IsNullOrWhiteSpace($JitProgramFolder)) {
     $JitProgramFolder = Join-Path $env:ProgramFiles "Just-In-Time"
 }
 
+# Resolve an existing JIT.config so an update reuses it automatically instead of
+# re-asking questions that were already answered during a previous installation.
+$resolvedJitConfigFile = $JitConfigFile
+if ([string]::IsNullOrWhiteSpace($resolvedJitConfigFile)) {
+    $resolvedJitConfigFile = $env:JustInTimeConfig
+}
+if ([string]::IsNullOrWhiteSpace($resolvedJitConfigFile)) {
+    $resolvedJitConfigFile = [Environment]::GetEnvironmentVariable("JustInTimeConfig", [EnvironmentVariableTarget]::Machine)
+}
+$hasExistingConfigFile = (-not [string]::IsNullOrWhiteSpace($resolvedJitConfigFile)) -and (Test-Path -LiteralPath $resolvedJitConfigFile -PathType Leaf)
+$hasExistingInstallation = $hasExistingConfigFile -or (Test-Path -LiteralPath (Join-Path $JitProgramFolder "Config-JIT.ps1") -PathType Leaf)
+
 $TargetDir = $JitProgramFolder
 if (!$silent) {
     Write-Host "Welcome the the Just-In-Time administration program installation"
-    $requestedTargetDir = Read-Host "Installation Directory ($JitProgramFolder)"
-    if (![string]::IsNullOrWhiteSpace($requestedTargetDir)) {
-        $TargetDir = $requestedTargetDir
+    if ($hasExistingInstallation) {
+        Write-Host "Existing Just-In-Time installation detected in '$TargetDir'. Updating this installation." -ForegroundColor Cyan
+    } else {
+        $requestedTargetDir = Read-Host "Installation Directory ($JitProgramFolder)"
+        if (![string]::IsNullOrWhiteSpace($requestedTargetDir)) {
+            $TargetDir = $requestedTargetDir
+        }
     }
 }
 try {
@@ -149,8 +171,10 @@ try {
     if ($silent) {
         $configArguments.quiet = $true
     }
-    if (![string]::IsNullOrWhiteSpace($JitConfigFile)) {
-        $configArguments.configurationFile = $JitConfigFile
+    if (![string]::IsNullOrWhiteSpace($resolvedJitConfigFile)) {
+        # Passing the resolved path lets Config-JIT.ps1 detect an update and only
+        # prompt for settings introduced since this installation was last configured.
+        $configArguments.configurationFile = $resolvedJitConfigFile
     }
     if (!$silent) {
         Write-Host "Start the configuration: $TargetDir\config-JIT.ps1"

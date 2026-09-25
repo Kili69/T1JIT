@@ -123,6 +123,12 @@ Script Info
         - Return the effective JIT configuration object to the caller.
         - Split configuration import, export, identity, GMSA, OU permission, event log, and scheduled task handling into dedicated functions.
         - Added complete comment-based help and intent-focused inline documentation.
+    Version 0.1.20260925
+        - Interactive setup now detects an existing configuration and runs in update
+          mode: the full setup wizard is skipped and only settings that were
+          introduced since the installation was last configured are prompted for.
+          Use -AdvancedSetup to run the complete wizard again on an existing
+          installation.
 
 .PARAMETER InstallationDirectory
     Base folder containing the installed JIT scripts. The current directory is used when
@@ -156,7 +162,7 @@ param (
     [string]$configurationFile
 )
 
-[string]$_scriptVersion = "0.1.20260908"
+[string]$_scriptVersion = "0.1.20260925"
 Write-Host "Config-JIT script version $_scriptVersion"
 
 #region Functions
@@ -233,6 +239,12 @@ function Import-JitConfiguration {
         The numeric build suffix in ConfigScriptVersion is compared with ScriptVersion.
         A configuration created by a newer script is rejected. After a successful
         merge, ConfigScriptVersion is set to the current ScriptVersion.
+
+        When an existing configuration file is found, IsUpdate is set to true and
+        NewSettingNames is populated with the names of properties that exist on
+        DefaultConfiguration but were missing from the file. Callers use this to
+        prompt only for settings introduced by newer features instead of repeating
+        the full setup wizard.
     .PARAMETER DefaultConfiguration
         Default configuration object that receives values from the existing file.
         The object is updated in place and returned.
@@ -242,6 +254,13 @@ function Import-JitConfiguration {
     .PARAMETER ConfigurationFile
         Optional explicit path to an existing JIT.config file. This value takes
         precedence over the JustInTimeConfig environment variable.
+    .PARAMETER IsUpdate
+        Optional [ref] receiving true when an existing configuration file was found
+        and merged; otherwise false.
+    .PARAMETER NewSettingNames
+        Optional [ref] receiving the names of settings that exist on
+        DefaultConfiguration but were absent from the existing configuration file.
+        Empty when no existing configuration was found.
     .OUTPUTS
         System.Management.Automation.PSCustomObject
         Returns the default configuration or the merged configuration object.
@@ -273,8 +292,18 @@ function Import-JitConfiguration {
         [pscustomobject]$DefaultConfiguration,
         [Parameter(Mandatory)]
         [string]$ScriptVersion,
-        [string]$ConfigurationFile
+        [string]$ConfigurationFile,
+        [ref]$IsUpdate,
+        [ref]$NewSettingNames
     )
+
+    # Default to "no existing configuration" until a file is successfully imported.
+    if ($IsUpdate) {
+        $IsUpdate.Value = $false
+    }
+    if ($NewSettingNames) {
+        $NewSettingNames.Value = @()
+    }
 
     # An explicit path always overrides the process-wide configuration reference.
     $existingConfigPath = if (-not [string]::IsNullOrWhiteSpace($ConfigurationFile)) {
@@ -312,6 +341,13 @@ function Import-JitConfiguration {
         throw [System.InvalidOperationException]::new("The configuration file was created by a newer Config-JIT script.")
     }
 
+    # Settings present in the current defaults but absent from the existing file were
+    # introduced by a newer script version and have no operator-supplied value yet.
+    $existingSettingNames = @($existingConfiguration.PSObject.Properties.Name)
+    $newSettingNamesFound = @($DefaultConfiguration.PSObject.Properties.Name | Where-Object {
+        $_ -ne "ConfigScriptVersion" -and $existingSettingNames -notcontains $_
+    })
+
     # Whitelist known properties so obsolete or unknown JSON fields cannot extend the model.
     foreach ($setting in $existingConfiguration.PSObject.Properties) {
         if ($DefaultConfiguration.PSObject.Properties.Name -contains $setting.Name) {
@@ -319,6 +355,13 @@ function Import-JitConfiguration {
         }
     }
     $DefaultConfiguration.ConfigScriptVersion = $ScriptVersion
+
+    if ($IsUpdate) {
+        $IsUpdate.Value = $true
+    }
+    if ($NewSettingNames) {
+        $NewSettingNames.Value = $newSettingNamesFound
+    }
 
     return $DefaultConfiguration
 }
@@ -1049,10 +1092,17 @@ function Invoke-JitConfiguration {
         prerequisites, configures the GMSA and OU permissions, creates event sources,
         and registers scheduled tasks. Interactive mode prompts for configurable values;
         quiet mode consumes an existing configuration.
+
+        When an existing configuration file is found (through ConfigurationFile or the
+        JustInTimeConfig environment variable), the run is treated as an update: the
+        full interactive wizard is skipped and only settings introduced since the
+        installation was last configured are prompted for. Use AdvancedSetup to run
+        the complete wizard again on an existing installation.
     .PARAMETER InstallationDirectory
         Directory containing the installed JIT scripts.
     .PARAMETER AdvancedSetup
-        Enables advanced interactive configuration choices.
+        Enables advanced interactive configuration choices. Also forces the full setup
+        wizard to run even when an existing configuration is detected.
     .PARAMETER Quiet
         Suppresses interactive prompts and requires an existing configuration source.
     .PARAMETER ConfigurationFile
@@ -1174,16 +1224,32 @@ function Invoke-JitConfiguration {
     $domain = Get-ADDomain
     $config = Get-JitDefaultConfiguration -ScriptVersion $_scriptVersion -DomainDns $ADDomainDNS -DomainDistinguishedName $domain.DistinguishedName
 
+    $isUpdate = $false
+    $newSettingNames = @()
     try {
-        $config = Import-JitConfiguration -DefaultConfiguration $config -ScriptVersion $_scriptVersion -ConfigurationFile $configurationFile
+        $config = Import-JitConfiguration -DefaultConfiguration $config -ScriptVersion $_scriptVersion -ConfigurationFile $configurationFile -IsUpdate ([ref]$isUpdate) -NewSettingNames ([ref]$newSettingNames)
     } catch {
         Write-Error $_.Exception.Message
         return
     }
 
+    # The path an existing configuration was loaded from is also where updates are saved back.
+    $existingConfigPath = if (-not [string]::IsNullOrWhiteSpace($configurationFile)) {
+        $configurationFile
+    } elseif (-not [string]::IsNullOrWhiteSpace($env:JustInTimeConfig)) {
+        $env:JustInTimeConfig
+    }
+
+    # Existing installations skip the full setup wizard unless advanced setup is
+    # requested; this avoids re-asking questions that were already answered before.
+    $runFullWizard = (!$quiet) -and (!$isUpdate -or $AdvancedSetup)
+    if ($isUpdate -and !$quiet) {
+        Write-Host "Existing Just-In-Time configuration detected. Updating to script version $_scriptVersion." -ForegroundColor Cyan
+    }
+
     #endregion
     # Interactive setup collects identity and logging settings before provisioning the GMSA.
-    if (!$quiet) {
+    if ($runFullWizard) {
         $config = Read-JitIdentityConfiguration -Configuration $config -AdvancedSetup:$AdvancedSetup
     }
     #region GMSA
@@ -1196,8 +1262,8 @@ function Invoke-JitConfiguration {
     }
     #endregion
 
-    # Quiet mode keeps all imported interactive settings unchanged.
-    if (!$quiet) {
+    # Quiet mode and update mode (without -AdvancedSetup) keep all imported settings unchanged.
+    if ($runFullWizard) {
         # Accept an existing administrator-group OU or create its missing hierarchy.
         do {
             $OU = Read-Host -Prompt "OU for the local administrator groups [$($config.OU)]"
@@ -1402,6 +1468,39 @@ function Invoke-JitConfiguration {
                 Write-Host "can't create the configuration file. Please check the directory $configFileName exists and you have the permissions on this folder" -ForegroundColor Red
             }
         } while ($configSaved -eq $false)
+    }
+
+    # An update that skipped the full wizard may still need values for settings that
+    # were introduced by a newer script version. Prompt only for those and save them
+    # back to the same configuration file so future updates no longer see them as new.
+    if (!$quiet -and $isUpdate -and !$runFullWizard -and $newSettingNames.Count -gt 0) {
+        Write-Host "The following settings were introduced since this installation was last configured:" -ForegroundColor Cyan
+        foreach ($settingName in $newSettingNames) {
+            $currentValue = $config.$settingName
+            $displayValue = if ($currentValue -is [array]) { $currentValue -join ", " } else { $currentValue }
+            $answer = Read-Host -Prompt "$settingName [$displayValue]"
+            if (-not [string]::IsNullOrWhiteSpace($answer)) {
+                $config.$settingName = switch ($currentValue) {
+                    { $_ -is [bool] } { $answer -match '^(y|yes|true|1)$' }
+                    { $_ -is [int] } { [int]$answer }
+                    { $_ -is [array] } { @($answer -split '\s*,\s*') }
+                    default { $answer }
+                }
+            }
+        }
+
+        $newSettingsConfigPath = if (-not [string]::IsNullOrWhiteSpace($existingConfigPath)) {
+            $existingConfigPath
+        } else {
+            $env:JustInTimeConfig
+        }
+        if (-not [string]::IsNullOrWhiteSpace($newSettingsConfigPath)) {
+            try {
+                Export-JitConfiguration -Configuration $config -Path $newSettingsConfigPath | Out-Null
+            } catch {
+                Write-Warning "Unable to save the updated configuration to '$newSettingsConfigPath': $($_.Exception.Message)"
+            }
+        }
     }
 
     # Provision the configured administrator-group OU in interactive and quiet setup.
