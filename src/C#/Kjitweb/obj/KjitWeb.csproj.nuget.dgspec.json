@@ -44,10 +44,6 @@
         "net8.0-windows7.0": {
           "targetAlias": "net8.0-windows",
           "dependencies": {
-            "Microsoft.AspNetCore.Authentication.Negotiate": {
-              "target": "Package",
-              "version": "[8.0.30, )"
-            },
             "Microsoft.Extensions.Hosting.WindowsServices": {
               "target": "Package",
               "version": "[8.0.1, )"

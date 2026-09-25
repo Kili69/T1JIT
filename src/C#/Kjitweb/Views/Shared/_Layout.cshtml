@@ -1,4 +1,5 @@
 ﻿@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@inject Microsoft.Extensions.Localization.IStringLocalizer<KjitWeb.SharedResource> L
 @using System.Globalization
 @using System.Reflection
 @{
@@ -50,10 +51,62 @@
         </main>
     </div>
     <footer class="border-top bg-white py-3 text-secondary">
-        <div class="container text-end small">
-            KjitWeb Version @applicationVersion
+        <div class="container text-end small d-flex justify-content-end align-items-center gap-2">
+            <span id="event-log-health-indicator"
+                  class="d-none"
+                  role="status"
+                  data-ok-title="@L["EventLogStatusOk"]"
+                  data-warning-title="@L["EventLogStatusWarning"]"
+                  data-error-title="@L["EventLogStatusError"]"></span>
+            <span>KjitWeb Version @applicationVersion</span>
         </div>
     </footer>
+    <script>
+        // Polls the event log health indicator every 5 minutes and shows a symbol next to the
+        // version number when Error or Warning entries were logged in the Tier 1 Management event
+        // log within the last 24 hours (see HomeController.EventLogHealthStatus).
+        (function () {
+            var indicator = document.getElementById('event-log-health-indicator');
+            if (!indicator) {
+                return;
+            }
+
+            function applyStatus(level) {
+                indicator.classList.remove('text-warning', 'text-danger');
+                if (level === 'Error') {
+                    indicator.textContent = '\u26D4';
+                    indicator.classList.add('text-danger');
+                    indicator.title = indicator.dataset.errorTitle;
+                    indicator.classList.remove('d-none');
+                } else if (level === 'Warning') {
+                    indicator.textContent = '\u26A0';
+                    indicator.classList.add('text-warning');
+                    indicator.title = indicator.dataset.warningTitle;
+                    indicator.classList.remove('d-none');
+                } else {
+                    indicator.textContent = '';
+                    indicator.title = indicator.dataset.okTitle;
+                    indicator.classList.add('d-none');
+                }
+            }
+
+            function refreshStatus() {
+                fetch('/Home/EventLogHealthStatus', { credentials: 'same-origin' })
+                    .then(function (response) { return response.ok ? response.json() : null; })
+                    .then(function (data) {
+                        if (data) {
+                            applyStatus(data.level);
+                        }
+                    })
+                    .catch(function () {
+                        // Ignore transient failures; the indicator simply keeps its last known state.
+                    });
+            }
+
+            refreshStatus();
+            setInterval(refreshStatus, 5 * 60 * 1000);
+        })();
+    </script>
     @RenderSection("Scripts", required: false)
 </body>
 </html>

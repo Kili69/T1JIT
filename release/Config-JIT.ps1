@@ -129,6 +129,13 @@ Script Info
           introduced since the installation was last configured are prompted for.
           Use -AdvancedSetup to run the complete wizard again on an existing
           installation.
+        - The reminder to configure OU delegation is now skipped when updating an
+          already-configured installation, unless delegation itself was newly
+          introduced by this update.
+        - A fresh installation now automatically delegates the owning domain's
+          Domain Admins group on every configured search base, so JIT elevation
+          works immediately without a manual Add-JitDelegation call. Updates never
+          add or remove this default delegation.
 
 .PARAMETER InstallationDirectory
     Base folder containing the installed JIT scripts. The current directory is used when
@@ -889,7 +896,13 @@ function Set-JitServiceAccount {
     Grants the JIT service account control of the administrator-group OU.
 .DESCRIPTION
     Reads the OU security descriptor and adds an inheritable GenericAll access rule
-    for the GMSA when an equivalent rule is not already present.
+    for the GMSA when an equivalent rule is not already present. Without this
+    permission, the GMSA cannot create the Tier 1 local administrator groups
+    (Tier1LocalAdminGroup.ps1 runs as the GMSA on a scheduled task), so JIT
+    elevation would silently stop working. If the caller lacks the rights to
+    modify the OU's security descriptor, a clear warning is written instead of
+    letting the underlying access-denied exception abort the whole
+    installation/update with a generic error.
 .PARAMETER Configuration
     JIT configuration containing the administrator-group OU.
 .PARAMETER ServiceAccount
@@ -906,8 +919,10 @@ function Set-JitServiceAccount {
 
     Displays the planned permission update without requiring a resolved account.
 .NOTES
-    The ActiveDirectory provider must be available and the caller must be authorized
-    to modify the target OU security descriptor.
+    The ActiveDirectory provider must be available. The caller should be a Domain
+    Administrator or otherwise be delegated permission to modify the target OU's
+    security descriptor; see the warning message emitted when this permission is
+    missing for the exact access to grant.
 #>
 function Set-JitOuPermission {
     [CmdletBinding(SupportsShouldProcess = $true)]
@@ -925,8 +940,17 @@ function Set-JitOuPermission {
         return
     }
 
+    $gmsaDisplayName = "$($ServiceAccount.SamAccountName)"
+    $permissionHint = "Ask a Domain Administrator to grant '$gmsaDisplayName' the 'Full Control' permission (this object and all descendant objects) on OU '$($Configuration.OU)', or re-run this script as an account that already has this permission. Without it, the GMSA cannot create the Tier 1 local administrator groups and JIT elevation will not work."
+
     # Avoid adding a duplicate access rule when the account SID is already present.
-    $acl = Get-Acl -Path $targetPath
+    try {
+        $acl = Get-Acl -Path $targetPath -ErrorAction Stop
+    }
+    catch {
+        Write-Warning "Could not read the security descriptor of OU '$($Configuration.OU)' to verify the GMSA's group-creation permission: $($_.Exception.Message) $permissionHint"
+        return
+    }
     if ($acl.Sddl.Contains($ServiceAccount.SID)) {
         return
     }
@@ -938,7 +962,13 @@ function Set-JitOuPermission {
     $inheritanceType = [System.DirectoryServices.ActiveDirectorySecurityInheritance]::All
     $accessRule = New-Object System.DirectoryServices.ActiveDirectoryAccessRule $identity, $rights, $accessType, $inheritanceType
     $acl.AddAccessRule($accessRule)
-    Set-Acl -Path $targetPath -AclObject $acl
+    try {
+        Set-Acl -Path $targetPath -AclObject $acl -ErrorAction Stop
+        Write-Verbose "Granted '$gmsaDisplayName' full control on OU '$($Configuration.OU)'."
+    }
+    catch {
+        Write-Warning "Insufficient permission to grant '$gmsaDisplayName' the group-creation permission on OU '$($Configuration.OU)': $($_.Exception.Message) $permissionHint"
+    }
 }
 
 <#
@@ -1534,9 +1564,73 @@ function Invoke-JitConfiguration {
         return
     }
     #endregion
-    # Remind interactive operators that enabling delegation also requires delegation rules.
-    if ($config.EnableDelegation) {
-        Write-Host "do not forget to configure your OU delegation"
+    # On a fresh installation, grant the owning domain's Domain Admins group default
+    # delegation on every configured search base, so JIT elevation works immediately
+    # without requiring a manual Add-JitDelegation call. Updates never add or remove
+    # this default delegation automatically; Add-JitServerOU grants the same default
+    # delegation when a search base is added later, and Remove-JITServerOU already
+    # removes any matching delegation when a search base is removed.
+    if ($config.EnableDelegation -and -not $isUpdate -and -not $WhatIfPreference) {
+        foreach ($searchBase in @($config.T1Searchbase)) {
+            if ($searchBase -eq "<DomainRoot>") {
+                Write-Warning "Domain Admins delegation was not added automatically for the domain-root search base. Use Add-JitDelegation to grant delegation on a specific organizational unit."
+                continue
+            }
+
+            try {
+                # Determine which forest domain owns this search base so the matching
+                # Domain Admins group -- not necessarily the domain running this script -- is delegated.
+                $searchBaseDomainDN = [regex]::Match($searchBase, "DC=.+", [Text.RegularExpressions.RegexOptions]::IgnoreCase).Value
+                $searchBaseDomainDns = $null
+                foreach ($forestDomainDns in (Get-ADForest).Domains) {
+                    if ((Get-ADDomain -Server $forestDomainDns).DistinguishedName -eq $searchBaseDomainDN) {
+                        $searchBaseDomainDns = $forestDomainDns
+                        break
+                    }
+                }
+                if (-not $searchBaseDomainDns) {
+                    throw "The owning domain for '$searchBase' could not be determined."
+                }
+
+                # Derive the Domain Admins SID directly from the domain SID (well-known
+                # RID 512) so resolution never falls back to an interactive prompt.
+                $domainAdminsSid = "$((Get-ADDomain -Server $searchBaseDomainDns).DomainSID.Value)-512"
+
+                $currentDelegations = @()
+                if (Test-Path -LiteralPath $config.DelegationConfigPath -PathType Leaf) {
+                    $currentDelegations += @(Get-Content -LiteralPath $config.DelegationConfigPath -Raw | ConvertFrom-Json)
+                }
+
+                $delegationEntry = $currentDelegations | Where-Object { $_.ComputerOU -eq $searchBase }
+                if ($delegationEntry) {
+                    if ($delegationEntry.ADObject -notcontains $domainAdminsSid) {
+                        $delegationEntry.ADObject = @($delegationEntry.ADObject) + $domainAdminsSid
+                    }
+                } else {
+                    $currentDelegations += [PSCustomObject]@{
+                        ComputerOU = $searchBase
+                        ADObject   = @($domainAdminsSid)
+                    }
+                }
+
+                ConvertTo-Json -InputObject $currentDelegations -Depth 10 |
+                    Out-File -LiteralPath $config.DelegationConfigPath -Confirm:$false
+            } catch {
+                Write-Warning "Domain Admins delegation was not added automatically for '$searchBase': $($_.Exception.Message)"
+            }
+        }
+    }
+
+    # Remind interactive operators that additional delegations beyond the default
+    # Domain Admins grant above may still be required. Updates to an already-configured
+    # installation skip this reminder, unless delegation was itself a setting newly
+    # introduced by this script version.
+    $isDelegationNewlyIntroduced = $newSettingNames -contains "EnableDelegation"
+    if ($config.EnableDelegation -and (!$isUpdate -or $isDelegationNewlyIntroduced)) {
+        if (-not $isUpdate) {
+            Write-Host "The Domain Admins group was automatically delegated on the configured search bases."
+        }
+        Write-Host "do not forget to configure additional OU delegation for other groups"
         Write-Host "to allow the group Server-Admins on OU=Server,OU=contoso,OU=com use the command"
         Write-Host "To add a delegation use the command: Add-JitDelegation -OU ""OU=Server,DC=contoso,DC=com"" -AdObject ""contoso\Server-Admins"""
     }

@@ -16,6 +16,7 @@
     - [Useage of JIT](#useage-of-jit)
 - [Using the Web Interface](#using-the-web-interface)
     - [Installation of the KJIT-Web service](#installation-of-the-kjit-web-service)
+        - [Restricting which clients can reach KjitWeb (AllowedClient)](#restricting-which-clients-can-reach-kjitweb-allowedclient)
         - [Publish KjitWeb as a Microsoft Entra Enterprise Application](#publish-kjitweb-as-a-microsoft-entra-enterprise-application)
     - [Updating the KJIT-Web service](#updating-the-kjit-web-service)
     - [Using the KJIT-Web service](#using-the-kjit-web-service)
@@ -42,6 +43,7 @@
 - [Contributing](#contributing)
 - [License](#-license)
 - [Changelog](#changelog)
+- [Event Reference](#event-reference)
 
 ## Project Description
 
@@ -150,14 +152,13 @@ required installation permission:
 
 ### Install Just-In-Time
 
-1. Run the install-JIT.ps1 script. This script will install the JIT-Solution on the current computer. If it detects an existing installation (an existing `JIT.config` or a previously installed `Config-JIT.ps1`), it updates that installation instead: files are refreshed, the installation-directory prompt is skipped, and you are only asked for configuration settings introduced by a newer version. Add `-AdvancedSetup` to run the full setup wizard again.
-2. Move to the %ProgramFiles%\Just-IN-time folder and the config-Jit.ps1 script to configure the JIT-Solution. This script will ask for the required configuration parameters and write them to the config file.
-3. COnfigure the group policy to assign the local administrator rights on the target servers. The group policy should contain a preference to add the <AdminPrefix>%AD-DNSdomainname%<DomainSeparator>%<ComputerName>% to the local administrator group.
-4. (optional) Install the KJIT-Web service with the install-kjitweb.ps1 script. This script will install the KJIT-Web service on the current computer.
+1. Run the install-JIT.ps1 script. This single script installs the JIT-Solution files and then automatically runs config-JIT.ps1 to configure it — there is no separate step required. If it detects an existing installation (an existing `JIT.config` or a previously installed `Config-JIT.ps1`), it updates that installation instead: files are refreshed, the installation-directory prompt is skipped, and you are only asked for configuration settings introduced by a newer version. Add `-AdvancedSetup` to run the full setup wizard again. Re-run config-JIT.ps1 directly only if you want to change the configuration later without reinstalling.
+2. Configure the group policy to assign the local administrator rights on the target servers. The group policy should contain a preference to add the <AdminPrefix>%AD-DNSdomainname%<DomainSeparator>%<ComputerName>% to the local administrator group.
+3. (optional) Install the KJIT-Web service with the install-kjitweb.ps1 script, or answer `Y` when install-JIT.ps1 asks to install it. This script will install the KJIT-Web service on the current computer. If a KjitWeb service is already installed on the computer, install-JIT.ps1 automatically calls update-kjitweb.ps1 instead, refreshing the service in place without asking for AllowedClient, CompanyName, Port, or DebugLogPath again.
 
 ### Configure Just-In-Time
 
-The configuration of the JIT-Solution is done with the config-JIT.ps1 script. This script will ask for the required configuration parameters and write them to the config file. The configuration parameters are:
+The configuration of the JIT-Solution is done with the config-JIT.ps1 script, which install-JIT.ps1 already runs automatically as part of the installation. Run it directly only if you want to change the configuration later without reinstalling. This script will ask for the required configuration parameters and write them to the config file. The configuration parameters are:
 - Admin Prefix: The prefix for the group name who is member of the local administrator group on the target server. The group name will be in the format <AdminPrefix>%AD-DNSdomainname%<DomainSeparator>%<ComputerName>%. The default value is "Admin_".
 - GMSAccount: The name of the group managed service account who will read the event log and add the users to the local administrator group on the target server. The format should be <domain>\<gmsaccountname>$.
 - OU for local Administrator groups: The OU where the groups who are member of the local administrator group on the target server are located. Take care onyl the GMSA and domain administrators should have permissions to create groups in this OU. The groups will be automatically created by the JIT-Solution, if a computer oject exists in the configured target OU.
@@ -165,6 +166,13 @@ The configuration of the JIT-Solution is done with the config-JIT.ps1 script. Th
 - searchbase: The searchbase for the computer objects of the target servers. The JIT-Solution will only work for computer objects who are located in this OU or its child OUs.
 
 ### Configure elevation privileges
+
+During a fresh installation (not an update), config-JIT.ps1 automatically delegates the
+owning domain's Domain Admins group on every configured search base, so JIT elevation
+works immediately without running Add-JitDelegation by hand. `Add-JitServerOU` grants
+the same default delegation whenever a new search base is added later, and
+`Remove-JITServerOU` removes any matching delegation, including this default one, when
+a search base is removed.
 
 To allow a user to request administrators privileges on servers in a OU use the ADD-JITdelegation command. This command will add user or group to be evlevated on the target servers. The command should be run with the following parameters:
 - Identity: The identity of the user or group who should be allowed to request administrators privileges on the target servers. The format should be <domain>\<username> or <domain>\<groupname>.
@@ -204,6 +212,25 @@ The KJIT-Web service provides a web interface for users to request administrator
 
 The KJIT-Web service can be installed with the install-kjitweb.ps1 script. This script will install the KJIT-Web service on the current computer. The KJIT-Web Service must be installed on a server where the JIT-Solution is installed.
 
+#### Restricting which clients can reach KjitWeb (AllowedClient)
+
+`install-kjitweb.ps1` accepts an `-AllowedClient` parameter that controls which computer(s) are allowed to connect to the KjitWeb TCP port. It accepts a single hostname/FQDN, a single IP address, or `*`:
+
+- **`localhost` (default)** – KjitWeb binds only to the loopback addresses `127.0.0.1`/`[::1]`. The service is reachable only from the KjitWeb server itself, via `http://localhost:5240`. No Windows Firewall rule for remote access is required or created. Use this when KjitWeb is only ever browsed from the server's own console, or when access is brokered entirely through another mechanism such as Microsoft Entra Application Proxy (see below).
+- **A specific hostname or IP address**, for example `-AllowedClient "adminpc01.contoso.com"` – KjitWeb binds to all interfaces (`http://*:5240`), but ASP.NET Core's host filtering and a Windows Firewall rule restrict access to the resolved IP address(es) of that name. `localhost`/`127.0.0.1`/`[::1]` remain allowed as well for local troubleshooting. Choose this when a defined set of one or two administrator workstations or another server needs to browse KjitWeb over the network. Note that only a single hostname/IP is supported; a list, subnet, or CIDR range cannot currently be specified this way (use IPsec or mutual TLS, described in [Restrict KjitWeb access to trusted workstations](#restrict-kjitweb-access-to-trusted-workstations), if several trusted clients must be allowed). For any non-`localhost` value, the installer/updater also verifies that the Kerberos SPNs `HTTP/<hostname>` and `HTTP/<fqdn>` are registered on the server's computer account, registering them automatically if missing (see [Kerberos authentication setup](docs/Kerberos-Setup.md)).
+- **`*`** – KjitWeb binds to all interfaces and accepts connections from any remote address. Only use this when another control, such as a firewall, IPsec, mutual TLS, or an access proxy, already restricts who can reach the KjitWeb port; do not expose it directly to untrusted networks.
+
+If you need to change `AllowedClient` after the initial installation (for example because access requirements changed, or because a client that used to reach KjitWeb via its hostname stopped working), use `set-kjitweb-allowedclient.ps1`. Since installation/update, it is available directly in the KjitWeb installation folder (`C:\Program Files\KJITWEB` by default) next to `install-kjitweb.ps1` and `update-kjitweb.ps1` — you do not need to keep or re-extract the release package to run it:
+
+```powershell
+cd 'C:\Program Files\KJITWEB'
+.\set-kjitweb-allowedclient.ps1 -AllowedClient "adminpc01.contoso.com"
+```
+
+This updates `appsettings.json`/`appsettings.Production.json` (`AllowedClient`, `ServiceUrl`, `AllowedHosts`), the service's `ASPNETCORE_URLS` registry value, the HTTP.sys URL-ACL reservation, the Windows Firewall rule, and the Kerberos SPN registration on the computer account, all consistently together, then restarts the KjitWeb service — without stopping and recreating the Windows service the way re-running `install-kjitweb.ps1` would. If anything fails partway through, it automatically restores the previous configuration.
+
+Do not edit `AllowedClient` directly in `appsettings.json`/`appsettings.Production.json` — that alone does not change the service binding, URL-ACL reservation, or firewall rule, so KjitWeb would stop working. `update-kjitweb.ps1` (see [Updating the KJIT-Web service](#updating-the-kjit-web-service)) deliberately never changes `AllowedClient`; it only refreshes the installed files and preserves the existing configuration. Re-running `install-kjitweb.ps1` also changes `AllowedClient`, but it performs a full reinstall (it stops and removes the existing service first) — prefer `set-kjitweb-allowedclient.ps1` for this specific change.
+
 #### Publish KjitWeb as a Microsoft Entra Enterprise Application
 
 For Azure-connected environments, use Microsoft Entra Application Proxy to publish the internally hosted KjitWeb service:
@@ -221,10 +248,14 @@ Use HTTPS for the internal connector-to-KjitWeb connection whenever possible. Mi
 
 Use `update-kjitweb.ps1` (located next to `install-kjitweb.ps1`) to update an existing KjitWeb installation without losing its configuration. Re-running `install-kjitweb.ps1` performs a clean reinstall (it stops and removes the existing service before installing); `update-kjitweb.ps1` is the preferred way to apply a new release in place.
 
+`install-JIT.ps1` does this automatically: when it detects a `KjitWeb` service backed by an already-deployed `KjitWeb.exe`, it calls `update-kjitweb.ps1` instead of `install-kjitweb.ps1`, so no AllowedClient/CompanyName/Port/DebugLogPath prompts (or parameters) are needed to refresh an already installed service. You only need to run `update-kjitweb.ps1` directly if you want to update KjitWeb without going through install-JIT.ps1.
+
 The script:
 - Stops the `KjitWeb` service.
 - Creates a temporary rollback backup of the current installation.
 - Replaces the application files from the `publish-service` folder next to the script, while preserving `appsettings*.json` and the `app_data` folder.
+- Copies `install-kjitweb.ps1`, `update-kjitweb.ps1`, and `set-kjitweb-allowedclient.ps1` into the installation folder, so they remain available for the next update or reconfiguration even after the original release package/extraction folder is gone.
+- Ensures the `NetworkService` account, the HTTP.sys URL-ACL reservation, the Windows Firewall rule matching the configured `AllowedClient`, and the Kerberos SPN registration on the computer account are all still correct — restoring any of them that were missing or manually changed, even on installations that predate these safeguards. If the account running the script lacks permission to register the SPN, a warning with the manual `setspn` command is shown instead of failing the update.
 - Restarts the service and removes the temporary backup on success.
 - Automatically restores the previous installation and rethrows the error if the update fails.
 
@@ -873,3 +904,10 @@ publishing the corresponding GitHub release. For a raw, per-push audit trail of 
 changed files instead, see [`History.md`](History.md).
 
 2025-08-30 The update is a complete restructuring of the files to enable the use of C# code. Integrating C# is essential for extending the JIT Solution into a cloud service. In this update, the code has been separated from the release files. Additionally, the documentation has been moved to the Doc folder to improve clarity. All files required for operation are now located in the release directory.
+
+## Event Reference
+
+Every Windows Event Log entry written by T1JIT (event IDs, the log/source they use, and
+what they mean) is documented in [`EVENTS.md`](EVENTS.md). Use it to look up an event ID
+seen in the `Tier 1 Management` or `Application` log without having to read the source
+code.

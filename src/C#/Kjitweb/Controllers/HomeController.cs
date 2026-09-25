@@ -18,6 +18,7 @@ public class HomeController : Controller
     private readonly IActiveDirectoryService _activeDirectoryService;
     private readonly IConfiguration _configuration;
     private readonly IEventLogWriter _eventLogWriter;
+    private readonly IEventLogHealthMonitor _eventLogHealthMonitor;
     private readonly ILogger<HomeController> _logger;
     private readonly IStringLocalizer<SharedResource> _localizer;
     private readonly WindowsCredentialValidator _credentialValidator;
@@ -26,6 +27,7 @@ public class HomeController : Controller
         IActiveDirectoryService activeDirectoryService,
         IConfiguration configuration,
         IEventLogWriter eventLogWriter,
+        IEventLogHealthMonitor eventLogHealthMonitor,
         ILogger<HomeController> logger,
         IStringLocalizer<SharedResource> localizer,
         WindowsCredentialValidator credentialValidator)
@@ -33,6 +35,7 @@ public class HomeController : Controller
         _activeDirectoryService = activeDirectoryService;
         _configuration = configuration;
         _eventLogWriter = eventLogWriter;
+        _eventLogHealthMonitor = eventLogHealthMonitor;
         _logger = logger;
         _localizer = localizer;
         _credentialValidator = credentialValidator;
@@ -51,6 +54,25 @@ public class HomeController : Controller
     public IActionResult CurrentElevatedComputers()
     {
         return Json(_activeDirectoryService.GetCurrentElevatedComputers(User));
+    }
+
+    /// <summary>
+    ///     Returns the current event log health indicator (Ok/Warning/Error), computed periodically in
+    ///     the background so this request does not need to query the Windows Event Log itself. Polled
+    ///     by the footer script every 5 minutes to keep the indicator next to the version number current.
+    /// </summary>
+    [HttpGet]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public IActionResult EventLogHealthStatus()
+    {
+        var status = _eventLogHealthMonitor.Current;
+        return Json(new
+        {
+            level = status.Level.ToString(),
+            errorCount = status.ErrorCount,
+            warningCount = status.WarningCount,
+            checkedAtUtc = status.CheckedAtUtc
+        });
     }
 
     [HttpPost]

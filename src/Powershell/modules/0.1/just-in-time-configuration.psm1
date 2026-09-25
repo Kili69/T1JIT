@@ -20,6 +20,86 @@ possibility of such damages
 #>
 
 #region Functions
+function Add-JitDefaultOUDelegation {
+    <#
+    .SYNOPSIS
+        Grants the owning domain's Domain Admins group default JIT delegation on an OU.
+    .DESCRIPTION
+        Adds the well-known Domain Admins group of the supplied domain to the
+        delegation entry for the given organizational unit, so JIT elevation works on
+        that search base without requiring a separate, manual Add-JitDelegation call.
+
+        The Domain Admins SID is derived directly from the domain SID (well-known
+        RID 512), so this helper never resolves an account interactively and never
+        blocks unattended installation or configuration flows. Errors are reported as
+        warnings; the delegation file is otherwise left unchanged.
+
+        This is a private helper used by Add-JitServerOU and by Config-JIT.ps1 during
+        a fresh installation.
+    .PARAMETER OU
+        Distinguished name of the organizational unit that should receive default
+        Domain Admins delegation.
+    .PARAMETER Configuration
+        Loaded JIT configuration object providing DelegationConfigPath.
+    .PARAMETER DomainDNS
+        DNS name of the Active Directory domain that owns the OU, used to resolve
+        that domain's Domain Admins group.
+    .OUTPUTS
+        None.
+    .NOTES
+        Domain-root search bases (the literal value "<DomainRoot>") are not valid
+        organizational unit distinguished names and are skipped with a warning.
+    #>
+
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$OU,
+        [Parameter(Mandatory = $true)]
+        [PSCustomObject]$Configuration,
+        [Parameter(Mandatory = $true)]
+        [string]$DomainDNS
+    )
+
+    # The domain-root placeholder is not an organizational unit distinguished name
+    # and cannot be delegated through the OU-based delegation model.
+    if ($OU -eq "<DomainRoot>") {
+        Write-Warning "Domain Admins delegation was not added automatically for the domain-root search base. Use Add-JitDelegation to grant delegation on a specific organizational unit."
+        return
+    }
+
+    $delegationConfigPath = [string]$Configuration.DelegationConfigPath
+    if ([string]::IsNullOrWhiteSpace($delegationConfigPath)) {
+        Write-Warning "No delegation configuration file is configured. Domain Admins delegation was not added automatically for '$OU'."
+        return
+    }
+
+    try {
+        # Derive the Domain Admins SID directly from the domain SID (well-known RID 512)
+        # so resolution never falls back to an interactive prompt.
+        $domainAdminsSid = "$((Get-ADDomain -Server $DomainDNS).DomainSID.Value)-512"
+
+        $currentDelegations = @()
+        if (Test-Path -LiteralPath $delegationConfigPath -PathType Leaf) {
+            $currentDelegations += @(Get-Content -LiteralPath $delegationConfigPath -Raw | ConvertFrom-Json)
+        }
+
+        $entry = $currentDelegations | Where-Object { $_.ComputerOU -eq $OU }
+        if ($entry) {
+            if ($entry.ADObject -notcontains $domainAdminsSid) {
+                $entry.ADObject = @($entry.ADObject) + $domainAdminsSid
+            }
+        } else {
+            $currentDelegations += [PSCustomObject]@{
+                ComputerOU = $OU
+                ADObject   = @($domainAdminsSid)
+            }
+        }
+
+        Write-JitConfigurationJsonAtomically -InputObject $currentDelegations -Path $delegationConfigPath
+    } catch {
+        Write-Warning "Domain Admins delegation was not added automatically for '$OU': $($_.Exception.Message)"
+    }
+}
 function Add-JitServerOU{
     <#
     .SYNOPSIS
@@ -34,6 +114,11 @@ function Add-JitServerOU{
         Existing entries are left unchanged. Although the command is intended for
         organizational units, the current validation accepts any AD object whose
         distinguished name can be resolved.
+
+        When the JIT delegation model is enabled, the owning domain's Domain Admins
+        group is also automatically granted default delegation on the OU, whether it
+        was just added or was already configured. This keeps delegation in sync with
+        T1Searchbase without requiring a separate Add-JitDelegation call.
     .PARAMETER OU
         Distinguished name of the search base, including its domain components.
         The value can be supplied through the pipeline.
@@ -41,7 +126,7 @@ function Add-JitServerOU{
         Add-JitServerOU -OU "OU=Member Servers,DC=contoso,DC=com"
 
         Adds the Member Servers OU to T1Searchbase when it exists and is not already
-        configured.
+        configured, and grants the Domain Admins group default delegation on it.
     .EXAMPLE
         "OU=Member Servers,DC=contoso,DC=com" | Add-JitServerOU
 
@@ -68,7 +153,7 @@ function Add-JitServerOU{
     $config = Get-Content $env:JustInTimeConfig | ConvertFrom-Json
 
     # Extract the domain DN suffix from the supplied distinguished name.
-    $DomainDN = [regex]::Match($OU,"dc=.+").Value
+    $DomainDN = [regex]::Match($OU,"DC=.+",[Text.RegularExpressions.RegexOptions]::IgnoreCase).Value
 
     # Find the forest domain whose distinguished name matches the extracted suffix.
     foreach ($ADDomainDNS in (Get-ADForest).Domains){
@@ -86,6 +171,12 @@ function Add-JitServerOU{
             # Append the DN and rewrite the configuration with the updated array.
             $config.T1Searchbase += $OU
             ConvertTo-Json $config | Out-File $env:JustInTimeConfig -Confirm:$false
+        }
+
+        # Keep the Domain Admins default delegation in sync with the search base,
+        # regardless of whether the OU was newly added or already configured.
+        if ($config.EnableDelegation) {
+            Add-JitDefaultOUDelegation -OU $OU -Configuration $config -DomainDNS $ADDomainDNS
         }
     } else {
         # Reject values that do not identify an object in the selected forest domain.

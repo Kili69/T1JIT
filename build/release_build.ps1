@@ -65,6 +65,7 @@ $releaseModulesVersionDir = Join-Path $releaseModulesDir "0.1"
 
 $installScriptSource = Join-Path $kjitWebRoot "install-kjitweb.ps1"
 $updateScriptSource = Join-Path $kjitWebRoot "update-kjitweb.ps1"
+$allowedClientScriptSource = Join-Path $kjitWebRoot "set-kjitweb-allowedclient.ps1"
 $logoSource = Join-Path $kjitWebRoot "kjitlogo.png"
 $appSettingsSource = Join-Path $kjitWebRoot "appsettings.json"
 $appSettingsProdSource = Join-Path $kjitWebRoot "appsettings.Production.json"
@@ -174,6 +175,9 @@ if (-not (Test-Path $installScriptSource)) {
 if (-not (Test-Path $updateScriptSource)) {
     throw "Update script not found: $updateScriptSource"
 }
+if (-not (Test-Path $allowedClientScriptSource)) {
+    throw "AllowedClient reconfiguration script not found: $allowedClientScriptSource"
+}
 if (-not (Test-Path $logoSource)) {
     throw "Logo file not found: $logoSource"
 }
@@ -181,6 +185,7 @@ if (-not (Test-Path $logoSource)) {
 Write-Host "Copying installation assets..."
 Copy-Item $installScriptSource (Join-Path $releaseKJITWebDir "install-kjitweb.ps1") -Force
 Copy-Item $updateScriptSource (Join-Path $releaseKJITWebDir "update-kjitweb.ps1") -Force
+Copy-Item $allowedClientScriptSource (Join-Path $releaseKJITWebDir "set-kjitweb-allowedclient.ps1") -Force
 Copy-Item $logoSource (Join-Path $releaseKJITWebDir "kjitlogo.png") -Force
 
 # Keep appsettings next to install script (used by install-kjitweb.ps1 for DebugLog path fallback).

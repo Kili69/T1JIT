@@ -9,7 +9,6 @@
     ".NETCoreApp,Version=v8.0/win-x64": {
       "KjitWeb/1.0.0": {
         "dependencies": {
-          "Microsoft.AspNetCore.Authentication.Negotiate": "8.0.30",
           "Microsoft.Extensions.Hosting.WindowsServices": "8.0.1",
           "System.DirectoryServices.Protocols": "8.0.2",
           "runtimepack.Microsoft.NETCore.App.Runtime.win-x64": "8.0.27",
@@ -809,6 +808,10 @@
             "assemblyVersion": "8.0.0.0",
             "fileVersion": "8.0.2726.23008"
           },
+          "Microsoft.AspNetCore.Connections.Abstractions.dll": {
+            "assemblyVersion": "8.0.0.0",
+            "fileVersion": "8.0.2726.23008"
+          },
           "Microsoft.AspNetCore.CookiePolicy.dll": {
             "assemblyVersion": "8.0.0.0",
             "fileVersion": "8.0.2726.23008"
@@ -1165,6 +1168,10 @@
             "assemblyVersion": "8.0.0.0",
             "fileVersion": "8.0.1024.46610"
           },
+          "Microsoft.Extensions.Features.dll": {
+            "assemblyVersion": "8.0.0.0",
+            "fileVersion": "8.0.2726.23008"
+          },
           "Microsoft.Extensions.FileProviders.Abstractions.dll": {
             "assemblyVersion": "8.0.0.0",
             "fileVersion": "8.0.23.53103"
@@ -1308,37 +1315,6 @@
           }
         }
       },
-      "Microsoft.AspNetCore.Authentication.Negotiate/8.0.30": {
-        "dependencies": {
-          "Microsoft.AspNetCore.Connections.Abstractions": "8.0.30",
-          "System.DirectoryServices.Protocols": "8.0.2"
-        },
-        "runtime": {
-          "lib/net8.0/Microsoft.AspNetCore.Authentication.Negotiate.dll": {
-            "assemblyVersion": "8.0.30.0",
-            "fileVersion": "8.0.3026.37304"
-          }
-        }
-      },
-      "Microsoft.AspNetCore.Connections.Abstractions/8.0.30": {
-        "dependencies": {
-          "Microsoft.Extensions.Features": "8.0.30"
-        },
-        "runtime": {
-          "lib/net8.0/Microsoft.AspNetCore.Connections.Abstractions.dll": {
-            "assemblyVersion": "8.0.0.0",
-            "fileVersion": "8.0.3026.37304"
-          }
-        }
-      },
-      "Microsoft.Extensions.Features/8.0.30": {
-        "runtime": {
-          "lib/net8.0/Microsoft.Extensions.Features.dll": {
-            "assemblyVersion": "8.0.0.0",
-            "fileVersion": "8.0.3026.37304"
-          }
-        }
-      },
       "Microsoft.Extensions.Hosting.WindowsServices/8.0.1": {
         "dependencies": {
           "System.ServiceProcess.ServiceController": "8.0.1"
@@ -1383,27 +1359,6 @@
       "type": "runtimepack",
       "serviceable": false,
       "sha512": ""
-    },
-    "Microsoft.AspNetCore.Authentication.Negotiate/8.0.30": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-2SY0gL6ktBEQhn173v9T7FqawiSbu7tGMwjj18DHfI/k381S+jFiDpDXrQj3grpqR9b3NZV23auxqVOA6Y51BQ==",
-      "path": "microsoft.aspnetcore.authentication.negotiate/8.0.30",
-      "hashPath": "microsoft.aspnetcore.authentication.negotiate.8.0.30.nupkg.sha512"
-    },
-    "Microsoft.AspNetCore.Connections.Abstractions/8.0.30": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-ZVqidIUODni7nF9hRGh+yODqtqygMkNm47bC8O79bU6oOIubGwJq7Jtn9K8n5ZCcfWGpobyhcdbH4CVpkruJzA==",
-      "path": "microsoft.aspnetcore.connections.abstractions/8.0.30",
-      "hashPath": "microsoft.aspnetcore.connections.abstractions.8.0.30.nupkg.sha512"
-    },
-    "Microsoft.Extensions.Features/8.0.30": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-CXwORiSyNHorKcqtd+WiQ7ewKUEslV3alNxD1rB/czAwlmP6C4h7HG+V5or9eQSsbpJNSIiEOhFXVVSbbiDJBA==",
-      "path": "microsoft.extensions.features/8.0.30",
-      "hashPath": "microsoft.extensions.features.8.0.30.nupkg.sha512"
     },
     "Microsoft.Extensions.Hosting.WindowsServices/8.0.1": {
       "type": "package",

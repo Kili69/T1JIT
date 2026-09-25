@@ -38,6 +38,9 @@
   <data name="CurrentElevationsDialogTitle" xml:space="preserve"><value>Current elevations</value></data>
   <data name="CurrentElevationsEmpty" xml:space="preserve"><value>No matching group memberships were found.</value></data>
   <data name="CloseButton" xml:space="preserve"><value>Close</value></data>
+  <data name="EventLogStatusOk" xml:space="preserve"><value>No errors or warnings in the last 24 hours.</value></data>
+  <data name="EventLogStatusWarning" xml:space="preserve"><value>Warnings were logged in the last 24 hours. Check the Tier 1 Management event log.</value></data>
+  <data name="EventLogStatusError" xml:space="preserve"><value>Errors were logged in the last 24 hours. Check the Tier 1 Management event log.</value></data>
   <data name="ValidationSelectDomain" xml:space="preserve"><value>Please select a domain.</value></data>
   <data name="ValidationSelectServer" xml:space="preserve"><value>Please select a server.</value></data>
   <data name="ValidationServerDomainMismatch" xml:space="preserve"><value>The selected server does not belong to the selected domain.</value></data>

@@ -133,6 +133,38 @@ function Copy-ServiceFiles {
 
 <#
 .SYNOPSIS
+    Copies the KjitWeb management scripts (install-kjitweb.ps1, update-kjitweb.ps1,
+    set-kjitweb-allowedclient.ps1) next to the installed service so administrators can find and
+    re-run them later without having to keep or re-extract the original release package.
+.PARAMETER SourceRoot
+    The folder containing the management scripts to be copied (normally $PSScriptRoot).
+.PARAMETER TargetFolder
+    The destination folder where the management scripts should be copied to (the KjitWeb
+    installation folder).
+.EXAMPLE
+    Copy-ManagementScripts -SourceRoot $PSScriptRoot -TargetFolder "C:\Program Files\KJITWEB"
+#>
+function Copy-ManagementScripts {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SourceRoot,
+        [Parameter(Mandatory = $true)]
+        [string]$TargetFolder
+    )
+    $managementScripts = @("install-kjitweb.ps1", "update-kjitweb.ps1", "set-kjitweb-allowedclient.ps1")
+    foreach ($scriptName in $managementScripts) {
+        $sourceScriptPath = Join-Path $SourceRoot $scriptName
+        if (Test-Path -LiteralPath $sourceScriptPath -PathType Leaf) {
+            Copy-Item -LiteralPath $sourceScriptPath -Destination $TargetFolder -Force
+        }
+        else {
+            Write-Warning "Management script not found next to the installer, skipping: $sourceScriptPath"
+        }
+    }
+}
+
+<#
+.SYNOPSIS
     Retrieves the current domain name of the computer.
 .DESCRIPTION
     This function attempts to determine the current domain name of the computer. It first tries to get the domain using the Active Directory API. If that fails (for example, if the computer is not joined to a domain), it falls back to checking environment variables that may contain the domain information. If it cannot determine the domain, it writes an error and exits.
@@ -298,7 +330,19 @@ function Resolve-AllowedClientAddresses {
 .PARAMETER Client
     The client identifier (e.g., hostname, IP address, or wildcard).
 .RETURNS
-    The service URL corresponding to the allowed client.
+    The service URL corresponding to the allowed client. May contain multiple ";"-separated
+    ASPNETCORE_URLS prefixes.
+.DESCRIPTION
+    IMPORTANT: for the loopback-only case this MUST return IP-literal prefixes
+    ("http://127.0.0.1:$Port" / "http://[::1]:$Port"), not the hostname string
+    "http://localhost:$Port". Unlike Kestrel, HTTP.sys treats a hostname prefix such as
+    "localhost" as a plain string that is matched against the incoming Host header only -
+    the underlying socket is still bound on ALL interfaces (0.0.0.0 / [::]). That means a
+    remote client on the network could reach the service by simply sending a spoofed
+    "Host: localhost" header to the machine's real IP address, completely bypassing the
+    intended "loopback only, no network exposure" restriction. IP-literal prefixes, in
+    contrast, make HTTP.sys bind the socket only to that specific address, so a remote
+    connection attempt is refused at the TCP level, exactly like Kestrel's old behavior.
 #>
 function Get-ServiceUrlFromAllowedClient {
     param(
@@ -309,10 +353,49 @@ function Get-ServiceUrlFromAllowedClient {
     )
 
     if ([string]::IsNullOrWhiteSpace($Client) -or $Client.Trim() -ieq "localhost") {
-        return "http://localhost:$Port"
+        return "http://127.0.0.1:$Port;http://[::1]:$Port"
     }
 
     return "http://*:$Port"
+}
+
+<#
+.SYNOPSIS
+    Reserves an HTTP.sys URL namespace for a non-administrator service account.
+.DESCRIPTION
+    KjitWeb is hosted on HTTP.sys, which (unlike Kestrel) requires either Administrator
+    privileges or an explicit URL ACL reservation for a non-admin account, such as
+    NetworkService, to bind an HTTP prefix. Any pre-existing reservation for the exact same
+    URL is removed first because "netsh http add urlacl" fails if a reservation already
+    exists, even for the same account. $ServiceUrl may contain multiple ";"-separated
+    prefixes (as used for the loopback-only IP-literal binding); each one is reserved
+    individually.
+.PARAMETER ServiceUrl
+    The ASPNETCORE_URLS-style prefix (or ";"-separated list of prefixes) the service binds
+    to, e.g. "http://*:5240" or "http://127.0.0.1:5240;http://[::1]:5240".
+.PARAMETER Account
+    The account to grant listen permission to, e.g. "NT AUTHORITY\NETWORK SERVICE".
+#>
+function Set-HttpSysUrlAcl {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ServiceUrl,
+        [Parameter(Mandatory = $true)]
+        [string]$Account
+    )
+
+    $prefixes = $ServiceUrl -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    foreach ($prefix in $prefixes) {
+        # URL ACL reservations require a trailing slash on the URL prefix.
+        $urlAclUrl = $prefix.Trim().TrimEnd('/') + '/'
+
+        netsh http delete urlacl "url=$urlAclUrl" 2>&1 | Out-Null
+
+        $addOutput = netsh http add urlacl "url=$urlAclUrl" "user=$Account" 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Could not reserve URL '$urlAclUrl' for '$Account' (netsh exited with code $LASTEXITCODE): $addOutput"
+        }
+    }
 }
 
 function Resolve-CompanyName {
@@ -393,6 +476,12 @@ function Resolve-ServicePort {
     The client identifier (e.g., hostname, IP address, or wildcard).
 .RETURNS
     A semicolon-separated string for AllowedHosts.
+.DESCRIPTION
+    The loopback-only HTTP.sys binding uses IP-literal prefixes ("127.0.0.1"/"[::1]", see
+    Get-ServiceUrlFromAllowedClient), so a browser connecting via those addresses sends a Host
+    header of "127.0.0.1:port" / "[::1]:port", not "localhost:port". Both literal forms must be
+    allowed here as well, or ASP.NET Core's host filtering middleware would reject the request
+    even though HTTP.sys itself accepted the connection.
 #>
 function Get-AllowedHostsFromAllowedClient {
     param(
@@ -400,8 +489,10 @@ function Get-AllowedHostsFromAllowedClient {
         [string]$Client
     )
 
+    $loopbackHosts = "localhost;127.0.0.1;[::1]"
+
     if ([string]::IsNullOrWhiteSpace($Client)) {
-        return "localhost"
+        return $loopbackHosts
     }
 
     $candidate = $Client.Trim()
@@ -410,11 +501,11 @@ function Get-AllowedHostsFromAllowedClient {
     }
 
     if ($candidate -ieq "localhost") {
-        return "localhost"
+        return $loopbackHosts
     }
 
-    # Keep localhost access for local troubleshooting while allowing the configured client.
-    return "localhost;$candidate"
+    # Keep localhost/loopback access for local troubleshooting while allowing the configured client.
+    return "$loopbackHosts;$candidate"
 }
 
 <#
@@ -649,6 +740,94 @@ function Set-ClientAccessFirewallRule {
 
 <#
 .SYNOPSIS
+    Ensures the Kerberos Service Principal Names (SPNs) required for remote access are registered
+    on the local computer account.
+.DESCRIPTION
+    KjitWeb is hosted on HTTP.sys and runs as NetworkService, which authenticates on the network
+    using the computer account's identity rather than a dedicated service account (see
+    docs/Kerberos-Setup.md). Kerberos sign-in for remote clients therefore requires
+    "HTTP/<short-hostname>" and "HTTP/<fqdn>" to be registered as SPNs on this computer's own AD
+    object; the built-in HOST/ SPNs are not sufficient. This is only needed when KjitWeb is
+    reachable from other hosts (AllowedClient other than "localhost") — loopback-only
+    installations fall back to NTLM and do not need an SPN, so registration is skipped for them.
+
+    Registering an SPN on a computer account requires either Domain Admin rights or the
+    "Validated write to service principal name" permission delegated on this specific computer
+    object. When the caller lacks this permission, a clear warning is written (including the
+    equivalent "setspn -A" command to run manually) instead of failing the whole
+    installation/update, so an administrator can grant the permission, or register the SPN
+    manually, and simply re-run the script afterwards.
+.PARAMETER RemoteAddresses
+    Resolved allowed-client remote addresses (from Resolve-AllowedClientAddresses). SPN
+    verification is skipped when this is loopback-only, matching Set-ClientAccessFirewallRule.
+.OUTPUTS
+    None.
+#>
+function Set-KjitWebSpn {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$RemoteAddresses
+    )
+
+    # Kerberos is not required for loopback-only access; NTLM over localhost works without an SPN.
+    $addresses = @($RemoteAddresses | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $isLoopbackOnly = ($addresses.Count -gt 0) -and (@($addresses | Where-Object { $_ -notin @("127.0.0.1", "::1") }).Count -eq 0)
+    if ($isLoopbackOnly) {
+        Write-Host "Skipping Kerberos SPN registration for localhost-only mode."
+        return
+    }
+
+    $shortName = $env:COMPUTERNAME
+    try {
+        $fqdn = ([System.Net.Dns]::GetHostEntry([System.Net.Dns]::GetHostName())).HostName
+    }
+    catch {
+        Write-Warning "Could not resolve the local FQDN to verify Kerberos SPNs: $($_.Exception.Message). If Kerberos sign-in fails for remote clients, register 'HTTP/$shortName' and the server's FQDN SPN manually; see docs/Kerberos-Setup.md."
+        return
+    }
+    $requiredSpns = @("HTTP/$shortName", "HTTP/$fqdn") | Select-Object -Unique
+
+    # Uses System.DirectoryServices.AccountManagement directly (rather than the ActiveDirectory
+    # PowerShell module) so this script does not require the RSAT AD PowerShell feature to be
+    # installed on a plain member server that only hosts KjitWeb.
+    try {
+        Add-Type -AssemblyName System.DirectoryServices.AccountManagement -ErrorAction Stop
+        $domainFqdn = [System.DirectoryServices.ActiveDirectory.Domain]::GetComputerDomain().Name
+        $context = New-Object System.DirectoryServices.AccountManagement.PrincipalContext([System.DirectoryServices.AccountManagement.ContextType]::Domain, $domainFqdn)
+        $computerPrincipal = [System.DirectoryServices.AccountManagement.ComputerPrincipal]::FindByIdentity($context, $shortName)
+        if ($null -eq $computerPrincipal) {
+            throw "Computer account '$shortName' was not found in domain '$domainFqdn'."
+        }
+        $computerEntry = $computerPrincipal.GetUnderlyingObject()
+        $existingSpns = @($computerEntry.Properties["servicePrincipalName"].Value)
+    }
+    catch {
+        Write-Warning "Could not read the Service Principal Names of computer account '$shortName`$' to verify Kerberos SPNs: $($_.Exception.Message). If Kerberos sign-in fails for remote clients, register 'HTTP/$shortName' and 'HTTP/$fqdn' manually; see docs/Kerberos-Setup.md."
+        return
+    }
+
+    $missingSpns = @($requiredSpns | Where-Object { $existingSpns -notcontains $_ })
+    if ($missingSpns.Count -eq 0) {
+        Write-Host "Required Kerberos SPN(s) already registered on '$shortName`$': $($requiredSpns -join ', ')"
+        return
+    }
+
+    Write-Host "Registering missing Kerberos SPN(s) on '$shortName`$': $($missingSpns -join ', ')"
+    try {
+        foreach ($spn in $missingSpns) {
+            $computerEntry.Properties["servicePrincipalName"].Add($spn) | Out-Null
+        }
+        $computerEntry.CommitChanges()
+        Write-Host "Kerberos SPN(s) registered successfully."
+    }
+    catch {
+        $manualCommands = ($missingSpns | ForEach-Object { "setspn -A $_ $shortName`$" }) -join "; "
+        Write-Warning "Insufficient permission to register the Kerberos SPN(s) $($missingSpns -join ', ') on computer account '$shortName`$': $($_.Exception.Message) Kerberos sign-in will fail for remote clients until this is fixed (NTLM fallback will still work). Ask a Domain Administrator to run: $manualCommands (see docs/Kerberos-Setup.md)."
+    }
+}
+
+<#
+.SYNOPSIS
     Writes installer-resolved values into appsettings.json in the installed service folder.
 .PARAMETER AppSettingsPath
     Full path to appsettings.json that should be updated.
@@ -809,6 +988,9 @@ Write-Host "Service URL binding: $ServiceUrl"
 Write-Host "Copying service files to $InstallRoot ..."
 Copy-ServiceFiles -SourceServiceFolder $SourceServiceFolder -TargetServiceFolder $InstallServiceFolder
 
+Write-Host "Copying management scripts (install-kjitweb.ps1, update-kjitweb.ps1, set-kjitweb-allowedclient.ps1) to $InstallServiceFolder for future maintenance..."
+Copy-ManagementScripts -SourceRoot $SourceRoot -TargetFolder $InstallServiceFolder
+
 $installedAppSettingsPath = Join-Path $InstallServiceFolder "appsettings.json"
 Update-AppSettingsForInstall -AppSettingsPath $installedAppSettingsPath -JitConfigPath $JitConfig -AllowedClient $AllowedClient -ServiceUrl $ServiceUrl -CompanyName $CompanyName -DebugLogPath $DebugLogPath
 
@@ -822,7 +1004,18 @@ Test-RequiredDotnetRuntime -BinaryPath $BinaryPath
 Write-Host "Creating service..."
 New-Service -Name $ServiceName -BinaryPathName $BinaryPath -DisplayName $DisplayName -Description $Description -StartupType Automatic
 Write-Host "Configuring service account: NetworkService"
-sc.exe config $ServiceName obj= "NT AUTHORITY\NetworkService" password= "" | Out-Null
+# We use the Win32_Service.Change() WMI/CIM method instead of "sc.exe config ... password= """:
+# PowerShell drops/mangles the empty-string password argument when invoking native executables,
+# which makes sc.exe fail with exit code 1639 (invalid command line). CIM does not have this
+# problem and built-in accounts such as NetworkService never require a password anyway.
+$changeResult = Get-CimInstance -ClassName Win32_Service -Filter "Name='$ServiceName'" -ErrorAction Stop |
+    Invoke-CimMethod -MethodName Change -Arguments @{ StartName = "NT AUTHORITY\NetworkService"; StartPassword = $null }
+if ($changeResult.ReturnValue -ne 0) {
+    Write-Warning "Could not set the service account to NetworkService. Win32_Service.Change returned code $($changeResult.ReturnValue)."
+}
+
+Write-Host "Reserving HTTP.sys URL namespace for NetworkService..."
+Set-HttpSysUrlAcl -ServiceUrl $ServiceUrl -Account "NT AUTHORITY\NETWORK SERVICE"
 
 # On reboot, a short delayed start reduces race conditions with other startup workloads.
 Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\$ServiceName" -Name DelayedAutoStart -Value 1 -Type DWord
@@ -857,6 +1050,9 @@ New-ItemProperty -Path $envRegPath -Name "Environment" -PropertyType MultiString
 
 Write-Host "Configuring firewall rule '$FirewallRuleName' for port $Port ..."
 Set-ClientAccessFirewallRule -RuleName $FirewallRuleName -RemoteAddresses $allowedRemoteAddresses -Port $Port
+
+Write-Host "Verifying Kerberos SPN registration..."
+Set-KjitWebSpn -RemoteAddresses $allowedRemoteAddresses
 
 Write-Host "Ensuring port $Port is free..."
 $portProcessIds = @(Get-PortProcessIds -Port $Port)

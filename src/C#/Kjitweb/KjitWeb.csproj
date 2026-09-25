@@ -9,7 +9,15 @@
 
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.Negotiate" Version="8.0.30" />
+    <!-- HTTP.sys hosts KjitWeb so Windows Authentication (Negotiate/Kerberos/NTLM) runs in
+         kernel mode, like IIS. This is required for the service to run under NetworkService:
+         the managed Negotiate handler used with Kestrel needs the process to hold the
+         computer's own Kerberos/NTLM keys directly (only LocalSystem/domain accounts can do
+         that), while HTTP.sys performs the authentication itself and simply hands the app an
+         already-authenticated Windows identity. Microsoft.AspNetCore.Server.HttpSys ships as
+         part of the Microsoft.AspNetCore.App shared framework since .NET Core 3.0, so no
+         separate PackageReference is required (or available) for it.
+    -->
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.1" />
     <PackageReference Include="System.DirectoryServices.Protocols" Version="8.0.2" />
   </ItemGroup>
