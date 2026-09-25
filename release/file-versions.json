@@ -1,20 +1,15 @@
 {
-  "version": "0.1.20260925.3",
+  "version": "0.1.20260925.4",
   "files": [
     {
-      "path": ".gitignore",
-      "version": "0.1.20260925.3",
-      "sha256": "7e99e9323f88860956f1fe8550dcce3f11fcaf8500671e1deedec068e3940059"
-    },
-    {
-      "path": "build/New-InstallationPackage.ps1",
-      "version": "0.1.20260925.3",
-      "sha256": "887c9171ef2c0b85a85d1306b050380af10b89c0b1cc910f979d174c7287a918"
+      "path": "CHANGELOG.md",
+      "version": "0.1.20260925.4",
+      "sha256": "fa78c459c5e311c3de164de1a9038bd0d323cffb3c6e55fda1f5ffbade74c8e0"
     },
     {
       "path": "README.md",
-      "version": "0.1.20260925.3",
-      "sha256": "b5b32ea13ecf63d53af4d0cd20b7e07f667035e4fc1d772d33be74f83312e4f7"
+      "version": "0.1.20260925.4",
+      "sha256": "2f0bbbce6e4fbb30be8f7a5b1ac7c8eb59fe5b32c131f5161fff35cd0653712a"
     }
   ]
 }

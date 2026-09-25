@@ -41,7 +41,7 @@
     - [Creating a release](#creating-a-release)
 - [Contributing](#contributing)
 - [License](#-license)
-- [Updates](#updates)
+- [Changelog](#changelog)
 
 ## Project Description
 
@@ -790,6 +790,20 @@ The archive must contain `VERSION`, `file-versions.json`, `install-JIT.ps1`, the
 
 #### 5. Create the GitHub release
 
+Before creating the release, rename the `## [Unreleased]` section in
+[`CHANGELOG.md`](CHANGELOG.md) to `## [$version] - <date>` (or add a new dated entry for
+`$version` if it does not exist yet), describing the user-facing changes, and commit it.
+Extract that entry to use as the release notes instead of auto-generated commit lists:
+
+```powershell
+$releaseNotesPath = Join-Path $artifactDirectory "release-notes-$version.md"
+$changelog = Get-Content CHANGELOG.md -Raw
+if ($changelog -notmatch "(?ms)^## \[$([regex]::Escape($version))\].*?(?=^## \[|\z)") {
+    throw "CHANGELOG.md has no entry for version '$version'. Add one before releasing."
+}
+$Matches[0].TrimEnd() | Set-Content -LiteralPath $releaseNotesPath -Encoding utf8
+```
+
 Install and authenticate GitHub CLI before creating a release:
 
 ```powershell
@@ -804,7 +818,7 @@ $tag = "v$version-test"
 gh release create $tag $archivePath $checksumPath `
     --target $commit `
     --title "T1JIT $version Test" `
-    --generate-notes `
+    --notes-file $releaseNotesPath `
     --prerelease
 ```
 
@@ -816,7 +830,7 @@ $tag = "v$version"
 gh release create $tag $archivePath $checksumPath `
     --target $commit `
     --title "T1JIT $version" `
-    --generate-notes
+    --notes-file $releaseNotesPath
 ```
 
 Create production releases only from the approved production commit. The value passed to `--target` is the captured commit ID rather than a moving branch name, ensuring that the tag identifies exactly the code used for the package.
@@ -851,5 +865,11 @@ github\Bulgwei
 
 This project is licensed under the MIT License.
 
-## Updates
+## Changelog
+
+User- and administrator-facing changes are documented in [`CHANGELOG.md`](CHANGELOG.md),
+grouped by version. Update it as part of [creating a release](#creating-a-release), before
+publishing the corresponding GitHub release. For a raw, per-push audit trail of commits and
+changed files instead, see [`History.md`](History.md).
+
 2025-08-30 The update is a complete restructuring of the files to enable the use of C# code. Integrating C# is essential for extending the JIT Solution into a cloud service. In this update, the code has been separated from the release files. Additionally, the documentation has been moved to the Doc folder to improve clarity. All files required for operation are now located in the release directory.
