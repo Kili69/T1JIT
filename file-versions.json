@@ -1,55 +1,10 @@
 {
-  "version": "0.2.20260925.2",
+  "version": "0.2.20260925.3",
   "files": [
     {
-      "path": "build/Update-Version.ps1",
-      "version": "0.2.20260925.2",
-      "sha256": "712dd99964c92dc07e16264fd1d344738985b973c73b6ff3519a9d05e38bb576"
-    },
-    {
-      "path": "CHANGELOG.md",
-      "version": "0.2.20260925.2",
-      "sha256": "e76e655955959ad6d475647c6fe1c2b03637ec80a24084a20a7dce6f32b737c1"
-    },
-    {
-      "path": "release/file-versions.json",
-      "version": "0.2.20260925.2",
-      "sha256": "269f4b275a189abec1396ae0aeee31996317eed86702fe4ee59820e565092b89"
-    },
-    {
-      "path": "release/kJITWeb/publish-service/de/KjitWeb.resources.dll",
-      "version": "0.2.20260925.2",
-      "sha256": "0a2ea104f9c184a5248426cf695ef0b703f792638fcd7d772fc9b3e5cdc8657c"
-    },
-    {
-      "path": "release/kJITWeb/publish-service/en/KjitWeb.resources.dll",
-      "version": "0.2.20260925.2",
-      "sha256": "32639cb94d6aabc5cc140ad8c1c8739af882d891b223c0363723cf9737e78c84"
-    },
-    {
-      "path": "release/kJITWeb/publish-service/KjitWeb.dll",
-      "version": "0.2.20260925.2",
-      "sha256": "2054b55490fe34d7b3f0f5c444a78d56be876a09e897a066cae26ce5307a6886"
-    },
-    {
-      "path": "release/kJITWeb/publish-service/KjitWeb.exe",
-      "version": "0.2.20260925.2",
-      "sha256": "b98e1f8d9dd981fa3db23755f578f0dd9310cfc504eba69c76d9b2adee0e3337"
-    },
-    {
-      "path": "release/kJITWeb/publish-service/KjitWeb.pdb",
-      "version": "0.2.20260925.2",
-      "sha256": "249dc23f14db5ad42cf12cf7b59a73621916cdfb504cbfac06e266fd23e2cba0"
-    },
-    {
-      "path": "release/modules/0.1/KjitCore.dll",
-      "version": "0.2.20260925.2",
-      "sha256": "a477b3e16d76ec345f6993a78ee8ec273005f6409ddd0c19dc7c5ceed739fd9d"
-    },
-    {
-      "path": "release/VERSION",
-      "version": "0.2.20260925.2",
-      "sha256": "b9a9a3ff917c6e810d50799917a1c2fd60a11c41d88902ae71788b2eaba0c7e1"
+      "path": "History.md",
+      "version": "0.2.20260925.3",
+      "sha256": "afc286976b9178624313ff2b24fb85517e29f5c2a98ffab3570897e4dde1704a"
     }
   ]
 }

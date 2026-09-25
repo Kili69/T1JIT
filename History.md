@@ -6,6 +6,28 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-09-25 19:00:44 +02:00 - `dev` to `origin/dev`
+
+Commits:
+
+<!-- commit:18c6a91ea15604172e01c61618abda836ad42910 -->
+- `18c6a91` Bump version scheme to 0.2 and condense CHANGELOG unreleased section
+
+Changed files:
+
+- `M -> CHANGELOG.md`
+- `M -> VERSION`
+- `M -> build/Update-Version.ps1`
+- `M -> file-versions.json`
+- `M -> release/VERSION`
+- `M -> release/file-versions.json`
+- `M -> release/kJITWeb/publish-service/KjitWeb.dll`
+- `M -> release/kJITWeb/publish-service/KjitWeb.exe`
+- `M -> release/kJITWeb/publish-service/KjitWeb.pdb`
+- `M -> release/kJITWeb/publish-service/de/KjitWeb.resources.dll`
+- `M -> release/kJITWeb/publish-service/en/KjitWeb.resources.dll`
+- `M -> release/modules/0.1/KjitCore.dll`
+
 ## 2026-09-25 18:51:49 +02:00 - `dev` to `origin/dev`
 
 Commits:
@@ -1388,6 +1410,7 @@ Changes:
 - Added a full-page processing lock that prevents duplicate elevation requests.
 - Extended Active Directory queries and web models for active elevation information.
 - Updated installation documentation, release scripts, modules, and published KjitWeb artifacts.
+
 
 
 
