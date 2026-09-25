@@ -6,6 +6,428 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-09-25 18:51:49 +02:00 - `dev` to `origin/dev`
+
+Commits:
+
+<!-- commit:653456bb3120674056ccefcb65ffb3d5bb31c0de -->
+- `653456b` Rename release output to kJITWeb, automate ZIP packaging, document KjitWeb updates
+<!-- commit:0b4d13a65f53814704d065a7a4054fba1f21a848 -->
+- `0b4d13a` Package installation output as a single ZIP named by version and branch
+<!-- commit:e20024d7094eabfae077ba64feefb5b2764beb51 -->
+- `e20024d` Add a user-facing CHANGELOG.md and wire it into the release process
+<!-- commit:2ece1b5373a6069580e263938a2fe2ee14dc3346 -->
+- `2ece1b5` Detect existing installations in install-JIT.ps1 and update in place
+<!-- commit:923155d1754e2847103f74b5f530e4f9ff5d57ed -->
+- `923155d` Add KjitWeb Kerberos SPN automation, GMSA permission handling, and persist management scripts
+
+Changed files:
+
+- `M -> .githooks/pre-commit.ps1`
+- `M -> .gitignore`
+- `A -> CHANGELOG.md`
+- `A -> EVENTS.md`
+- `M -> README.md`
+- `M -> VERSION`
+- `M -> build/New-InstallationPackage.ps1`
+- `M -> build/release_build.ps1`
+- `M -> docs/Authentication.md`
+- `M -> docs/Kerberos-Setup.md`
+- `M -> file-versions.json`
+- `M -> release/Config-JIT.ps1`
+- `M -> release/VERSION`
+- `M -> release/file-versions.json`
+- `M -> release/install-JIT.ps1`
+- `R100 -> release/kjibweb/appsettings.Production.json -> release/kJITWeb/appsettings.Production.json`
+- `R100 -> release/kjibweb/appsettings.json -> release/kJITWeb/appsettings.json`
+- `R080 -> release/kjibweb/install-kjitweb.ps1 -> release/kJITWeb/install-kjitweb.ps1`
+- `R100 -> release/kjibweb/kjitlogo.png -> release/kJITWeb/kjitlogo.png`
+- `R095 -> release/kjibweb/publish-service/KjitWeb.deps.json -> release/kJITWeb/publish-service/KjitWeb.deps.json`
+- `A -> release/kJITWeb/publish-service/KjitWeb.dll`
+- `R099 -> release/kjibweb/publish-service/KjitWeb.exe -> release/kJITWeb/publish-service/KjitWeb.exe`
+- `A -> release/kJITWeb/publish-service/KjitWeb.pdb`
+- `R100 -> release/kjibweb/publish-service/KjitWeb.runtimeconfig.json -> release/kJITWeb/publish-service/KjitWeb.runtimeconfig.json`
+- `A -> release/kJITWeb/publish-service/KjitWeb.staticwebassets.endpoints.json`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Antiforgery.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Antiforgery.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Authentication.Abstractions.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Authentication.Abstractions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Authentication.BearerToken.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Authentication.BearerToken.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Authentication.Cookies.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Authentication.Cookies.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Authentication.Core.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Authentication.Core.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Authentication.OAuth.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Authentication.OAuth.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Authentication.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Authentication.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Authorization.Policy.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Authorization.Policy.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Authorization.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Authorization.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Components.Authorization.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Components.Authorization.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Components.Endpoints.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Components.Endpoints.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Components.Forms.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Components.Forms.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Components.Server.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Components.Server.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Components.Web.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Components.Web.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Components.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Components.dll`
+- `A -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Connections.Abstractions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.CookiePolicy.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.CookiePolicy.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Cors.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Cors.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Cryptography.Internal.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Cryptography.Internal.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Cryptography.KeyDerivation.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Cryptography.KeyDerivation.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.DataProtection.Abstractions.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.DataProtection.Abstractions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.DataProtection.Extensions.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.DataProtection.Extensions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.DataProtection.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.DataProtection.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Diagnostics.Abstractions.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Diagnostics.Abstractions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Diagnostics.HealthChecks.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Diagnostics.HealthChecks.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Diagnostics.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Diagnostics.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.HostFiltering.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.HostFiltering.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Hosting.Abstractions.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Hosting.Abstractions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Hosting.Server.Abstractions.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Hosting.Server.Abstractions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Hosting.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Hosting.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Html.Abstractions.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Html.Abstractions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Http.Abstractions.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Http.Abstractions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Http.Connections.Common.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Http.Connections.Common.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Http.Connections.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Http.Connections.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Http.Extensions.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Http.Extensions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Http.Features.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Http.Features.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Http.Results.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Http.Results.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Http.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Http.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.HttpLogging.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.HttpLogging.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.HttpOverrides.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.HttpOverrides.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.HttpsPolicy.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.HttpsPolicy.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Identity.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Identity.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Localization.Routing.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Localization.Routing.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Localization.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Localization.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Metadata.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Metadata.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Mvc.Abstractions.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.Abstractions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Mvc.ApiExplorer.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.ApiExplorer.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Mvc.Core.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.Core.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Mvc.Cors.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.Cors.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Mvc.DataAnnotations.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.DataAnnotations.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Mvc.Formatters.Json.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.Formatters.Json.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Mvc.Formatters.Xml.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.Formatters.Xml.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Mvc.Localization.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.Localization.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Mvc.Razor.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.Razor.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Mvc.RazorPages.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.RazorPages.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Mvc.TagHelpers.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.TagHelpers.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Mvc.ViewFeatures.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.ViewFeatures.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Mvc.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.OutputCaching.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.OutputCaching.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.RateLimiting.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.RateLimiting.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Razor.Runtime.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Razor.Runtime.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Razor.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Razor.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.RequestDecompression.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.RequestDecompression.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.ResponseCaching.Abstractions.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.ResponseCaching.Abstractions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.ResponseCaching.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.ResponseCaching.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.ResponseCompression.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.ResponseCompression.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Rewrite.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Rewrite.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Routing.Abstractions.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Routing.Abstractions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Routing.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Routing.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Server.HttpSys.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Server.HttpSys.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Server.IIS.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Server.IIS.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Server.IISIntegration.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Server.IISIntegration.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Server.Kestrel.Core.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Server.Kestrel.Core.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Server.Kestrel.Transport.NamedPipes.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Server.Kestrel.Transport.NamedPipes.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Server.Kestrel.Transport.Quic.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Server.Kestrel.Transport.Quic.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Server.Kestrel.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Server.Kestrel.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.Session.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Session.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.SignalR.Common.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.SignalR.Common.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.SignalR.Core.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.SignalR.Core.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.SignalR.Protocols.Json.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.SignalR.Protocols.Json.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.SignalR.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.SignalR.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.StaticFiles.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.StaticFiles.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.WebSockets.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.WebSockets.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.WebUtilities.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.WebUtilities.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.AspNetCore.dll -> release/kJITWeb/publish-service/Microsoft.AspNetCore.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.CSharp.dll -> release/kJITWeb/publish-service/Microsoft.CSharp.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.DiaSymReader.Native.amd64.dll -> release/kJITWeb/publish-service/Microsoft.DiaSymReader.Native.amd64.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Caching.Abstractions.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Caching.Abstractions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Caching.Memory.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Caching.Memory.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Configuration.Abstractions.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Configuration.Abstractions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Configuration.Binder.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Configuration.Binder.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Configuration.CommandLine.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Configuration.CommandLine.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Configuration.EnvironmentVariables.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Configuration.EnvironmentVariables.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Configuration.FileExtensions.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Configuration.FileExtensions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Configuration.Ini.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Configuration.Ini.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Configuration.Json.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Configuration.Json.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Configuration.KeyPerFile.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Configuration.KeyPerFile.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Configuration.UserSecrets.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Configuration.UserSecrets.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Configuration.Xml.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Configuration.Xml.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Configuration.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Configuration.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.DependencyInjection.Abstractions.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.DependencyInjection.Abstractions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.DependencyInjection.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.DependencyInjection.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Diagnostics.Abstractions.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Diagnostics.Abstractions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Diagnostics.HealthChecks.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Diagnostics.HealthChecks.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Diagnostics.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Diagnostics.dll`
+- `A -> release/kJITWeb/publish-service/Microsoft.Extensions.Features.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.FileProviders.Abstractions.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.FileProviders.Abstractions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.FileProviders.Composite.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.FileProviders.Composite.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.FileProviders.Embedded.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.FileProviders.Embedded.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.FileProviders.Physical.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.FileProviders.Physical.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.FileSystemGlobbing.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.FileSystemGlobbing.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Hosting.Abstractions.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Hosting.Abstractions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Hosting.WindowsServices.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Hosting.WindowsServices.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Hosting.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Hosting.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Http.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Http.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Identity.Core.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Identity.Core.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Identity.Stores.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Identity.Stores.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Localization.Abstractions.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Localization.Abstractions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Localization.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Localization.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Logging.Abstractions.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Logging.Abstractions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Logging.Configuration.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Logging.Configuration.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Logging.Console.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Logging.Console.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Logging.Debug.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Logging.Debug.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Logging.EventLog.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Logging.EventLog.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Logging.EventSource.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Logging.EventSource.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Logging.TraceSource.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Logging.TraceSource.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Logging.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Logging.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.ObjectPool.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.ObjectPool.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Options.ConfigurationExtensions.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Options.ConfigurationExtensions.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Options.DataAnnotations.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Options.DataAnnotations.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Options.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Options.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.Primitives.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.Primitives.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Extensions.WebEncoders.dll -> release/kJITWeb/publish-service/Microsoft.Extensions.WebEncoders.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.JSInterop.dll -> release/kJITWeb/publish-service/Microsoft.JSInterop.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Net.Http.Headers.dll -> release/kJITWeb/publish-service/Microsoft.Net.Http.Headers.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.VisualBasic.Core.dll -> release/kJITWeb/publish-service/Microsoft.VisualBasic.Core.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.VisualBasic.dll -> release/kJITWeb/publish-service/Microsoft.VisualBasic.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Win32.Primitives.dll -> release/kJITWeb/publish-service/Microsoft.Win32.Primitives.dll`
+- `R100 -> release/kjibweb/publish-service/Microsoft.Win32.Registry.dll -> release/kJITWeb/publish-service/Microsoft.Win32.Registry.dll`
+- `R100 -> release/kjibweb/publish-service/System.AppContext.dll -> release/kJITWeb/publish-service/System.AppContext.dll`
+- `R100 -> release/kjibweb/publish-service/System.Buffers.dll -> release/kJITWeb/publish-service/System.Buffers.dll`
+- `R100 -> release/kjibweb/publish-service/System.Collections.Concurrent.dll -> release/kJITWeb/publish-service/System.Collections.Concurrent.dll`
+- `R100 -> release/kjibweb/publish-service/System.Collections.Immutable.dll -> release/kJITWeb/publish-service/System.Collections.Immutable.dll`
+- `R100 -> release/kjibweb/publish-service/System.Collections.NonGeneric.dll -> release/kJITWeb/publish-service/System.Collections.NonGeneric.dll`
+- `R100 -> release/kjibweb/publish-service/System.Collections.Specialized.dll -> release/kJITWeb/publish-service/System.Collections.Specialized.dll`
+- `R100 -> release/kjibweb/publish-service/System.Collections.dll -> release/kJITWeb/publish-service/System.Collections.dll`
+- `R100 -> release/kjibweb/publish-service/System.ComponentModel.Annotations.dll -> release/kJITWeb/publish-service/System.ComponentModel.Annotations.dll`
+- `R100 -> release/kjibweb/publish-service/System.ComponentModel.DataAnnotations.dll -> release/kJITWeb/publish-service/System.ComponentModel.DataAnnotations.dll`
+- `R100 -> release/kjibweb/publish-service/System.ComponentModel.EventBasedAsync.dll -> release/kJITWeb/publish-service/System.ComponentModel.EventBasedAsync.dll`
+- `R100 -> release/kjibweb/publish-service/System.ComponentModel.Primitives.dll -> release/kJITWeb/publish-service/System.ComponentModel.Primitives.dll`
+- `R100 -> release/kjibweb/publish-service/System.ComponentModel.TypeConverter.dll -> release/kJITWeb/publish-service/System.ComponentModel.TypeConverter.dll`
+- `R100 -> release/kjibweb/publish-service/System.ComponentModel.dll -> release/kJITWeb/publish-service/System.ComponentModel.dll`
+- `R100 -> release/kjibweb/publish-service/System.Configuration.dll -> release/kJITWeb/publish-service/System.Configuration.dll`
+- `R100 -> release/kjibweb/publish-service/System.Console.dll -> release/kJITWeb/publish-service/System.Console.dll`
+- `R100 -> release/kjibweb/publish-service/System.Core.dll -> release/kJITWeb/publish-service/System.Core.dll`
+- `R100 -> release/kjibweb/publish-service/System.Data.Common.dll -> release/kJITWeb/publish-service/System.Data.Common.dll`
+- `R100 -> release/kjibweb/publish-service/System.Data.DataSetExtensions.dll -> release/kJITWeb/publish-service/System.Data.DataSetExtensions.dll`
+- `R100 -> release/kjibweb/publish-service/System.Data.dll -> release/kJITWeb/publish-service/System.Data.dll`
+- `R100 -> release/kjibweb/publish-service/System.Diagnostics.Contracts.dll -> release/kJITWeb/publish-service/System.Diagnostics.Contracts.dll`
+- `R100 -> release/kjibweb/publish-service/System.Diagnostics.Debug.dll -> release/kJITWeb/publish-service/System.Diagnostics.Debug.dll`
+- `R100 -> release/kjibweb/publish-service/System.Diagnostics.DiagnosticSource.dll -> release/kJITWeb/publish-service/System.Diagnostics.DiagnosticSource.dll`
+- `R100 -> release/kjibweb/publish-service/System.Diagnostics.EventLog.Messages.dll -> release/kJITWeb/publish-service/System.Diagnostics.EventLog.Messages.dll`
+- `R100 -> release/kjibweb/publish-service/System.Diagnostics.EventLog.dll -> release/kJITWeb/publish-service/System.Diagnostics.EventLog.dll`
+- `R100 -> release/kjibweb/publish-service/System.Diagnostics.FileVersionInfo.dll -> release/kJITWeb/publish-service/System.Diagnostics.FileVersionInfo.dll`
+- `R100 -> release/kjibweb/publish-service/System.Diagnostics.Process.dll -> release/kJITWeb/publish-service/System.Diagnostics.Process.dll`
+- `R100 -> release/kjibweb/publish-service/System.Diagnostics.StackTrace.dll -> release/kJITWeb/publish-service/System.Diagnostics.StackTrace.dll`
+- `R100 -> release/kjibweb/publish-service/System.Diagnostics.TextWriterTraceListener.dll -> release/kJITWeb/publish-service/System.Diagnostics.TextWriterTraceListener.dll`
+- `R100 -> release/kjibweb/publish-service/System.Diagnostics.Tools.dll -> release/kJITWeb/publish-service/System.Diagnostics.Tools.dll`
+- `R100 -> release/kjibweb/publish-service/System.Diagnostics.TraceSource.dll -> release/kJITWeb/publish-service/System.Diagnostics.TraceSource.dll`
+- `R100 -> release/kjibweb/publish-service/System.Diagnostics.Tracing.dll -> release/kJITWeb/publish-service/System.Diagnostics.Tracing.dll`
+- `R100 -> release/kjibweb/publish-service/System.DirectoryServices.Protocols.dll -> release/kJITWeb/publish-service/System.DirectoryServices.Protocols.dll`
+- `R100 -> release/kjibweb/publish-service/System.Drawing.Primitives.dll -> release/kJITWeb/publish-service/System.Drawing.Primitives.dll`
+- `R100 -> release/kjibweb/publish-service/System.Drawing.dll -> release/kJITWeb/publish-service/System.Drawing.dll`
+- `R100 -> release/kjibweb/publish-service/System.Dynamic.Runtime.dll -> release/kJITWeb/publish-service/System.Dynamic.Runtime.dll`
+- `R100 -> release/kjibweb/publish-service/System.Formats.Asn1.dll -> release/kJITWeb/publish-service/System.Formats.Asn1.dll`
+- `R100 -> release/kjibweb/publish-service/System.Formats.Tar.dll -> release/kJITWeb/publish-service/System.Formats.Tar.dll`
+- `R100 -> release/kjibweb/publish-service/System.Globalization.Calendars.dll -> release/kJITWeb/publish-service/System.Globalization.Calendars.dll`
+- `R100 -> release/kjibweb/publish-service/System.Globalization.Extensions.dll -> release/kJITWeb/publish-service/System.Globalization.Extensions.dll`
+- `R100 -> release/kjibweb/publish-service/System.Globalization.dll -> release/kJITWeb/publish-service/System.Globalization.dll`
+- `R100 -> release/kjibweb/publish-service/System.IO.Compression.Brotli.dll -> release/kJITWeb/publish-service/System.IO.Compression.Brotli.dll`
+- `R100 -> release/kjibweb/publish-service/System.IO.Compression.FileSystem.dll -> release/kJITWeb/publish-service/System.IO.Compression.FileSystem.dll`
+- `R100 -> release/kjibweb/publish-service/System.IO.Compression.Native.dll -> release/kJITWeb/publish-service/System.IO.Compression.Native.dll`
+- `R100 -> release/kjibweb/publish-service/System.IO.Compression.ZipFile.dll -> release/kJITWeb/publish-service/System.IO.Compression.ZipFile.dll`
+- `R100 -> release/kjibweb/publish-service/System.IO.Compression.dll -> release/kJITWeb/publish-service/System.IO.Compression.dll`
+- `R100 -> release/kjibweb/publish-service/System.IO.FileSystem.AccessControl.dll -> release/kJITWeb/publish-service/System.IO.FileSystem.AccessControl.dll`
+- `R100 -> release/kjibweb/publish-service/System.IO.FileSystem.DriveInfo.dll -> release/kJITWeb/publish-service/System.IO.FileSystem.DriveInfo.dll`
+- `R100 -> release/kjibweb/publish-service/System.IO.FileSystem.Primitives.dll -> release/kJITWeb/publish-service/System.IO.FileSystem.Primitives.dll`
+- `R100 -> release/kjibweb/publish-service/System.IO.FileSystem.Watcher.dll -> release/kJITWeb/publish-service/System.IO.FileSystem.Watcher.dll`
+- `R100 -> release/kjibweb/publish-service/System.IO.FileSystem.dll -> release/kJITWeb/publish-service/System.IO.FileSystem.dll`
+- `R100 -> release/kjibweb/publish-service/System.IO.IsolatedStorage.dll -> release/kJITWeb/publish-service/System.IO.IsolatedStorage.dll`
+- `R100 -> release/kjibweb/publish-service/System.IO.MemoryMappedFiles.dll -> release/kJITWeb/publish-service/System.IO.MemoryMappedFiles.dll`
+- `R100 -> release/kjibweb/publish-service/System.IO.Pipelines.dll -> release/kJITWeb/publish-service/System.IO.Pipelines.dll`
+- `R100 -> release/kjibweb/publish-service/System.IO.Pipes.AccessControl.dll -> release/kJITWeb/publish-service/System.IO.Pipes.AccessControl.dll`
+- `R100 -> release/kjibweb/publish-service/System.IO.Pipes.dll -> release/kJITWeb/publish-service/System.IO.Pipes.dll`
+- `R100 -> release/kjibweb/publish-service/System.IO.UnmanagedMemoryStream.dll -> release/kJITWeb/publish-service/System.IO.UnmanagedMemoryStream.dll`
+- `R100 -> release/kjibweb/publish-service/System.IO.dll -> release/kJITWeb/publish-service/System.IO.dll`
+- `R100 -> release/kjibweb/publish-service/System.Linq.Expressions.dll -> release/kJITWeb/publish-service/System.Linq.Expressions.dll`
+- `R100 -> release/kjibweb/publish-service/System.Linq.Parallel.dll -> release/kJITWeb/publish-service/System.Linq.Parallel.dll`
+- `R100 -> release/kjibweb/publish-service/System.Linq.Queryable.dll -> release/kJITWeb/publish-service/System.Linq.Queryable.dll`
+- `R100 -> release/kjibweb/publish-service/System.Linq.dll -> release/kJITWeb/publish-service/System.Linq.dll`
+- `R100 -> release/kjibweb/publish-service/System.Memory.dll -> release/kJITWeb/publish-service/System.Memory.dll`
+- `R100 -> release/kjibweb/publish-service/System.Net.Http.Json.dll -> release/kJITWeb/publish-service/System.Net.Http.Json.dll`
+- `R100 -> release/kjibweb/publish-service/System.Net.Http.dll -> release/kJITWeb/publish-service/System.Net.Http.dll`
+- `R100 -> release/kjibweb/publish-service/System.Net.HttpListener.dll -> release/kJITWeb/publish-service/System.Net.HttpListener.dll`
+- `R100 -> release/kjibweb/publish-service/System.Net.Mail.dll -> release/kJITWeb/publish-service/System.Net.Mail.dll`
+- `R100 -> release/kjibweb/publish-service/System.Net.NameResolution.dll -> release/kJITWeb/publish-service/System.Net.NameResolution.dll`
+- `R100 -> release/kjibweb/publish-service/System.Net.NetworkInformation.dll -> release/kJITWeb/publish-service/System.Net.NetworkInformation.dll`
+- `R100 -> release/kjibweb/publish-service/System.Net.Ping.dll -> release/kJITWeb/publish-service/System.Net.Ping.dll`
+- `R100 -> release/kjibweb/publish-service/System.Net.Primitives.dll -> release/kJITWeb/publish-service/System.Net.Primitives.dll`
+- `R100 -> release/kjibweb/publish-service/System.Net.Quic.dll -> release/kJITWeb/publish-service/System.Net.Quic.dll`
+- `R100 -> release/kjibweb/publish-service/System.Net.Requests.dll -> release/kJITWeb/publish-service/System.Net.Requests.dll`
+- `R100 -> release/kjibweb/publish-service/System.Net.Security.dll -> release/kJITWeb/publish-service/System.Net.Security.dll`
+- `R100 -> release/kjibweb/publish-service/System.Net.ServicePoint.dll -> release/kJITWeb/publish-service/System.Net.ServicePoint.dll`
+- `R100 -> release/kjibweb/publish-service/System.Net.Sockets.dll -> release/kJITWeb/publish-service/System.Net.Sockets.dll`
+- `R100 -> release/kjibweb/publish-service/System.Net.WebClient.dll -> release/kJITWeb/publish-service/System.Net.WebClient.dll`
+- `R100 -> release/kjibweb/publish-service/System.Net.WebHeaderCollection.dll -> release/kJITWeb/publish-service/System.Net.WebHeaderCollection.dll`
+- `R100 -> release/kjibweb/publish-service/System.Net.WebProxy.dll -> release/kJITWeb/publish-service/System.Net.WebProxy.dll`
+- `R100 -> release/kjibweb/publish-service/System.Net.WebSockets.Client.dll -> release/kJITWeb/publish-service/System.Net.WebSockets.Client.dll`
+- `R100 -> release/kjibweb/publish-service/System.Net.WebSockets.dll -> release/kJITWeb/publish-service/System.Net.WebSockets.dll`
+- `R100 -> release/kjibweb/publish-service/System.Net.dll -> release/kJITWeb/publish-service/System.Net.dll`
+- `R100 -> release/kjibweb/publish-service/System.Numerics.Vectors.dll -> release/kJITWeb/publish-service/System.Numerics.Vectors.dll`
+- `R100 -> release/kjibweb/publish-service/System.Numerics.dll -> release/kJITWeb/publish-service/System.Numerics.dll`
+- `R100 -> release/kjibweb/publish-service/System.ObjectModel.dll -> release/kJITWeb/publish-service/System.ObjectModel.dll`
+- `R100 -> release/kjibweb/publish-service/System.Private.CoreLib.dll -> release/kJITWeb/publish-service/System.Private.CoreLib.dll`
+- `R100 -> release/kjibweb/publish-service/System.Private.DataContractSerialization.dll -> release/kJITWeb/publish-service/System.Private.DataContractSerialization.dll`
+- `R100 -> release/kjibweb/publish-service/System.Private.Uri.dll -> release/kJITWeb/publish-service/System.Private.Uri.dll`
+- `R100 -> release/kjibweb/publish-service/System.Private.Xml.Linq.dll -> release/kJITWeb/publish-service/System.Private.Xml.Linq.dll`
+- `R100 -> release/kjibweb/publish-service/System.Private.Xml.dll -> release/kJITWeb/publish-service/System.Private.Xml.dll`
+- `R100 -> release/kjibweb/publish-service/System.Reflection.DispatchProxy.dll -> release/kJITWeb/publish-service/System.Reflection.DispatchProxy.dll`
+- `R100 -> release/kjibweb/publish-service/System.Reflection.Emit.ILGeneration.dll -> release/kJITWeb/publish-service/System.Reflection.Emit.ILGeneration.dll`
+- `R100 -> release/kjibweb/publish-service/System.Reflection.Emit.Lightweight.dll -> release/kJITWeb/publish-service/System.Reflection.Emit.Lightweight.dll`
+- `R100 -> release/kjibweb/publish-service/System.Reflection.Emit.dll -> release/kJITWeb/publish-service/System.Reflection.Emit.dll`
+- `R100 -> release/kjibweb/publish-service/System.Reflection.Extensions.dll -> release/kJITWeb/publish-service/System.Reflection.Extensions.dll`
+- `R100 -> release/kjibweb/publish-service/System.Reflection.Metadata.dll -> release/kJITWeb/publish-service/System.Reflection.Metadata.dll`
+- `R100 -> release/kjibweb/publish-service/System.Reflection.Primitives.dll -> release/kJITWeb/publish-service/System.Reflection.Primitives.dll`
+- `R100 -> release/kjibweb/publish-service/System.Reflection.TypeExtensions.dll -> release/kJITWeb/publish-service/System.Reflection.TypeExtensions.dll`
+- `R100 -> release/kjibweb/publish-service/System.Reflection.dll -> release/kJITWeb/publish-service/System.Reflection.dll`
+- `R100 -> release/kjibweb/publish-service/System.Resources.Reader.dll -> release/kJITWeb/publish-service/System.Resources.Reader.dll`
+- `R100 -> release/kjibweb/publish-service/System.Resources.ResourceManager.dll -> release/kJITWeb/publish-service/System.Resources.ResourceManager.dll`
+- `R100 -> release/kjibweb/publish-service/System.Resources.Writer.dll -> release/kJITWeb/publish-service/System.Resources.Writer.dll`
+- `R100 -> release/kjibweb/publish-service/System.Runtime.CompilerServices.Unsafe.dll -> release/kJITWeb/publish-service/System.Runtime.CompilerServices.Unsafe.dll`
+- `R100 -> release/kjibweb/publish-service/System.Runtime.CompilerServices.VisualC.dll -> release/kJITWeb/publish-service/System.Runtime.CompilerServices.VisualC.dll`
+- `R100 -> release/kjibweb/publish-service/System.Runtime.Extensions.dll -> release/kJITWeb/publish-service/System.Runtime.Extensions.dll`
+- `R100 -> release/kjibweb/publish-service/System.Runtime.Handles.dll -> release/kJITWeb/publish-service/System.Runtime.Handles.dll`
+- `R100 -> release/kjibweb/publish-service/System.Runtime.InteropServices.JavaScript.dll -> release/kJITWeb/publish-service/System.Runtime.InteropServices.JavaScript.dll`
+- `R100 -> release/kjibweb/publish-service/System.Runtime.InteropServices.RuntimeInformation.dll -> release/kJITWeb/publish-service/System.Runtime.InteropServices.RuntimeInformation.dll`
+- `R100 -> release/kjibweb/publish-service/System.Runtime.InteropServices.dll -> release/kJITWeb/publish-service/System.Runtime.InteropServices.dll`
+- `R100 -> release/kjibweb/publish-service/System.Runtime.Intrinsics.dll -> release/kJITWeb/publish-service/System.Runtime.Intrinsics.dll`
+- `R100 -> release/kjibweb/publish-service/System.Runtime.Loader.dll -> release/kJITWeb/publish-service/System.Runtime.Loader.dll`
+- `R100 -> release/kjibweb/publish-service/System.Runtime.Numerics.dll -> release/kJITWeb/publish-service/System.Runtime.Numerics.dll`
+- `R100 -> release/kjibweb/publish-service/System.Runtime.Serialization.Formatters.dll -> release/kJITWeb/publish-service/System.Runtime.Serialization.Formatters.dll`
+- `R100 -> release/kjibweb/publish-service/System.Runtime.Serialization.Json.dll -> release/kJITWeb/publish-service/System.Runtime.Serialization.Json.dll`
+- `R100 -> release/kjibweb/publish-service/System.Runtime.Serialization.Primitives.dll -> release/kJITWeb/publish-service/System.Runtime.Serialization.Primitives.dll`
+- `R100 -> release/kjibweb/publish-service/System.Runtime.Serialization.Xml.dll -> release/kJITWeb/publish-service/System.Runtime.Serialization.Xml.dll`
+- `R100 -> release/kjibweb/publish-service/System.Runtime.Serialization.dll -> release/kJITWeb/publish-service/System.Runtime.Serialization.dll`
+- `R100 -> release/kjibweb/publish-service/System.Runtime.dll -> release/kJITWeb/publish-service/System.Runtime.dll`
+- `R100 -> release/kjibweb/publish-service/System.Security.AccessControl.dll -> release/kJITWeb/publish-service/System.Security.AccessControl.dll`
+- `R100 -> release/kjibweb/publish-service/System.Security.Claims.dll -> release/kJITWeb/publish-service/System.Security.Claims.dll`
+- `R100 -> release/kjibweb/publish-service/System.Security.Cryptography.Algorithms.dll -> release/kJITWeb/publish-service/System.Security.Cryptography.Algorithms.dll`
+- `R100 -> release/kjibweb/publish-service/System.Security.Cryptography.Cng.dll -> release/kJITWeb/publish-service/System.Security.Cryptography.Cng.dll`
+- `R100 -> release/kjibweb/publish-service/System.Security.Cryptography.Csp.dll -> release/kJITWeb/publish-service/System.Security.Cryptography.Csp.dll`
+- `R100 -> release/kjibweb/publish-service/System.Security.Cryptography.Encoding.dll -> release/kJITWeb/publish-service/System.Security.Cryptography.Encoding.dll`
+- `R100 -> release/kjibweb/publish-service/System.Security.Cryptography.OpenSsl.dll -> release/kJITWeb/publish-service/System.Security.Cryptography.OpenSsl.dll`
+- `R100 -> release/kjibweb/publish-service/System.Security.Cryptography.Pkcs.dll -> release/kJITWeb/publish-service/System.Security.Cryptography.Pkcs.dll`
+- `R100 -> release/kjibweb/publish-service/System.Security.Cryptography.Primitives.dll -> release/kJITWeb/publish-service/System.Security.Cryptography.Primitives.dll`
+- `R100 -> release/kjibweb/publish-service/System.Security.Cryptography.X509Certificates.dll -> release/kJITWeb/publish-service/System.Security.Cryptography.X509Certificates.dll`
+- `R100 -> release/kjibweb/publish-service/System.Security.Cryptography.Xml.dll -> release/kJITWeb/publish-service/System.Security.Cryptography.Xml.dll`
+- `R100 -> release/kjibweb/publish-service/System.Security.Cryptography.dll -> release/kJITWeb/publish-service/System.Security.Cryptography.dll`
+- `R100 -> release/kjibweb/publish-service/System.Security.Principal.Windows.dll -> release/kJITWeb/publish-service/System.Security.Principal.Windows.dll`
+- `R100 -> release/kjibweb/publish-service/System.Security.Principal.dll -> release/kJITWeb/publish-service/System.Security.Principal.dll`
+- `R100 -> release/kjibweb/publish-service/System.Security.SecureString.dll -> release/kJITWeb/publish-service/System.Security.SecureString.dll`
+- `R100 -> release/kjibweb/publish-service/System.Security.dll -> release/kJITWeb/publish-service/System.Security.dll`
+- `R100 -> release/kjibweb/publish-service/System.ServiceModel.Web.dll -> release/kJITWeb/publish-service/System.ServiceModel.Web.dll`
+- `R100 -> release/kjibweb/publish-service/System.ServiceProcess.ServiceController.dll -> release/kJITWeb/publish-service/System.ServiceProcess.ServiceController.dll`
+- `R100 -> release/kjibweb/publish-service/System.ServiceProcess.dll -> release/kJITWeb/publish-service/System.ServiceProcess.dll`
+- `R100 -> release/kjibweb/publish-service/System.Text.Encoding.CodePages.dll -> release/kJITWeb/publish-service/System.Text.Encoding.CodePages.dll`
+- `R100 -> release/kjibweb/publish-service/System.Text.Encoding.Extensions.dll -> release/kJITWeb/publish-service/System.Text.Encoding.Extensions.dll`
+- `R100 -> release/kjibweb/publish-service/System.Text.Encoding.dll -> release/kJITWeb/publish-service/System.Text.Encoding.dll`
+- `R100 -> release/kjibweb/publish-service/System.Text.Encodings.Web.dll -> release/kJITWeb/publish-service/System.Text.Encodings.Web.dll`
+- `R100 -> release/kjibweb/publish-service/System.Text.Json.dll -> release/kJITWeb/publish-service/System.Text.Json.dll`
+- `R100 -> release/kjibweb/publish-service/System.Text.RegularExpressions.dll -> release/kJITWeb/publish-service/System.Text.RegularExpressions.dll`
+- `R100 -> release/kjibweb/publish-service/System.Threading.Channels.dll -> release/kJITWeb/publish-service/System.Threading.Channels.dll`
+- `R100 -> release/kjibweb/publish-service/System.Threading.Overlapped.dll -> release/kJITWeb/publish-service/System.Threading.Overlapped.dll`
+- `R100 -> release/kjibweb/publish-service/System.Threading.RateLimiting.dll -> release/kJITWeb/publish-service/System.Threading.RateLimiting.dll`
+- `R100 -> release/kjibweb/publish-service/System.Threading.Tasks.Dataflow.dll -> release/kJITWeb/publish-service/System.Threading.Tasks.Dataflow.dll`
+- `R100 -> release/kjibweb/publish-service/System.Threading.Tasks.Extensions.dll -> release/kJITWeb/publish-service/System.Threading.Tasks.Extensions.dll`
+- `R100 -> release/kjibweb/publish-service/System.Threading.Tasks.Parallel.dll -> release/kJITWeb/publish-service/System.Threading.Tasks.Parallel.dll`
+- `R100 -> release/kjibweb/publish-service/System.Threading.Tasks.dll -> release/kJITWeb/publish-service/System.Threading.Tasks.dll`
+- `R100 -> release/kjibweb/publish-service/System.Threading.Thread.dll -> release/kJITWeb/publish-service/System.Threading.Thread.dll`
+- `R100 -> release/kjibweb/publish-service/System.Threading.ThreadPool.dll -> release/kJITWeb/publish-service/System.Threading.ThreadPool.dll`
+- `R100 -> release/kjibweb/publish-service/System.Threading.Timer.dll -> release/kJITWeb/publish-service/System.Threading.Timer.dll`
+- `R100 -> release/kjibweb/publish-service/System.Threading.dll -> release/kJITWeb/publish-service/System.Threading.dll`
+- `R100 -> release/kjibweb/publish-service/System.Transactions.Local.dll -> release/kJITWeb/publish-service/System.Transactions.Local.dll`
+- `R100 -> release/kjibweb/publish-service/System.Transactions.dll -> release/kJITWeb/publish-service/System.Transactions.dll`
+- `R100 -> release/kjibweb/publish-service/System.ValueTuple.dll -> release/kJITWeb/publish-service/System.ValueTuple.dll`
+- `R100 -> release/kjibweb/publish-service/System.Web.HttpUtility.dll -> release/kJITWeb/publish-service/System.Web.HttpUtility.dll`
+- `R100 -> release/kjibweb/publish-service/System.Web.dll -> release/kJITWeb/publish-service/System.Web.dll`
+- `R100 -> release/kjibweb/publish-service/System.Windows.dll -> release/kJITWeb/publish-service/System.Windows.dll`
+- `R100 -> release/kjibweb/publish-service/System.Xml.Linq.dll -> release/kJITWeb/publish-service/System.Xml.Linq.dll`
+- `R100 -> release/kjibweb/publish-service/System.Xml.ReaderWriter.dll -> release/kJITWeb/publish-service/System.Xml.ReaderWriter.dll`
+- `R100 -> release/kjibweb/publish-service/System.Xml.Serialization.dll -> release/kJITWeb/publish-service/System.Xml.Serialization.dll`
+- `R100 -> release/kjibweb/publish-service/System.Xml.XDocument.dll -> release/kJITWeb/publish-service/System.Xml.XDocument.dll`
+- `R100 -> release/kjibweb/publish-service/System.Xml.XPath.XDocument.dll -> release/kJITWeb/publish-service/System.Xml.XPath.XDocument.dll`
+- `R100 -> release/kjibweb/publish-service/System.Xml.XPath.dll -> release/kJITWeb/publish-service/System.Xml.XPath.dll`
+- `R100 -> release/kjibweb/publish-service/System.Xml.XmlDocument.dll -> release/kJITWeb/publish-service/System.Xml.XmlDocument.dll`
+- `R100 -> release/kjibweb/publish-service/System.Xml.XmlSerializer.dll -> release/kJITWeb/publish-service/System.Xml.XmlSerializer.dll`
+- `R100 -> release/kjibweb/publish-service/System.Xml.dll -> release/kJITWeb/publish-service/System.Xml.dll`
+- `R100 -> release/kjibweb/publish-service/System.dll -> release/kJITWeb/publish-service/System.dll`
+- `R100 -> release/kjibweb/publish-service/WindowsBase.dll -> release/kJITWeb/publish-service/WindowsBase.dll`
+- `R100 -> release/kjibweb/publish-service/app_data/JIT.test.config -> release/kJITWeb/publish-service/app_data/JIT.test.config`
+- `R100 -> release/kjibweb/publish-service/appsettings.Production.json -> release/kJITWeb/publish-service/appsettings.Production.json`
+- `R100 -> release/kjibweb/publish-service/appsettings.json -> release/kJITWeb/publish-service/appsettings.json`
+- `R100 -> release/kjibweb/publish-service/aspnetcorev2_inprocess.dll -> release/kJITWeb/publish-service/aspnetcorev2_inprocess.dll`
+- `R100 -> release/kjibweb/publish-service/clretwrc.dll -> release/kJITWeb/publish-service/clretwrc.dll`
+- `R100 -> release/kjibweb/publish-service/clrgc.dll -> release/kJITWeb/publish-service/clrgc.dll`
+- `R100 -> release/kjibweb/publish-service/clrjit.dll -> release/kJITWeb/publish-service/clrjit.dll`
+- `R100 -> release/kjibweb/publish-service/coreclr.dll -> release/kJITWeb/publish-service/coreclr.dll`
+- `R100 -> release/kjibweb/publish-service/createdump.exe -> release/kJITWeb/publish-service/createdump.exe`
+- `A -> release/kJITWeb/publish-service/de/KjitWeb.resources.dll`
+- `A -> release/kJITWeb/publish-service/en/KjitWeb.resources.dll`
+- `R100 -> release/kjibweb/publish-service/hostfxr.dll -> release/kJITWeb/publish-service/hostfxr.dll`
+- `R100 -> release/kjibweb/publish-service/hostpolicy.dll -> release/kJITWeb/publish-service/hostpolicy.dll`
+- `R100 -> release/kjibweb/publish-service/mscordaccore.dll -> release/kJITWeb/publish-service/mscordaccore.dll`
+- `R100 -> release/kjibweb/publish-service/mscordaccore_amd64_amd64_8.0.2726.22922.dll -> release/kJITWeb/publish-service/mscordaccore_amd64_amd64_8.0.2726.22922.dll`
+- `R100 -> release/kjibweb/publish-service/mscordbi.dll -> release/kJITWeb/publish-service/mscordbi.dll`
+- `R100 -> release/kjibweb/publish-service/mscorlib.dll -> release/kJITWeb/publish-service/mscorlib.dll`
+- `R100 -> release/kjibweb/publish-service/mscorrc.dll -> release/kJITWeb/publish-service/mscorrc.dll`
+- `R100 -> release/kjibweb/publish-service/msquic.dll -> release/kJITWeb/publish-service/msquic.dll`
+- `R100 -> release/kjibweb/publish-service/netstandard.dll -> release/kJITWeb/publish-service/netstandard.dll`
+- `R100 -> release/kjibweb/publish-service/web.config -> release/kJITWeb/publish-service/web.config`
+- `R100 -> release/kjibweb/publish-service/wwwroot/images/kjitlogo.png -> release/kJITWeb/publish-service/wwwroot/images/kjitlogo.png`
+- `A -> release/kJITWeb/publish-service/wwwroot/lib/bootstrap/css/LICENSE`
+- `A -> release/kJITWeb/publish-service/wwwroot/lib/bootstrap/css/bootstrap.min.css`
+- `A -> release/kJITWeb/publish-service/wwwroot/lib/jquery-validation-unobtrusive/LICENSE`
+- `A -> release/kJITWeb/publish-service/wwwroot/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js`
+- `A -> release/kJITWeb/publish-service/wwwroot/lib/jquery-validation/LICENSE`
+- `A -> release/kJITWeb/publish-service/wwwroot/lib/jquery-validation/jquery.validate.min.js`
+- `A -> release/kJITWeb/publish-service/wwwroot/lib/jquery/LICENSE`
+- `A -> release/kJITWeb/publish-service/wwwroot/lib/jquery/jquery.min.js`
+- `A -> release/kJITWeb/set-kjitweb-allowedclient.ps1`
+- `A -> release/kJITWeb/update-kjitweb.ps1`
+- `D -> release/kjibweb/publish-service/KjitWeb.dll`
+- `D -> release/kjibweb/publish-service/KjitWeb.pdb`
+- `D -> release/kjibweb/publish-service/KjitWeb.staticwebassets.endpoints.json`
+- `D -> release/kjibweb/publish-service/Microsoft.AspNetCore.Authentication.Negotiate.dll`
+- `D -> release/kjibweb/publish-service/Microsoft.AspNetCore.Connections.Abstractions.dll`
+- `D -> release/kjibweb/publish-service/Microsoft.Extensions.Features.dll`
+- `D -> release/kjibweb/publish-service/de/KjitWeb.resources.dll`
+- `D -> release/kjibweb/publish-service/en/KjitWeb.resources.dll`
+- `M -> release/modules/0.1/KjitCore.dll`
+- `M -> release/modules/0.1/just-in-time-configuration.psm1`
+- `M -> src/C#/Kjitweb/Controllers/HomeController.cs`
+- `M -> src/C#/Kjitweb/KjitWeb.csproj`
+- `M -> src/C#/Kjitweb/Program.cs`
+- `M -> src/C#/Kjitweb/Resources/SharedResource.de.resx`
+- `M -> src/C#/Kjitweb/Resources/SharedResource.en.resx`
+- `A -> src/C#/Kjitweb/Services/EventLogHealthMonitor.cs`
+- `A -> src/C#/Kjitweb/Services/EventLogHealthSnapshot.cs`
+- `A -> src/C#/Kjitweb/Services/IEventLogHealthMonitor.cs`
+- `M -> src/C#/Kjitweb/Views/Home/Index.cshtml`
+- `M -> src/C#/Kjitweb/Views/Shared/_Layout.cshtml`
+- `M -> src/C#/Kjitweb/install-kjitweb.ps1`
+- `A -> src/C#/Kjitweb/set-kjitweb-allowedclient.ps1`
+- `A -> src/C#/Kjitweb/update-kjitweb.ps1`
+- `A -> src/C#/Kjitweb/wwwroot/lib/bootstrap/css/LICENSE`
+- `A -> src/C#/Kjitweb/wwwroot/lib/bootstrap/css/bootstrap.min.css`
+- `A -> src/C#/Kjitweb/wwwroot/lib/jquery-validation-unobtrusive/LICENSE`
+- `A -> src/C#/Kjitweb/wwwroot/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js`
+- `A -> src/C#/Kjitweb/wwwroot/lib/jquery-validation/LICENSE`
+- `A -> src/C#/Kjitweb/wwwroot/lib/jquery-validation/jquery.validate.min.js`
+- `A -> src/C#/Kjitweb/wwwroot/lib/jquery/LICENSE`
+- `A -> src/C#/Kjitweb/wwwroot/lib/jquery/jquery.min.js`
+- `M -> src/Powershell/Scripts/Config-JIT.ps1`
+- `M -> src/Powershell/Scripts/install-JIT.ps1`
+- `M -> src/Powershell/TestEnvironment/Install-T1JitTestInstallation.ps1`
+- `M -> src/Powershell/modules/0.1/just-in-time-configuration.psm1`
+- `M -> tmp_ps51_test.ps1`
+
 ## 2026-09-08 21:48:29 +02:00 - `dev` to `origin/dev`
 
 Commits:
@@ -966,6 +1388,7 @@ Changes:
 - Added a full-page processing lock that prevents duplicate elevation requests.
 - Extended Active Directory queries and web models for active elevation information.
 - Updated installation documentation, release scripts, modules, and published KjitWeb artifacts.
+
 
 
 
