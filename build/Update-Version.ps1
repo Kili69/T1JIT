@@ -28,7 +28,7 @@ possibility of such damages
 .PARAMETER Major
     Major component used when creating a version. The default is 0.
 .PARAMETER Minor
-    Minor component used when creating a version. The default is 1.
+    Minor component used when creating a version. The default is 2.
 .PARAMETER BaseRef
     Git reference against which changed files are determined. Use HEAD before a local
     commit or the target branch when versioning several commits. The default is HEAD.
@@ -62,7 +62,7 @@ param(
 
     [Parameter(ParameterSetName = "Update")]
     [ValidateRange(0, 2147483647)]
-    [int]$Minor = 1,
+    [int]$Minor = 2,
 
     [Parameter()]
     [ValidateNotNullOrEmpty()]
