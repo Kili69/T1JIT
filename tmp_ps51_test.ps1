@@ -28,7 +28,7 @@ catch {
 }
 
 # Test 2: Explicit JSON file
-$testConfigPath = ".\release\kjibweb\publish-service\app_data\JIT.test.config"
+$testConfigPath = ".\release\kJITWeb\publish-service\app_data\JIT.test.config"
 if (Test-Path $testConfigPath) {
     try {
         $cfg2 = Get-JITconfig -configurationFile $testConfigPath

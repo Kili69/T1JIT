@@ -49,7 +49,7 @@ try {
         throw "Release version '$releaseVersion' does not match repository version '$repositoryVersion'."
     }
 
-    $releaseDll = Join-Path $repoRoot "release/kjibweb/publish-service/KjitWeb.dll"
+    $releaseDll = Join-Path $repoRoot "release/kJITWeb/publish-service/KjitWeb.dll"
     $productVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo($releaseDll).ProductVersion
     if ($productVersion -notlike "$repositoryVersion+*") {
         throw "Release KjitWeb version '$productVersion' does not match repository version '$repositoryVersion'."

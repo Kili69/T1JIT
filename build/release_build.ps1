@@ -56,14 +56,15 @@ $psSourceRoot = Join-Path $repoRoot "src/PowerShell"
 $psModulesSourceDir = Join-Path $psSourceRoot "modules"
 $psScriptsSourceDir = Join-Path $psSourceRoot "Scripts"
 
-# Requested target folder name: release/kjibweb
+# Requested target folder name: release/kJITWeb
 $releaseRoot = Join-Path $repoRoot "release"
-$releaseKjibwebDir = Join-Path $releaseRoot "kjibweb"
-$releasePublishDir = Join-Path $releaseKjibwebDir "publish-service"
+$releaseKJITWebDir = Join-Path $releaseRoot "kJITWeb"
+$releasePublishDir = Join-Path $releaseKJITWebDir "publish-service"
 $releaseModulesDir = Join-Path $releaseRoot "modules"
 $releaseModulesVersionDir = Join-Path $releaseModulesDir "0.1"
 
 $installScriptSource = Join-Path $kjitWebRoot "install-kjitweb.ps1"
+$updateScriptSource = Join-Path $kjitWebRoot "update-kjitweb.ps1"
 $logoSource = Join-Path $kjitWebRoot "kjitlogo.png"
 $appSettingsSource = Join-Path $kjitWebRoot "appsettings.json"
 $appSettingsProdSource = Join-Path $kjitWebRoot "appsettings.Production.json"
@@ -158,11 +159,11 @@ Remove-Item (Join-Path $publishOutputDir "appsettings.Development.json") -Force 
 Remove-Item (Join-Path $publishOutputDir "publish") -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item (Join-Path $publishOutputDir "publish-service") -Recurse -Force -ErrorAction SilentlyContinue
 
-Write-Host "Preparing release folder: $releaseKjibwebDir"
-if (Test-Path $releaseKjibwebDir) {
-    Remove-Item $releaseKjibwebDir -Recurse -Force
+Write-Host "Preparing release folder: $releaseKJITWebDir"
+if (Test-Path $releaseKJITWebDir) {
+    Remove-Item $releaseKJITWebDir -Recurse -Force
 }
-New-Item -Path $releaseKjibwebDir -ItemType Directory -Force | Out-Null
+New-Item -Path $releaseKJITWebDir -ItemType Directory -Force | Out-Null
 
 Write-Host "Copying published service files..."
 Copy-Item $publishOutputDir $releasePublishDir -Recurse -Force
@@ -170,19 +171,23 @@ Copy-Item $publishOutputDir $releasePublishDir -Recurse -Force
 if (-not (Test-Path $installScriptSource)) {
     throw "Install script not found: $installScriptSource"
 }
+if (-not (Test-Path $updateScriptSource)) {
+    throw "Update script not found: $updateScriptSource"
+}
 if (-not (Test-Path $logoSource)) {
     throw "Logo file not found: $logoSource"
 }
 
 Write-Host "Copying installation assets..."
-Copy-Item $installScriptSource (Join-Path $releaseKjibwebDir "install-kjitweb.ps1") -Force
-Copy-Item $logoSource (Join-Path $releaseKjibwebDir "kjitlogo.png") -Force
+Copy-Item $installScriptSource (Join-Path $releaseKJITWebDir "install-kjitweb.ps1") -Force
+Copy-Item $updateScriptSource (Join-Path $releaseKJITWebDir "update-kjitweb.ps1") -Force
+Copy-Item $logoSource (Join-Path $releaseKJITWebDir "kjitlogo.png") -Force
 
 # Keep appsettings next to install script (used by install-kjitweb.ps1 for DebugLog path fallback).
 if (Test-Path $appSettingsSource) {
-    Copy-SanitizedJsonConfig $appSettingsSource (Join-Path $releaseKjibwebDir "appsettings.json")
-    copy-SanitizedJsonConfig $appSettingsProdSource (Join-Path $releaseKjibwebDir "appsettings.Production.json")
-    Remove-Item (Join-Path $releaseKjibwebDir "appsettings.Development.json") -ErrorAction SilentlyContinue
+    Copy-SanitizedJsonConfig $appSettingsSource (Join-Path $releaseKJITWebDir "appsettings.json")
+    copy-SanitizedJsonConfig $appSettingsProdSource (Join-Path $releaseKJITWebDir "appsettings.Production.json")
+    Remove-Item (Join-Path $releaseKJITWebDir "appsettings.Development.json") -ErrorAction SilentlyContinue
 }   
 
-Write-Host "Release package created: $releaseKjibwebDir" -ForegroundColor Green
+Write-Host "Release package created: $releaseKJITWebDir" -ForegroundColor Green

@@ -28,7 +28,7 @@ possibility of such damages
     Those objects must already exist. Run Remove-T1JitInstallation.ps1 before this
     script when a clean installation test is required.
 .PARAMETER InstallerRoot
-    Folder containing install-JIT.ps1, modules, and the kjibweb folder.
+    Folder containing install-JIT.ps1, modules, and the kJITWeb folder.
 .PARAMETER DomainController
     Optional domain controller used for validation and OU creation.
 .PARAMETER AllowedClient

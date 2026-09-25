@@ -16,16 +16,27 @@ possibility of such damages
 .SYNOPSIS
     Creates a complete T1JIT installation package.
 .DESCRIPTION
-    Copies every installation file from release into Installationspackage. Use
+    Copies every installation file from release into Installationspackage and always
+    compresses the result into a ZIP archive with a SHA-256 checksum file. Use
     BuildRelease to rebuild the release output before copying it.
 .PARAMETER DestinationPath
-    Package destination. The default is Installationspackage in the repository root.
+    Package staging folder. The default is Installationspackage in the repository root.
 .PARAMETER BuildRelease
     Runs release_build.ps1 before creating the installation package.
+.PARAMETER ArchivePath
+    Explicit path of the ZIP archive to create. Overrides -Version/-Prerelease naming.
+    The default is DestinationPath with a .zip extension.
+.PARAMETER Version
+    Version used to name the archive as T1JIT-<Version>[-test].zip. Ignored when
+    -ArchivePath is specified.
+.PARAMETER Prerelease
+    Appends the -test suffix to the -Version based archive name for development releases.
 .EXAMPLE
     ./build/New-InstallationPackage.ps1
 .EXAMPLE
     ./build/New-InstallationPackage.ps1 -BuildRelease
+.EXAMPLE
+    ./build/New-InstallationPackage.ps1 -BuildRelease -Version 0.1.20260924.1 -Prerelease
 #>
 
 [CmdletBinding()]
@@ -35,7 +46,18 @@ param(
     [string]$DestinationPath,
 
     [Parameter()]
-    [switch]$BuildRelease
+    [switch]$BuildRelease,
+
+    [Parameter()]
+    [ValidateNotNullOrEmpty()]
+    [string]$ArchivePath,
+
+    [Parameter()]
+    [ValidateNotNullOrEmpty()]
+    [string]$Version,
+
+    [Parameter()]
+    [switch]$Prerelease
 )
 
 Set-StrictMode -Version Latest
@@ -72,8 +94,8 @@ $requiredFiles = @(
     "VERSION",
     "file-versions.json",
     "modules/0.1/KjitCore.dll",
-    "kjibweb/install-kjitweb.ps1",
-    "kjibweb/publish-service/KjitWeb.dll"
+    "kJITWeb/install-kjitweb.ps1",
+    "kJITWeb/publish-service/KjitWeb.dll"
 )
 foreach ($relativePath in $requiredFiles) {
     $packageFile = Join-Path $DestinationPath $relativePath
@@ -85,3 +107,28 @@ foreach ($relativePath in $requiredFiles) {
 $fileCount = @(Get-ChildItem -LiteralPath $DestinationPath -File -Recurse).Count
 Write-Host "Installation package created: $DestinationPath" -ForegroundColor Green
 Write-Host "Files copied: $fileCount"
+
+if ([string]::IsNullOrWhiteSpace($ArchivePath)) {
+    if (-not [string]::IsNullOrWhiteSpace($Version)) {
+        $suffix = if ($Prerelease) { "-test" } else { "" }
+        $ArchivePath = Join-Path (Split-Path -Path $DestinationPath -Parent) "T1JIT-$Version$suffix.zip"
+    }
+    else {
+        $ArchivePath = "$DestinationPath.zip"
+    }
+}
+elseif (-not [IO.Path]::IsPathRooted($ArchivePath)) {
+    $ArchivePath = Join-Path $repoRoot $ArchivePath
+}
+
+if (Test-Path -LiteralPath $ArchivePath) {
+    Remove-Item -LiteralPath $ArchivePath -Force
+}
+Compress-Archive -Path (Join-Path $DestinationPath "*") -DestinationPath $ArchivePath -Force
+
+$checksumPath = "$ArchivePath.sha256"
+$hash = (Get-FileHash -LiteralPath $ArchivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+"$hash  $(Split-Path -Path $ArchivePath -Leaf)" | Set-Content -LiteralPath $checksumPath -Encoding ASCII
+
+Write-Host "Installation archive created: $ArchivePath" -ForegroundColor Green
+Write-Host "Checksum file created: $checksumPath"

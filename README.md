@@ -17,6 +17,7 @@
 - [Using the Web Interface](#using-the-web-interface)
     - [Installation of the KJIT-Web service](#installation-of-the-kjit-web-service)
         - [Publish KjitWeb as a Microsoft Entra Enterprise Application](#publish-kjitweb-as-a-microsoft-entra-enterprise-application)
+    - [Updating the KJIT-Web service](#updating-the-kjit-web-service)
     - [Using the KJIT-Web service](#using-the-kjit-web-service)
     - [Configuration of the KJIT-Web service](#configuration-of-the-kjit-web-service)
 - [Setup addtional JIT servers](#setup-addtional-jit-servers)
@@ -215,6 +216,33 @@ For Azure-connected environments, use Microsoft Entra Application Proxy to publi
 6. Restrict inbound access to the KjitWeb port to the private network connector servers, test sign-in and JIT requests through the external Application Proxy URL, and confirm that the internal URL is not reachable from user networks.
 
 Use HTTPS for the internal connector-to-KjitWeb connection whenever possible. Microsoft Entra Application Proxy protects the external endpoint, but it does not remove the need to secure the internal network path. Microsoft Entra Application Proxy and Conditional Access require suitable Microsoft Entra licensing.
+
+### Updating the KJIT-Web service
+
+Use `update-kjitweb.ps1` (located next to `install-kjitweb.ps1`) to update an existing KjitWeb installation without losing its configuration. Re-running `install-kjitweb.ps1` performs a clean reinstall (it stops and removes the existing service before installing); `update-kjitweb.ps1` is the preferred way to apply a new release in place.
+
+The script:
+- Stops the `KjitWeb` service.
+- Creates a temporary rollback backup of the current installation.
+- Replaces the application files from the `publish-service` folder next to the script, while preserving `appsettings*.json` and the `app_data` folder.
+- Restarts the service and removes the temporary backup on success.
+- Automatically restores the previous installation and rethrows the error if the update fails.
+
+```powershell
+.\update-kjitweb.ps1
+```
+
+Optional parameters:
+- `-SourceServiceFolder`: Folder containing the new published KjitWeb files. Defaults to the `publish-service` folder next to the script.
+- `-InstallServiceFolder`: Existing KjitWeb installation folder. Defaults to `%ProgramFiles%\KJITWEB`.
+- `-ServiceName`: Name of the installed Windows service. Defaults to `KjitWeb`.
+
+```powershell
+.\update-kjitweb.ps1 -InstallServiceFolder "D:\Services\KJITWEB"
+```
+
+> [!NOTE]
+> `update-kjitweb.ps1` must be run with administrator privileges. There is currently no equivalent update script for the core JIT PowerShell module; re-run `install-JIT.ps1` to overwrite an existing installation, which preserves the `JIT.config` path used by `Config-JIT.ps1`.
 
 ### Using the KJIT-Web service
 
@@ -717,40 +745,30 @@ New-Item $artifactDirectory -ItemType Directory -Force | Out-Null
 git worktree add --detach $releaseWorktree $commit
 Push-Location $releaseWorktree
 try {
-    ./build/New-InstallationPackage.ps1 -BuildRelease
+    # Use -Prerelease for a development release (adds the "-test" suffix); omit it for production.
+    ./build/New-InstallationPackage.ps1 -BuildRelease -ArchivePath (Join-Path $artifactDirectory "T1JIT-$version-test.zip") -Version $version -Prerelease
 }
 finally {
     Pop-Location
 }
 ```
 
-`New-InstallationPackage.ps1 -BuildRelease` performs the release build and copies the complete distributable content into `Installationspackage`. It also verifies that required files such as `install-JIT.ps1`, `KjitCore.dll`, and `KjitWeb.dll` exist.
+`New-InstallationPackage.ps1 -BuildRelease` performs the release build, copies the complete distributable content into `Installationspackage`, verifies that required files such as `install-JIT.ps1`, `KjitCore.dll`, and `KjitWeb.dll` exist, and **always** compresses the package into a ZIP archive (`-ArchivePath`, or a name derived from `-Version`/`-Prerelease` when `-ArchivePath` is omitted) together with a `.sha256` checksum file next to it. Never reuse an existing version or overwrite assets belonging to an existing tag.
 
 Confirm that the package version matches the release version:
 
 ```powershell
+$archivePath = Join-Path $artifactDirectory "T1JIT-$version-test.zip"
+$checksumPath = "$archivePath.sha256"
 $packageVersion = (Get-Content (Join-Path $releaseWorktree "Installationspackage/VERSION") -Raw).Trim()
 if ($packageVersion -ne $version) {
     throw "Package version '$packageVersion' does not match release version '$version'."
 }
 ```
 
-#### 4. Create the archive and checksum
+For a production release, use `-ArchivePath (Join-Path $artifactDirectory "T1JIT-$version.zip")` and omit `-Prerelease`.
 
-For a development release, create assets with the `-test` suffix:
-
-```powershell
-$artifactName = "T1JIT-$version-test.zip"
-$archivePath = Join-Path $artifactDirectory $artifactName
-$checksumPath = "$archivePath.sha256"
-$packagePath = Join-Path $releaseWorktree "Installationspackage"
-
-Compress-Archive -Path (Join-Path $packagePath "*") -DestinationPath $archivePath -Force
-$hash = (Get-FileHash $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
-"$hash  $artifactName" | Set-Content $checksumPath -Encoding ASCII
-```
-
-For a production release, use `T1JIT-$version.zip` without the `-test` suffix. Never reuse an existing version or overwrite assets belonging to an existing tag.
+#### 4. Verify the archive and checksum
 
 Verify the archive before uploading it:
 

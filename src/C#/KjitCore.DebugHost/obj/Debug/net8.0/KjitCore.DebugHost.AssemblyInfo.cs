@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("KjitCore.DebugHost")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9cd885f917b716436ac205a9ae1a8fa3407f1a95")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a6350976e9b5cb8601405ef705a9f57c7d15b3da")]
 [assembly: System.Reflection.AssemblyProductAttribute("KjitCore.DebugHost")]
 [assembly: System.Reflection.AssemblyTitleAttribute("KjitCore.DebugHost")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

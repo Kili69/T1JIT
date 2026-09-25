@@ -4,9 +4,9 @@
 @{
     ViewData["Title"] = L["PageTitle"];
 }
-
-<div class="card shadow-sm">
-    <div class="card-body">
+    <script src="~/lib/jquery/jquery.min.js" asp-append-version="true"></script>
+    <script src="~/lib/jquery-validation/jquery.validate.min.js" asp-append-version="true"></script>
+    <script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js" asp-append-version="true"></script>
         <h1 class="h4 mb-3">@L["Heading"]</h1>
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
             <p class="text-muted mb-0">@L["SignedInAs"]: @User.Identity?.Name</p>
@@ -140,9 +140,9 @@
 </div>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jquery-validation@1.19.5/dist/jquery.validate.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jquery-validation-unobtrusive@4.0.0/dist/jquery.validate.unobtrusive.min.js"></script>
+    <script src="~/lib/jquery/jquery.min.js" asp-append-version="true"></script>
+    <script src="~/lib/jquery-validation/jquery.validate.min.js" asp-append-version="true"></script>
+    <script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js" asp-append-version="true"></script>
     <script>
         (function () {
             const elevationRequestForm = document.getElementById('elevationRequestForm');

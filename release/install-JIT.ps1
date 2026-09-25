@@ -172,7 +172,7 @@ try {
 
     if ($installWebRequested) {
             $webInstallerCandidates = @(
-                (Join-Path $PSScriptRoot "kjibweb\install-kjitweb.ps1"),
+                (Join-Path $PSScriptRoot "kJITWeb\install-kjitweb.ps1"),
                 (Join-Path $PSScriptRoot "..\..\C#\Kjitweb\install-kjitweb.ps1")
             )
             $webInstallerPath = $webInstallerCandidates |
