@@ -753,14 +753,22 @@ finally {
 }
 ```
 
-`New-InstallationPackage.ps1 -BuildRelease` performs the release build, copies the complete distributable content into `Installationspackage`, verifies that required files such as `install-JIT.ps1`, `KjitCore.dll`, and `KjitWeb.dll` exist, and **always** compresses the package into a ZIP archive (`-ArchivePath`, or a name derived from `-Version`/`-Prerelease` when `-ArchivePath` is omitted) together with a `.sha256` checksum file next to it. Never reuse an existing version or overwrite assets belonging to an existing tag.
+`New-InstallationPackage.ps1 -BuildRelease` performs the release build, stages the complete distributable content in a temporary folder, verifies that required files such as `install-JIT.ps1`, `KjitCore.dll`, and `KjitWeb.dll` exist, and **always** compresses the staged content into a single ZIP archive together with a `.sha256` checksum file. The staged, uncompressed copy is deleted afterwards. When `-ArchivePath` is omitted, the archive and checksum are written to `Installationspackage` and named `T1JIT-<Version>-<Branch>[-test].zip`, using the current Git branch unless `-Branch` is specified. Never reuse an existing version or overwrite assets belonging to an existing tag.
 
-Confirm that the package version matches the release version:
+Confirm that the package version matches the release version by reading the `VERSION` entry from inside the archive:
 
 ```powershell
 $archivePath = Join-Path $artifactDirectory "T1JIT-$version-test.zip"
 $checksumPath = "$archivePath.sha256"
-$packageVersion = (Get-Content (Join-Path $releaseWorktree "Installationspackage/VERSION") -Raw).Trim()
+
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$zip = [System.IO.Compression.ZipFile]::OpenRead($archivePath)
+try {
+    $packageVersion = (New-Object IO.StreamReader($zip.GetEntry("VERSION").Open())).ReadToEnd().Trim()
+}
+finally {
+    $zip.Dispose()
+}
 if ($packageVersion -ne $version) {
     throw "Package version '$packageVersion' does not match release version '$version'."
 }
