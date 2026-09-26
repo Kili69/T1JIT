@@ -5,6 +5,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <SupportedOSPlatforms>windows</SupportedOSPlatforms>
     <NoWarn>CA1416</NoWarn>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <WarningsAsErrors>$(WarningsAsErrors);CS1570;CS1572;CS1573;CS1587;CS1591</WarningsAsErrors>
   </PropertyGroup>
 
 
@@ -29,5 +31,4 @@
     </Content>
   </ItemGroup>
 </Project>
-
 

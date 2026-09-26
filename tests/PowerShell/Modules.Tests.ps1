@@ -25,6 +25,7 @@ param(
 BeforeAll {
     $manifestPath = Join-Path $ModuleRoot "Just-In-time.psd1"
     $versionedModulePath = Join-Path $ModuleRoot "0.1"
+    $releaseRoot = Split-Path -Path $ModuleRoot -Parent
 }
 
 Describe "Just-In-Time PowerShell module package" {
@@ -32,6 +33,70 @@ Describe "Just-In-Time PowerShell module package" {
         Test-Path -LiteralPath $manifestPath -PathType Leaf | Should -BeTrue
         $manifest = Test-ModuleManifest -Path $manifestPath -ErrorAction Stop
         $manifest.Version.ToString() | Should -Be $ExpectedVersion
+    }
+
+    Describe "KjitWeb firewall configuration" {
+        It "removes IPv6 scope IDs before creating firewall rules in <ScriptName>" -ForEach @(
+            @{ ScriptName = "install-kjitweb.ps1" }
+            @{ ScriptName = "update-kjitweb.ps1" }
+            @{ ScriptName = "set-kjitweb-allowedclient.ps1" }
+        ) {
+            $scriptPath = Join-Path (Join-Path $releaseRoot "kJITWeb") $ScriptName
+            $tokens = $null
+            $parseErrors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $scriptPath,
+                [ref]$tokens,
+                [ref]$parseErrors
+            )
+            $firewallFunction = $ast.Find({
+                param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                    $node.Name -eq "Set-ClientAccessFirewallRule"
+            }, $true)
+
+            $firewallFunction | Should -Not -BeNullOrEmpty
+            Invoke-Expression $firewallFunction.Extent.Text
+
+            function Get-NetFirewallRule {
+                [CmdletBinding()]
+                param([string]$DisplayName)
+            }
+            function Remove-NetFirewallRule {
+                [CmdletBinding()]
+                param([Parameter(ValueFromPipeline = $true)]$InputObject)
+            }
+            function New-NetFirewallRule {
+                [CmdletBinding()]
+                param(
+                    [string]$DisplayName,
+                    [string]$Direction,
+                    [string]$Action,
+                    [string]$Protocol,
+                    [int]$LocalPort,
+                    [string[]]$RemoteAddress,
+                    [string]$Profile
+                )
+            }
+
+            $script:capturedRemoteAddresses = @()
+            Mock Get-NetFirewallRule {}
+            Mock Remove-NetFirewallRule {}
+            Mock New-NetFirewallRule {
+                $script:capturedRemoteAddresses = @($RemoteAddress)
+            }
+
+            Set-ClientAccessFirewallRule `
+                -RuleName "KjitWeb test" `
+                -RemoteAddresses @("fe80::5995:5c07:83a6:41ed%5", "10.0.1.8") `
+                -Port 5240
+
+            Should -Invoke New-NetFirewallRule -Times 1 -Exactly
+            $script:capturedRemoteAddresses | Should -Contain "fe80::5995:5c07:83a6:41ed"
+            $script:capturedRemoteAddresses | Should -Contain "10.0.1.8"
+            $script:capturedRemoteAddresses | Should -Not -Contain "fe80::5995:5c07:83a6:41ed%5"
+            $firewallFunction.Extent.Text | Should -Match '-ErrorAction Stop'
+        }
     }
 
     It "contains syntactically valid module files" {

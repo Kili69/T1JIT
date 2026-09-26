@@ -1,18 +1,12 @@
-/// <summary>
-/// Service responsible for interacting with Active Directory to resolve user and server information based on the application's configuration
-/// and the authenticated user's context. This includes determining the user's current elevation groups, available domains, default domain, and server names based on LDAP queries. The service also supports delegation rules to restrict server visibility based on group membership.
-/// </summary>
-/// <remarks>
-/// This service relies on the configuration provided in JIT.config for critical settings such as the domain LDAP path, server search bases, and delegation rules. It uses the System.DirectoryServices APIs to perform LDAP queries against Active Directory. The service is designed to handle various edge cases gracefully, such as missing configuration, LDAP connectivity issues, and unexpected user contexts, while logging relevant information for troubleshooting.
-/// The GetCurrentElevationGroups method retrieves the groups that the authenticated user is currently a member of, which can be used to determine their current elevation level. The GetAvailableDomains method lists the domains in the current forest, while GetDefaultDomainForUser attempts to infer the user's default domain from their UPN or the service's domain configuration. The GetServerNames method queries Active Directory for computer objects based on configured search bases and optional domain filtering, supporting delegation rules to limit results based on group membership.
-/// The service also includes helper methods for parsing and normalizing LDAP paths, extracting information from search results, and handling security identifiers. It is designed to be resilient to common issues such as misconfiguration or LDAP query failures, logging warnings and errors as appropriate without throwing exceptions that would disrupt the user experience. This allows the application to continue functioning even if Active Directory information cannot be retrieved, albeit with reduced functionality.
-/// </remarks> 
-/// <example>
-/// <code>
-/// var adService = new ActiveDirectoryService(configuration, logger);
-/// var elevationGroups = adService.GetCurrentElevationGroups();
-/// </code>
-/// </example>  
+// -----------------------------------------------------------------------------
+// ActiveDirectoryService.cs
+// Author: Andreas Lucas (aka Kili)
+// Documentation update: 0.2.20260926.6
+//
+// History: Existing implementation attribution and behavior are preserved.
+// This revision consolidates and completes the API and helper documentation.
+// -----------------------------------------------------------------------------
+
 using KjitWeb.Models;
 using Sds = System.DirectoryServices.Protocols;
 using System.Net;
@@ -24,77 +18,69 @@ using System.Text.RegularExpressions;
 namespace KjitWeb.Services;
 
 /// <summary>
-///     Defines the search scope for LDAP queries. These constants are used to specify the depth of the search in the directory when performing LDAP queries.   
+/// Provides integer values corresponding to LDAP search scopes.
 /// </summary>
+/// <remarks>Values are cast to System.DirectoryServices.Protocols.SearchScope when requests are created.</remarks>
 internal static class SearchScope
 {
     /// <summary>
-    ///     The search is limited to the base object.
+    /// Searches only the named base directory object.
     /// </summary>
     public const int Base = 0;
     /// <summary>
-    ///     The search is limited to the immediate children of the base object.
+    /// Searches the immediate children of the base directory object.
     /// </summary>
     public const int OneLevel = 1;
     /// <summary>
-    ///     The search includes the base object and all its descendants.
-    /// </summary>  
+    /// Searches the base directory object and all descendants.
+    /// </summary>
     public const int Subtree = 2;
 }
 
 /// <summary>
-///     Represents a search result entry from an LDAP query, containing the distinguished name and a collection of attributes. This class is used to encapsulate the results of LDAP queries performed by the ActiveDirectoryService, allowing for easier access to the attributes of each entry in a structured way. The Attributes property is a case-insensitive dictionary that maps attribute names to their corresponding DirectoryAttribute objects, which contain the values of the attributes. This structure allows the service methods to easily read and process the attributes of LDAP entries when determining elevation groups, available domains, and server information.
+/// Represents the subset of an LDAP search result consumed by this service.
 /// </summary>
+/// <remarks>Missing attributes are absent; attribute names are case-insensitive.</remarks>
 internal class SearchResultEntry
 {
     /// <summary>
-    ///    The distinguished name of the LDAP entry, which uniquely identifies the entry in the directory. This is typically used to reference the entry in LDAP queries and to extract information about its location in the directory hierarchy. The DistinguishedName property is expected to be a valid LDAP distinguished name string, and it is used by the service methods to perform further queries or to extract domain information when processing server entries.
+    /// Gets or sets the entry distinguished name.
     /// </summary>
+    /// <remarks>Never null; an empty string represents an unavailable name.</remarks>
     public string DistinguishedName { get; set; } = string.Empty;
     /// <summary>
-    ///   A collection of attributes associated with the LDAP entry, where each attribute is represented by a DirectoryAttribute object containing the attribute's name and its values. The Attributes property allows the service methods to access the various attributes of an LDAP entry, such as "cn", "name", "dNSHostName", etc., which are used to determine elevation groups, server names, and other relevant information based on the queries performed against Active Directory. The case-insensitive dictionary structure of the Attributes collection allows for flexible access to attributes without worrying about case sensitivity in attribute names.
+    /// Gets or sets the attributes returned for the entry.
     /// </summary>
+    /// <remarks>Initialized to a non-null, case-insensitive collection.</remarks>
     public DirectoryAttributeCollection Attributes { get; set; } = new();
 }
 
 /// <summary>
-///    Represents a directory attribute with a name and a list of values. This class is used to encapsulate the attributes of LDAP entries returned from queries performed by the ActiveDirectoryService. Each DirectoryAttribute contains the name of the attribute (e.g. "cn", "name", "dNSHostName") and a list of values associated with that attribute, since LDAP attributes can have multiple values. The Name property is used to identify the attribute, while the list of values allows the service methods to access all values for that attribute when processing LDAP entries for elevation groups, server information, and other relevant data.
+/// Stores LDAP attributes using case-insensitive names.
 /// </summary>
 internal class DirectoryAttributeCollection : Dictionary<string, DirectoryAttribute>
 {
     /// <summary>
-    /// 
+    /// Initializes an empty collection that compares LDAP attribute names without regard to case.
     /// </summary>
     public DirectoryAttributeCollection() : base(StringComparer.OrdinalIgnoreCase) { }
 }
 
 /// <summary>
-///    Represents a directory attribute with a name and a list of values. This class is used to encapsulate the attributes of LDAP entries returned from queries performed by the ActiveDirectoryService. Each DirectoryAttribute contains the name of the attribute (e.g. "cn", "name", "dNSHostName") and a list of values associated with that attribute, since LDAP attributes can have multiple values. The Name property is used to identify the attribute, while the list of values allows the service methods to access all values for that attribute when processing LDAP entries for elevation groups, server information, and other relevant data.
+/// Represents one named, potentially multi-valued LDAP attribute.
 /// </summary>
 internal class DirectoryAttribute : List<object>
 {
     /// <summary>
-    ///     The name of the directory attribute, such as "cn", "name", "dNSHostName", etc. This property is used to identify the attribute and is typically set when creating instances of DirectoryAttribute to represent the attributes of LDAP entries. The Name property allows the service methods to access specific attributes by name when processing LDAP query results for elevation groups, server information, and other relevant data.
+    /// Gets or sets the LDAP attribute name.
     /// </summary>
+    /// <remarks>Never null; an empty string denotes an unspecified name.</remarks>
     public string Name { get; set; } = string.Empty;
 }
 /// <summary>
-/// Service responsible for interacting with Active Directory to resolve user and server information based on the application's configuration and the authenticated user's context. This includes determining the user's current elevation groups, available domains, default domain, and server names based on LDAP queries. The service also supports delegation rules to restrict server visibility based on group membership.
-/// </summary> 
-/// <remarks>
-/// This service relies on the configuration provided in JIT.config for critical settings such as the domain LDAP path, server search bases, and delegation rules. It uses the System.DirectoryServices APIs to perform LDAP queries against Active Directory. The service is designed to handle various edge cases gracefully, such as missing configuration, LDAP connectivity issues, and unexpected user contexts, while logging relevant information for troubleshooting.
-/// The GetCurrentElevationGroups method retrieves the groups that the authenticated user is currently a member of, which can be used to determine their current elevation level. The GetAvailableDomains method lists the domains in the current forest, while GetDefaultDomainForUser attempts to infer the user's default domain from their UPN or the service's domain configuration. The GetServerNames method queries Active Directory for computer objects based on configured search bases and optional domain filtering, supporting delegation rules to limit results based on group membership.
-/// The service also includes helper methods for parsing and normalizing LDAP paths, extracting information from search results, and handling security identifiers. It is designed to be resilient to common issues such as misconfiguration or LDAP query failures, logging warnings and errors as appropriate without throwing exceptions that would disrupt the user experience. This allows the application to continue functioning even if Active Directory information cannot be retrieved, albeit with reduced functionality.
-/// </remarks> 
-/// <example>
-/// <code>
-/// var adService = new ActiveDirectoryService(configuration, logger);
-/// var elevationGroups = adService.GetCurrentElevationGroups();
-/// var domains = adService.GetAvailableDomains();
-/// var defaultDomain = adService.GetDefaultDomainForUser();
-/// var serverNames = adService.GetServerNames();
-/// </code>
-/// </example>
+/// Queries Active Directory for users, elevations, domains, and visible servers.
+/// </summary>
+/// <remarks>LDAP uses default Windows credentials with Negotiate, signing, sealing, LDAP v3, and no referral chasing. Delegated server visibility fails closed when authorization data is unavailable.</remarks>
 public class ActiveDirectoryService : IActiveDirectoryService
 {
     private const int LdapReferralErrorCode = 10; // LDAP error code 10 = LDAP_REFERRAL
@@ -122,10 +108,15 @@ public class ActiveDirectoryService : IActiveDirectoryService
     // By performing this initialization logic in the constructor, we ensure that any issues with configuration are detected early, 
     // ideally during application startup, allowing for faster troubleshooting and preventing runtime errors when the service methods are called.
     /// <summary>
-    ///     Initializes a new instance of the ActiveDirectoryService class by loading configuration settings, resolving critical parameters such as the domain LDAP path and server search bases, and preparing any necessary state for LDAP queries. It also loads delegation rules if delegation is enabled in the configuration. Any issues during initialization (e.g. missing or invalid configuration) will be logged and may cause exceptions to be thrown, which should be handled by the caller to ensure the application can respond appropriately to startup failures.
+    /// Initializes the service and resolves JIT, domain, search-base, and delegation configuration.
     /// </summary>
-    /// <param name="configuration">The configuration instance used to access application settings.</param>
-    /// <param name="logger">The logger instance used for logging within the service.</param>
+    /// <param name="configuration">Application configuration used to locate JIT and Active Directory settings; expected to be non-null.</param>
+    /// <param name="logger">Logger that receives configuration, authorization, LDAP, and fallback diagnostics; expected to be non-null.</param>
+    /// <remarks>
+    /// Construction reads configuration files and may inspect the host DNS domain. It does not bind to LDAP.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">The domain or required server search bases cannot be resolved.</exception>
+    /// <exception cref="Exception">The configured JIT file cannot be loaded or parsed; the original exception is logged and propagated.</exception>
     public ActiveDirectoryService(IConfiguration configuration, ILogger<ActiveDirectoryService> logger)
     {
         _configuration = configuration; // Store the configuration instance for later use in service methods.
@@ -142,33 +133,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
     }
 
     /// <summary>
-    /// Retrieves the list of elevation groups that the specified user is currently a member of. 
-    /// This is determined by performing an LDAP query against the configured group OU, 
-    /// using a matching rule to find all groups that the user is a member of, including nested group memberships. 
-    /// The method returns a list of formatted group names that represent the user's current elevations, 
-    /// which can be used by the application to determine what elevated permissions or roles the user currently has. 
-    /// If any issues occur during this process (e.g. LDAP connectivity problems, misconfiguration, or unexpected user context), 
-    /// the method will log warnings and return an empty list, allowing the application to continue functioning without elevation information rather than throwing exceptions.
+    /// Gets computers for which the user currently has direct membership in configured elevation groups.
     /// </summary>
-    /// <param name="user">The user for whom to retrieve elevation groups.</param>
-    /// <returns>A list of elevation group names that the user is currently a member of.</returns>
-    /// <remarks>
-    /// This method performs an LDAP query against the configured group OU to determine the user's current elevation groups.
-    /// It uses a matching rule to find all groups that the user is a member of, including nested group memberships.
-    /// The method returns a list of formatted group names that represent the user's current elevations.
-    /// If any issues occur during this process (e.g. LDAP connectivity problems, misconfiguration, or unexpected user context),
-    /// the method will log warnings and return an empty list, allowing the application to continue functioning without elevation information rather than throwing exceptions.
-    /// </remarks>
-    /// <exception cref="InvalidOperationException">Thrown if the group OU distinguished name is not configured or if the user's distinguished name cannot be resolved.</exception>
-    /// <exception cref="DirectoryServicesCOMException">Thrown if there is an error during the LDAP query, such as connectivity issues or invalid search parameters.</exception>
-    /// <exception cref="Exception">Thrown for any other unexpected errors that may occur during the process.</exception>
-    /// <example>
-    /// var elevationGroups = activeDirectoryService.GetCurrentElevationGroups(User);
-    /// foreach (var group in elevationGroups)
-    /// {
-    ///     Console.WriteLine($"User is currently a member of elevation group: {group}");
-    /// }
-    /// </example>  
+    /// <param name="user">Principal used for identity or delegation checks; may be null.</param>
+    /// <returns>A new ordered list; empty when configuration, identity resolution, or LDAP access is unavailable.</returns>
+    /// <remarks>Queries group membership with link TTL metadata. Failures are logged and suppressed; this reports directory state and does not grant authorization.</remarks>
     public List<ElevatedComputerViewModel> GetCurrentElevatedComputers(ClaimsPrincipal? user)
     {
         // If the group OU is not configured, we cannot perform the query, so return an empty list. 
@@ -242,33 +211,10 @@ public class ActiveDirectoryService : IActiveDirectoryService
     }
 
     /// <summary>
-    /// Retrieves the list of available domains in the current forest.
+    /// Gets the domain encoded in the configured domain LDAP path.
     /// </summary>
-    /// <returns>A list of domain names.</returns>
-    /// <remarks>
-    /// This method attempts to retrieve the list of available domains in the current Active Directory forest using the System.DirectoryServices.ActiveDirectory APIs. 
-    /// If it encounters any issues during this process (e.g. connectivity problems, permissions issues, or unexpected environment), 
-    /// it will log a warning and fall back to parsing the domain from the configured domain LDAP path. 
-    /// This allows the application to continue functioning with at least one domain available rather than throwing exceptions that would disrupt the user experience.
-    /// The method first tries to get the domains from the current forest, and if successful, returns a distinct and ordered list of domain names. If it fails to retrieve the domains, it logs the exception and attempts to parse a single domain from the configured domain LDAP path. If that also fails, it returns an empty list.
-    /// This approach ensures that the application can still operate even if there are issues with Active Directory connectivity or configuration, while providing as much information as possible about the available domains for use in other parts of the application.
-    /// </remarks>
-    /// <exception cref="Exception">Thrown for any unexpected errors that may occur during the process of retrieving domains from the forest or parsing the domain from the LDAP path.</exception>
-    /// <example>
-    /// var domains = activeDirectoryService.GetAvailableDomains();
-    /// foreach (var domain in domains)
-    /// {
-    ///     Console.WriteLine($"Available domain: {domain}");   
-    /// }
-    /// </example>
-    /// <seealso cref="GetDefaultDomainForUser(ClaimsPrincipal?)"/>
-    /// <seealso cref="GetServerNames(ClaimsPrincipal?, string?)"/>
-    /// <seealso cref="GetUserDistinguishedName(string?)"/>
-    /// <seealso cref="GetUserPrincipalName(string?)"/>
-    /// <seealso cref="IActiveDirectoryService"/>
-    /// <seealso cref="ActiveDirectoryService"/>
-    /// <seealso cref="JitConfiguration"/>
-    /// <seealso cref="DelegationRule"/>
+    /// <returns>A new list containing one FQDN, or an empty list when it cannot be parsed.</returns>
+    /// <remarks>Performs no forest discovery or network request.</remarks>
     public List<string> GetAvailableDomains()
     {
         // System.DirectoryServices.ActiveDirectory.Forest is not available when running as a
@@ -279,23 +225,12 @@ public class ActiveDirectoryService : IActiveDirectoryService
             : new List<string> { fallbackDomain };
     }
 
-    /// <summary>   
-    /// Determines the default domain for the specified user.
+    /// <summary>
+    /// Determines the preferred domain for a principal.
     /// </summary>
-    /// <param name="user">The user for whom to determine the default domain.</param>
-    /// <returns>The default domain for the user, or an empty string if it cannot be determined.</returns>
-    /// <remarks>
-    /// This method attempts to determine the default domain for the specified user by first looking for a UPN claim in the user's claims. 
-    /// If a UPN is found, it extracts the domain portion of the UPN and returns it. 
-    /// If no UPN claim is present, it falls back to parsing the domain from the service's configured domain LDAP path. 
-    /// This allows the application to infer a default domain for the user even if their claims do not include explicit domain information, while also providing a fallback based on the service's configuration. If neither method yields a valid domain, it returns an empty string.
-    /// </remarks>
-    /// <exception cref="Exception">Thrown for any unexpected errors that may occur during the process of determining the default domain, 
-    /// such as issues with claims parsing or LDAP path parsing.</exception>
-    /// <example>   
-    /// var defaultDomain = activeDirectoryService.GetDefaultDomainForUser(User);
-    /// Console.WriteLine($"Default domain for user: {defaultDomain}");
-    /// </example>
+    /// <param name="user">Principal used for identity or delegation checks; may be null.</param>
+    /// <returns>The UPN suffix, configured LDAP domain, or an empty string.</returns>
+    /// <remarks>A missing UPN claim can trigger an LDAP lookup; failures are logged and converted to fallback text.</remarks>
     public string GetDefaultDomainForUser(ClaimsPrincipal? user)
     {
         // First, attempt to get the UPN from the user's claims. 
@@ -318,54 +253,24 @@ public class ActiveDirectoryService : IActiveDirectoryService
         return ParseDomainFqdnFromLdapPath(_domainLdapPath) ?? string.Empty;
     }
 
-    /// <summary>   
-    /// Retrieves the list of server names based on the configured LDAP search bases and optional domain filtering.
+    /// <summary>
+    /// Gets visible server names without a domain filter.
     /// </summary>
-    /// <param name="user">The user for whom to retrieve server names, used for applying delegation rules if enabled.</param>
-    /// <param name="selectedDomain">An optional domain filter to limit servers to a specific domain.</param>
-    /// <returns>A list of server names that match the search criteria.</returns>
-    /// <remarks>
-    /// This method retrieves server names by performing LDAP queries against the configured search bases.
-    /// If delegation is enabled, it first resolves the effective search bases for the user based on their group memberships and the defined delegation rules.
-    /// It then queries each search base for computer objects, applying an optional domain filter if specified.
-    /// The method handles various edge cases gracefully, such as invalid search bases, LDAP connectivity issues, and unexpected user contexts, by logging warnings and continuing to process other search bases rather than throwing exceptions.
-    /// The resulting list of server names is distinct and ordered for better usability. If no servers can be retrieved due to configuration issues or LDAP problems, it will return an empty list, allowing the application to continue functioning without server information rather than throwing exceptions.
-    /// </remarks>
-    /// <exception cref="Exception">Thrown for any unexpected errors that may occur during the process of retrieving server names, such as issues with LDAP queries or configuration.</exception>
-    /// <example>
-    ///   var serverNames = activeDirectoryService.GetServerNames(User, selectedDomain);
-    ///   foreach (var server in serverNames)
-    ///   {
-    ///      Console.WriteLine($"Available server: {server}");
-    ///     }
-    /// </example>
+    /// <param name="user">Principal used for identity or delegation checks; may be null.</param>
+    /// <returns>A new distinct, case-insensitively ordered list.</returns>
+    /// <remarks>Equivalent to the two-parameter overload with a null domain. Delegation uses the principal and fails closed.</remarks>
     public List<string> GetServerNames(ClaimsPrincipal? user)
     {
         return GetServerNames(user, null);
     }
 
     /// <summary>
-    ///     Retrieves the list of server names based on the configured LDAP search bases and optional domain filtering.
+    /// Gets visible server names, optionally restricted to one DNS domain.
     /// </summary>
-    /// <param name="user">The user for whom to retrieve server names, used for applying delegation rules if enabled.</param>
-    /// <param name="selectedDomain">An optional domain filter to limit servers to a specific domain.</param>
-    /// <returns>A list of server names that match the search criteria.</returns>
-    /// <remarks>
-    /// This method retrieves server names by performing LDAP queries against the configured search bases.
-    /// If delegation is enabled, it first resolves the effective search bases for the user based on their group memberships and the defined delegation rules.
-    /// It then queries each search base for computer objects, applying an optional domain filter if specified.
-    /// The method handles various edge cases gracefully, such as invalid search bases, LDAP connectivity issues, 
-    /// and unexpected user contexts, by logging warnings and continuing to process other search bases rather than throwing exceptions.
-    /// The resulting list of server names is distinct and ordered for better usability. If no servers can be retrieved due to configuration issues or LDAP problems, it will return an empty list, allowing the application to continue functioning without server information rather than throwing exceptions.
-    /// </remarks>  
-    /// <exception cref="Exception">Thrown for any unexpected errors that may occur during the process of retrieving server names, such as issues with LDAP queries or configuration.</exception>
-    /// <example>
-    ///   var serverNames = activeDirectoryService.GetServerNames(User, selectedDomain);
-    ///   foreach (var server in serverNames)
-    ///   {
-    ///      Console.WriteLine($"Available server: {server}");
-    ///   }
-    /// </example>  
+    /// <param name="user">Principal used for identity or delegation checks; may be null.</param>
+    /// <param name="selectedDomain">Optional DNS domain; null or blank disables filtering.</param>
+    /// <returns>A new distinct, case-insensitively ordered list; never null.</returns>
+    /// <remarks>Queries authorized bases independently and logs/skips failures, so partial results are possible. Visibility filtering does not itself authorize access to a computer.</remarks>
     public List<string> GetServerNames(ClaimsPrincipal? user, string? selectedDomain)
     {
         var serverNames = new List<string>(); // This list will hold the server names that we retrieve from the LDAP queries.
@@ -432,6 +337,12 @@ public class ActiveDirectoryService : IActiveDirectoryService
     // If no selected domain is specified, it returns true for all results. 
     // If a selected domain is specified, it attempts to resolve the domain of the computer object from its properties (dNSHostName or distinguishedName) and compares it to the selected domain. 
     // This allows the GetServerNames method to filter results based on the specified domain.
+    /// <summary>
+    /// Tests whether a computer entry belongs to the selected normalized domain.
+    /// </summary>
+    /// <param name="entry">LDAP search result to inspect.</param>
+    /// <param name="selectedDomain">Optional DNS domain; null or blank disables filtering.</param>
+    /// <returns>True when no filter is active or the entry domain matches; otherwise false.</returns>
     private static bool MatchesSelectedDomain(SearchResultEntry entry, string? selectedDomain)
     {
         if (string.IsNullOrWhiteSpace(selectedDomain))
@@ -442,6 +353,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
             && objectDomain.Equals(selectedDomain, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Resolves a computer domain from its DNS host name, then its distinguished name.
+    /// </summary>
+    /// <param name="entry">LDAP search result to inspect.</param>
+    /// <returns>The normalized domain, or null when neither attribute contains one.</returns>
     private static string? ResolveComputerDomain(SearchResultEntry entry)
     {
         var dnsHostName = ReadEntryAttribute(entry, "dNSHostName");
@@ -453,6 +369,12 @@ public class ActiveDirectoryService : IActiveDirectoryService
         return ParseDomainFqdnFromLdapPath(distinguishedName);
     }
 
+    /// <summary>
+    /// Reads the first LDAP attribute value as text.
+    /// </summary>
+    /// <param name="entry">LDAP search result to inspect.</param>
+    /// <param name="attributeName">Case-insensitive LDAP attribute name.</param>
+    /// <returns>The first value converted to text, or null when missing, empty, or null.</returns>
     private static string? ReadEntryAttribute(SearchResultEntry entry, string attributeName)
     {
         var attr = entry.Attributes[attributeName];
@@ -463,6 +385,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
 
     // This helper method attempts to extract the domain portion from a dNSHostName value.
     // It checks if the dNSHostName is valid and contains a dot, and if so, it takes the portion after the first dot as the domain. It then normalizes the extracted domain before returning it. If the dNSHostName is not valid or does not contain a dot, it returns null.    
+    /// <summary>
+    /// Extracts and normalizes the suffix following the first dot in a DNS host name.
+    /// </summary>
+    /// <param name="dnsHostName">DNS host name to parse; may be null or blank.</param>
+    /// <returns>A normalized domain, or null for an unqualified or invalid host name.</returns>
     private static string? ExtractDomainFromDnsHostName(string? dnsHostName)
     {
         if (string.IsNullOrWhiteSpace(dnsHostName)) // If the dNSHostName is null, empty, or whitespace, we cannot extract a domain from it, so we return null.
@@ -482,6 +409,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
 
     // This helper method attempts to parse a domain FQDN from an LDAP path, such as a distinguished name.
     // It looks for DC components in the LDAP path and concatenates them to form the domain FQDN. If it cannot find any DC components, it returns null. The resulting domain is normalized before being returned.
+    /// <summary>
+    /// Normalizes a DNS domain for comparison.
+    /// </summary>
+    /// <param name="domain">Domain to normalize; may be null or blank.</param>
+    /// <returns>A trimmed lower-case value without trailing dots, or null for missing input.</returns>
     private static string? NormalizeDomain(string? domain)
     {
         if (string.IsNullOrWhiteSpace(domain)) // If the input domain string is null, empty, or whitespace, we cannot normalize it, so we return null.
@@ -493,6 +425,12 @@ public class ActiveDirectoryService : IActiveDirectoryService
     }
 
     // This helper method resolves the effective LDAP search bases for the specified user, taking into account delegation rules if delegation is enabled.
+    /// <summary>
+    /// Resolves LDAP server search bases allowed for a principal.
+    /// </summary>
+    /// <param name="user">Principal used for identity or delegation checks; may be null.</param>
+    /// <returns>Configured bases when delegation is off, authorized bases when on, or an empty list.</returns>
+    /// <remarks>Delegation fails closed when rules or SID tokens are unavailable. LDAP enrichment and failures are logged.</remarks>
     private IReadOnlyList<string> ResolveSearchBasesForUser(ClaimsPrincipal? user)
     {
         if (!_delegationEnabled) // If delegation is not enabled, we simply return the configured server search base LDAP paths without applying any user-specific filtering. This means that all users will have access to the same search bases as defined in the configuration.  
@@ -529,10 +467,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
     }
 
     /// <summary>
-    /// Retrieves the distinguished name of a user based on their identity name (e.g. sAMAccountName or UPN).   
+    /// Resolves an identity to an Active Directory distinguished name.
     /// </summary>
-    /// <param name="identityName">The identity name of the user (e.g. sAMAccountName or UPN).</param>
-    /// <returns>The distinguished name of the user, or "unknown-user" if the identity name is null or empty.</returns>
+    /// <param name="identityName">SAM name, DOMAIN\account, or UPN; nullable where declared.</param>
+    /// <returns>The directory DN, original identity fallback, or "unknown-user" for missing input.</returns>
+    /// <remarks>Input is escaped against LDAP injection. Failures are logged and suppressed.</remarks>
     public string GetUserDistinguishedName(string? identityName)
     {
         if (string.IsNullOrWhiteSpace(identityName)) // If the identity name is null, empty, or whitespace, we cannot resolve a distinguished name for the user, so we return "unknown-user" to indicate that the user is not recognized. This allows the application to handle cases where the user context is not properly established without throwing exceptions.
@@ -565,20 +504,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
     }
 
     /// <summary>
-    ///     Retrieves the user principal name (UPN) of a user based on their identity name (e.g. sAMAccountName or UPN).
+    /// Resolves an identity to an Active Directory user principal name.
     /// </summary>
-    /// <param name="identityName">The identity name of the user (e.g. sAMAccountName or UPN).</param>
-    /// <returns>The user principal name (UPN) of the user, or the original identity name if not found.</returns>
-    /// <remarks>
-    /// This method attempts to retrieve the user principal name (UPN) of a user based on their identity name, which can be in the format of sAMAccountName (e.g. DOMAIN\username) or UPN (e.g. username@domain).
-    /// It performs an LDAP search in Active Directory to find the user object based on the sAMAccountName extracted from the identity name, and if found, it retrieves the userPrincipalName property from the search result.
-    /// If the user cannot be found or if the userPrincipalName property is not available, it returns the original identity name as a fallback. This allows the application to continue functioning even if it cannot resolve the user's UPN, although certain features that rely on the UPN may not work properly.
-    /// </remarks>  
-    /// <exception cref="Exception">Thrown for any unexpected errors that may occur during the process of retrieving the user's UPN, such as issues with LDAP queries or connectivity.</exception>
-    /// <example>
-    ///   var upn = activeDirectoryService.GetUserPrincipalName(User.Identity.Name);
-    ///   Console.WriteLine($"User principal name: {upn}");
-    /// </example>
+    /// <param name="identityName">SAM name, DOMAIN\account, or UPN; nullable where declared.</param>
+    /// <returns>The directory UPN, original identity fallback, or an empty string for missing input.</returns>
+    /// <remarks>Input is escaped against LDAP injection. Failures are logged and suppressed.</remarks>
     public string GetUserPrincipalName(string? identityName)
     {
         // If the identity name is null, empty, or whitespace, we cannot resolve a UPN for the user, so we return an empty string to indicate that the UPN is not available. 
@@ -607,6 +537,12 @@ public class ActiveDirectoryService : IActiveDirectoryService
         }
     }
     // This helper method escapes special characters in a string for use in an LDAP filter. This is important to prevent LDAP injection vulnerabilities and to ensure that the filter syntax is correct when the input value contains characters that have special meaning in LDAP filters.
+    /// <summary>
+    /// Escapes LDAP filter metacharacters according to RFC 4515.
+    /// </summary>
+    /// <param name="value">Value to process; expected non-null unless declared nullable.</param>
+    /// <returns>A filter-safe representation of the value.</returns>
+    /// <remarks>Prevents identity text from changing LDAP filter structure.</remarks>
     private static string EscapeLdapFilter(string value)
     {
         // According to RFC 4515, the following characters need to be escaped in LDAP filters:
@@ -626,6 +562,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
     // It then trims any whitespace from the extracted domain and returns it. If the UPN is not valid or does not contain an '@' character, it returns null.
     // This allows the application to infer a default domain for the user based on their UPN, which is a common format for user identities in Active Directory.
     // If the UPN is not available or does not contain domain information, the application can fall back to other methods of determining the domain.
+    /// <summary>
+    /// Extracts the suffix after the last at-sign in a UPN.
+    /// </summary>
+    /// <param name="upn">UPN to parse; may be null or blank.</param>
+    /// <returns>The trimmed suffix, or null when none exists.</returns>
     private static string? ExtractDomainFromUpn(string? upn)
     {
         if (string.IsNullOrWhiteSpace(upn)) // If the UPN is null, empty, or whitespace, we cannot extract a domain from it, so we return null. This allows the application to handle cases where the UPN is not properly established without throwing exceptions.
@@ -647,6 +588,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
     // It checks if the distinguished name starts with "CN=" and if so, it extracts the portion after "CN=" up to the first comma (if present) as the common name. 
     // If the distinguished name does not start with "CN=", it returns the original distinguished name as a fallback. 
     // This allows us to get a more user-friendly name for groups or objects when the CN is available in the DN, while still providing a fallback if the format is unexpected.
+    /// <summary>
+    /// Extracts the leading common-name component from a distinguished name.
+    /// </summary>
+    /// <param name="distinguishedName">Distinguished name to inspect; expected non-null.</param>
+    /// <returns>The leading CN value, or the original value for an unexpected format.</returns>
     private static string ExtractCommonNameFromDn(string distinguishedName)
     {
         const string cnPrefix = "CN="; // The common name (CN) in a distinguished name typically starts with "CN=". We check for this prefix to determine if we can extract the CN from the DN. If the DN does not start with this prefix, we will return the original DN as a fallback.
@@ -665,6 +611,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
     }
     // This helper method attempts to extract a display name for a group from an LDAP search result. 
     // It first tries to read the "cn" property, which is commonly used for the common name of groups. If the "cn" property is not available or is empty, it falls back to reading the "distinguishedName" property and extracting the common name from it using the ExtractCommonNameFromDn method. If neither property provides a valid name, it returns null. This allows us to get a user-friendly display name for groups when possible, while still providing a fallback mechanism if the expected properties are not present.
+    /// <summary>
+    /// Gets a displayable group name from cn or the distinguished name.
+    /// </summary>
+    /// <param name="entry">LDAP search result to inspect.</param>
+    /// <returns>A group name, or null when none is usable.</returns>
     private static string? ExtractGroupDisplayName(SearchResultEntry entry)
     {
         var cn = ReadEntryAttribute(entry, "cn");
@@ -679,6 +630,13 @@ public class ActiveDirectoryService : IActiveDirectoryService
             : ExtractCommonNameFromDn(distinguishedName);
     }
 
+    /// <summary>
+    /// Finds direct membership and optional LDAP link time-to-live metadata.
+    /// </summary>
+    /// <param name="entry">Group entry whose <c>member</c> values are inspected.</param>
+    /// <param name="userDistinguishedName">User distinguished name compared without regard to case.</param>
+    /// <returns>A tuple indicating membership and its parseable remaining seconds.</returns>
+    /// <remarks>Nested membership does not count unless the user DN is present directly in member values.</remarks>
     private static (bool Found, int? RemainingSeconds) GetDirectMembershipTimeToLive(
         SearchResultEntry entry,
         string userDistinguishedName)
@@ -709,6 +667,13 @@ public class ActiveDirectoryService : IActiveDirectoryService
         return (false, null);
     }
 
+    /// <summary>
+    /// Parses an elevation-group name into computer, domain, and TTL data.
+    /// </summary>
+    /// <param name="groupName">Elevation-group display name to parse.</param>
+    /// <param name="remainingSeconds">Optional remaining link TTL.</param>
+    /// <returns>A populated model, or null when prefix validation fails or no computer remains.</returns>
+    /// <remarks>Removes the configured prefix and splits on the first configured domain separator.</remarks>
     private ElevatedComputerViewModel? ParseElevatedComputer(string groupName, int? remainingSeconds)
     {
         var value = groupName.Trim();
@@ -745,6 +710,12 @@ public class ActiveDirectoryService : IActiveDirectoryService
     }
     // This helper method checks if a given LDAP search base is allowed based on the configured server search base LDAP paths.
     // It compares the search base to each of the configured base paths, allowing for case-insensitive matches and also allowing for the search base to end with the configured base path (ignoring the "LDAP://" prefix).  
+    /// <summary>
+    /// Checks whether a delegated search base is within configured server bases.
+    /// </summary>
+    /// <param name="searchBase">Search-base token, LDAP path, or relative DN.</param>
+    /// <returns>True for an exact configured path or a path ending in a configured base DN.</returns>
+    /// <remarks>This allow-list prevents delegation rules from expanding directory visibility.</remarks>
     private bool IsSearchBaseAllowed(string searchBase)
     {
         // We check if the search base matches any of the configured server search base LDAP paths. We allow for case-insensitive matches, and we also allow for the search base to end with the configured base path (ignoring the "LDAP://" prefix) to provide flexibility in how the search bases are specified in the configuration. This allows administrators to specify search bases in a way that is convenient for them while still ensuring that only allowed search bases are used by the service.
@@ -758,6 +729,12 @@ public class ActiveDirectoryService : IActiveDirectoryService
     // If not, it checks if there is a DomainLdapPath configured directly in the application configuration. 
     // If neither is specified, it attempts to resolve the domain FQDN using other methods and builds the LDAP path from that. 
     // This allows for flexible configuration of the domain LDAP path based on either direct specification or inference from the environment.
+    /// <summary>
+    /// Resolves the LDAP domain root from JIT, application, or host DNS configuration.
+    /// </summary>
+    /// <param name="jitConfiguration">Loaded JIT configuration.</param>
+    /// <returns>The domain LDAP path.</returns>
+    /// <exception cref="InvalidOperationException">No domain can be resolved.</exception>
     private string ResolveDomainLdapPath(JitConfiguration jitConfiguration)
     {
         // First, we check if the JIT configuration specifies a DomainFqdn. If it does, we build the LDAP path from this FQDN and return it. 
@@ -782,6 +759,12 @@ public class ActiveDirectoryService : IActiveDirectoryService
     // It splits the FQDN into its components and constructs an LDAP path in the format of "LDAP://DC=part1,DC=part2,...". 
     // This allows us to convert a standard domain FQDN into the corresponding LDAP path format that can be used for Active Directory queries.
 
+    /// <summary>
+    /// Builds an LDAP domain-root path from an FQDN.
+    /// </summary>
+    /// <param name="domainFqdn">Dot-separated domain FQDN.</param>
+    /// <returns>An LDAP path composed of DC components.</returns>
+    /// <remarks>Empty labels are removed; no DNS validation occurs.</remarks>
     private static string BuildDomainLdapPath(string domainFqdn)
     {
         // We split the domain FQDN into its components (e.g. "example.com" becomes ["example", "com"]) and then construct the LDAP path by prefixing each component with "DC=" and joining them with commas. This results in an LDAP path like "LDAP://DC=example,DC=com" which can be used as the search base for Active Directory queries. This transformation allows us to work with standard domain FQDNs while still being able to generate the necessary LDAP paths for querying Active Directory.   
@@ -796,6 +779,12 @@ public class ActiveDirectoryService : IActiveDirectoryService
     // It reads the JIT configuration path from the application configuration and attempts to load the JIT configuration from the specified path. 
     // If the path is not specified or the configuration cannot be loaded, it returns a default JIT configuration. 
     // This allows the service to dynamically load JIT settings based on the environment or deployment scenario.
+    /// <summary>
+    /// Loads JIT configuration from the resolved configuration path.
+    /// </summary>
+    /// <returns>A loaded configuration, or a default instance when no path is set.</returns>
+    /// <remarks>Load failures are logged and rethrown.</remarks>
+    /// <exception cref="Exception">The configured file cannot be loaded or parsed.</exception>
     private JitConfiguration ResolveJitConfiguration()
     {
         var jitConfigPath = JitConfigPathResolver.Resolve(_configuration); // Read the JIT configuration path from app configuration first, then fallback to JustInTimeConfig environment variable. If no path is provided, use the default JIT configuration resolution.
@@ -821,6 +810,12 @@ public class ActiveDirectoryService : IActiveDirectoryService
     // This helper method resolves the server search base LDAP paths from the JIT configuration. 
     // It checks if the JIT configuration contains any T1SearchBaseLdapPaths and if so, it returns them as the server search base LDAP paths. 
     // If there are no valid T1SearchBaseLdapPaths in the JIT configuration, it logs an error and throws an exception to prevent the service from starting without valid search bases.
+    /// <summary>
+    /// Resolves and domain-qualifies configured server search bases.
+    /// </summary>
+    /// <param name="jitConfig">JIT configuration containing search bases.</param>
+    /// <returns>A distinct case-insensitive list.</returns>
+    /// <exception cref="InvalidOperationException">No search base is configured.</exception>
     private IReadOnlyList<string> ResolveServerSearchBasesFromJitConfiguration(JitConfiguration jitConfig)
     {
         // We check if the JIT configuration contains any T1SearchBaseLdapPaths. 
@@ -851,6 +846,12 @@ public class ActiveDirectoryService : IActiveDirectoryService
             $"No valid T1Searchbase LDAP paths were found in JIT config file '{jitConfig.JitConfigPath}'.");
     }
 
+    /// <summary>
+    /// Qualifies a search-base token or relative DN against the domain path.
+    /// </summary>
+    /// <param name="searchBase">Search-base token, LDAP path, or relative DN.</param>
+    /// <param name="domainLdapPath">Domain LDAP path used for qualification.</param>
+    /// <returns>A fully prefixed LDAP path.</returns>
     private static string QualifySearchBaseForDomain(string searchBase, string domainLdapPath)
     {
         if (searchBase.Equals("<DomainRoot>", StringComparison.OrdinalIgnoreCase))
@@ -875,6 +876,12 @@ public class ActiveDirectoryService : IActiveDirectoryService
     // This helper method resolves the delegation rules from the JIT configuration. 
     // It checks if delegation is enabled in the JIT configuration, and if so, it attempts to load the delegation configuration from the specified path. 
     // If delegation is not enabled, it returns an empty list of delegation rules.  
+    /// <summary>
+    /// Loads delegation rules when delegation is enabled.
+    /// </summary>
+    /// <param name="jitConfiguration">Loaded JIT configuration.</param>
+    /// <returns>Loaded rules, or an empty list when disabled or loading fails.</returns>
+    /// <remarks>Failures are logged and suppressed; an empty result later fails authorization closed.</remarks>
     private IReadOnlyList<DelegationRule> ResolveDelegationRules(JitConfiguration jitConfiguration)
     {
         // We check if delegation is enabled in the JIT configuration. 
@@ -917,6 +924,12 @@ public class ActiveDirectoryService : IActiveDirectoryService
     // It iterates through the claims of the user and looks for claims that represent group SIDs (e.g. ClaimTypes.GroupSid or claims that end with "/groupsid" or "/primarygroupsid").
     // For each group SID claim found, it normalizes the value of the claim (trimming whitespace and quotes, and converting to uppercase) and adds it to a hash set of tokens. 
     // This allows us to efficiently check for group memberships based on SIDs when determining elevation groups for the user. If the user is null, it returns an empty set of tokens.  
+    /// <summary>
+    /// Collects normalized user and group SIDs for delegation matching.
+    /// </summary>
+    /// <param name="user">Principal used for identity or delegation checks; may be null.</param>
+    /// <returns>A case-insensitive SID set from claims, Windows identity, and directory token groups.</returns>
+    /// <remarks>Directory enrichment can query LDAP; failures are logged and suppressed.</remarks>
     private HashSet<string> ResolveUserGroupTokens(ClaimsPrincipal? user)
     {
         var tokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // We use a HashSet to store the group tokens for efficient lookup, and we specify a case-insensitive comparer to ensure that token comparisons are not affected by case differences. This allows us to easily check if a user belongs to a group based on its SID without worrying about case sensitivity. If the user is null, we simply return an empty set of tokens, which means that no group memberships will be recognized for a null user.
@@ -949,6 +962,12 @@ public class ActiveDirectoryService : IActiveDirectoryService
         return tokens;
     }
 
+    /// <summary>
+    /// Adds the Windows user SID and effective group SIDs to a token set.
+    /// </summary>
+    /// <param name="identity">Windows identity; may be null.</param>
+    /// <param name="tokens">Mutable destination SID set.</param>
+    /// <remarks>Mutates the destination set and performs no network access.</remarks>
     private static void AddWindowsIdentityTokens(WindowsIdentity? identity, ISet<string> tokens)
     {
         var userSid = identity?.User?.Value;
@@ -972,6 +991,12 @@ public class ActiveDirectoryService : IActiveDirectoryService
         }
     }
 
+    /// <summary>
+    /// Adds the directory user SID and computed tokenGroups SIDs to a token set.
+    /// </summary>
+    /// <param name="identityName">SAM name, DOMAIN\account, or UPN; nullable where declared.</param>
+    /// <param name="tokens">Mutable destination SID set.</param>
+    /// <remarks>Performs LDAP searches, mutates the set, and logs/suppresses lookup failures.</remarks>
     private void AddDirectoryIdentityTokens(string? identityName, ISet<string> tokens)
     {
         if (string.IsNullOrWhiteSpace(identityName))
@@ -1033,6 +1058,12 @@ public class ActiveDirectoryService : IActiveDirectoryService
         }
     }
 
+    /// <summary>
+    /// Builds an injection-safe LDAP user filter for an identity.
+    /// </summary>
+    /// <param name="identityName">SAM name, DOMAIN\account, or UPN; nullable where declared.</param>
+    /// <returns>A filter restricted to user objects.</returns>
+    /// <remarks>Every identity fragment is escaped before interpolation.</remarks>
     private static string BuildUserLookupFilter(string identityName)
     {
         var trimmedIdentity = identityName.Trim();
@@ -1055,6 +1086,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
 
     // This helper method checks if a given claim is a group SID claim by examining the claim type.
     // It returns true if the claim type is ClaimTypes.GroupSid or if it ends with "/groupsid" or "/primarygroupsid" (ignoring case), which are common patterns for claims that represent group SIDs in various identity systems.   
+    /// <summary>
+    /// Tests whether a claim type represents a group or primary-group SID.
+    /// </summary>
+    /// <param name="claim">Claim to inspect.</param>
+    /// <returns>True for recognized SID claim types; otherwise false.</returns>
     private static bool IsGroupSidClaim(Claim claim)
     {
         return claim.Type == ClaimTypes.GroupSid
@@ -1064,6 +1100,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
 
     // This helper method normalizes a security identifier (SID) string by trimming whitespace and quotes, and converting it to uppercase.
     // This ensures that SIDs are stored in a consistent format for efficient lookup and comparison when determining group memberships based on SIDs. By normalizing the SIDs, we can avoid issues with formatting differences that may arise from different sources of claims or variations in how SIDs are represented, allowing for reliable comparisons when checking if a user belongs to a group based on its SID.
+    /// <summary>
+    /// Normalizes SID text for authorization comparisons.
+    /// </summary>
+    /// <param name="value">Value to process; expected non-null unless declared nullable.</param>
+    /// <returns>The trimmed, unquoted, upper-case SID text.</returns>
     private static string NormalizeSecurityIdentifier(string value)
     {
         // We trim any leading or trailing whitespace from the value, remove any surrounding quotes (both single and double), and convert the string to uppercase to ensure a consistent format for security identifiers (SIDs). This normalization process allows us to reliably compare SIDs regardless of variations in formatting that may occur in different sources of claims or representations of SIDs. By storing SIDs in a normalized format, we can efficiently check for group memberships based on SIDs when determining elevation groups for users.
@@ -1076,6 +1117,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
     // If that also fails, it tries to get the domain name from the DNS configuration of the machine. 
     // If all methods fail to resolve a valid domain FQDN, it throws an exception to indicate that the domain FQDN could not be resolved and that the configuration needs to be updated. 
     // This allows for flexible resolution of the domain FQDN based on various configuration options and environment settings, while ensuring that the service does not operate without a valid domain context.   
+    /// <summary>
+    /// Resolves the directory DNS domain from configuration or host networking.
+    /// </summary>
+    /// <returns>The resolved domain FQDN.</returns>
+    /// <exception cref="InvalidOperationException">No domain can be determined.</exception>
     private string ResolveDomainFqdn()
     {
         var configuredFqdn = _configuration["ActiveDirectory:DomainFqdn"]; // First, we check if the domain FQDN is specified in the application configuration. If it is, we return this configured FQDN for use in building the domain LDAP path. This allows administrators to directly specify the domain FQDN in the configuration, which can be useful for clarity and explicit configuration of the domain context for Active Directory queries.
@@ -1110,6 +1156,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
     // It then joins these components with dots to form the FQDN. 
     // If the input LDAP path is null, empty, or does not contain valid domain components, it returns null. 
     // This allows us to infer the domain FQDN from a provided LDAP path when possible, while still providing a fallback of null if the parsing fails or the input is not valid.
+    /// <summary>
+    /// Extracts DC components from an LDAP path or distinguished name.
+    /// </summary>
+    /// <param name="ldapPath">LDAP path or DN; may be null only where declared.</param>
+    /// <returns>Dot-joined DC labels, or null when none exist.</returns>
     private static string? ParseDomainFqdnFromLdapPath(string? ldapPath)
     {
         if (string.IsNullOrWhiteSpace(ldapPath)) // If the input LDAP path is null, empty, or consists only of whitespace, we cannot parse a valid domain FQDN from it, so we return null. This allows us to handle cases where the LDAP path is not properly configured or provided without throwing exceptions, while still indicating that a valid domain FQDN could not be parsed from the input.
@@ -1143,6 +1194,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
     // If the trimmed value already starts with "LDAP://", it returns the trimmed value as is. 
     // If the trimmed value starts with "OU=", "CN=", or "DC=", it prefixes it with "LDAP://" and returns it. 
     // If the trimmed value does not match any of these patterns, it returns null to indicate that the input could not be normalized into a valid LDAP path.
+    /// <summary>
+    /// Normalizes a recognizable LDAP path or distinguished name.
+    /// </summary>
+    /// <param name="value">Value to process; expected non-null unless declared nullable.</param>
+    /// <returns>A trimmed LDAP path with LDAP:// prefix, or null when unrecognized.</returns>
     private static string? NormalizeLdapPath(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) // If the input value is null, empty, or consists only of whitespace, we cannot normalize it into a valid LDAP path, so we return null. This allows us to handle cases where the input is not properly provided without throwing exceptions, while still indicating that a valid LDAP path could not be derived from the input.
@@ -1172,9 +1228,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
     // ─── LDAP connection & search helpers ─────────────────────────────────────
 
     /// <summary>
-    /// Creates an LDAP connection using the current service security context.
-    /// Uses System.DirectoryServices.Protocols with Negotiate (Kerberos/NTLM) and no password.
+    /// Creates and binds an LDAP connection using the process security context.
     /// </summary>
+    /// <returns>A bound connection owned by the caller.</returns>
+    /// <remarks>Uses Negotiate/default credentials, signing, sealing, port 389, LDAP v3, and no referral chasing. Binding authenticates but does not modify directory data.</remarks>
+    /// <exception cref="Sds.LdapException">The endpoint is unavailable or authentication fails.</exception>
     private Sds.LdapConnection CreateLdapConnection()
     {
         _logger.LogInformation("Creating LDAP connection to {DomainFqdn}", _domainFqdn);
@@ -1204,19 +1262,43 @@ public class ActiveDirectoryService : IActiveDirectoryService
     }
 
     /// <summary>
-    /// Performs an LDAP search using System.DirectoryServices.Protocols.
-    /// baseLdapPath may include the "LDAP://" prefix.
+    /// Executes a paged LDAP search without link TTL metadata.
     /// </summary>
+    /// <param name="baseLdapPath">LDAP path or raw base DN.</param>
+    /// <param name="filter">LDAP filter; untrusted values must already be escaped.</param>
+    /// <param name="scope">Numeric SearchScope value.</param>
+    /// <param name="attributes">LDAP attributes to request.</param>
+    /// <returns>All successfully parsed entries across pages.</returns>
+    /// <remarks>Binds with the service context, pages by 500, logs metadata, and skips malformed entries.</remarks>
     private IList<SearchResultEntry> LdapSearchPaged(string baseLdapPath, string filter, int scope, params string[] attributes)
     {
         return LdapSearchPaged(baseLdapPath, filter, scope, false, attributes);
     }
 
+    /// <summary>
+    /// Executes a paged LDAP search requesting Active Directory link TTL metadata.
+    /// </summary>
+    /// <param name="baseLdapPath">LDAP path or raw base DN.</param>
+    /// <param name="filter">LDAP filter; untrusted values must already be escaped.</param>
+    /// <param name="scope">Numeric SearchScope value.</param>
+    /// <param name="attributes">LDAP attributes to request.</param>
+    /// <returns>All successfully parsed entries across pages.</returns>
+    /// <remarks>Adds the show-link-TTL control; other security and paging behavior matches the normal search.</remarks>
     private IList<SearchResultEntry> LdapSearchPagedWithLinkTtl(string baseLdapPath, string filter, int scope, params string[] attributes)
     {
         return LdapSearchPaged(baseLdapPath, filter, scope, true, attributes);
     }
 
+    /// <summary>
+    /// Implements LDAP paging and optional Active Directory link TTL retrieval.
+    /// </summary>
+    /// <param name="baseLdapPath">LDAP path or raw base DN.</param>
+    /// <param name="filter">LDAP filter; untrusted values must already be escaped.</param>
+    /// <param name="scope">Numeric SearchScope value.</param>
+    /// <param name="showLinkTimeToLive">Whether to request Active Directory link TTL metadata.</param>
+    /// <param name="attributes">LDAP attributes to request.</param>
+    /// <returns>A mutable list of successfully converted entries.</returns>
+    /// <remarks>Creates and disposes a bound connection and issues read-only searches; transport failures propagate.</remarks>
     private IList<SearchResultEntry> LdapSearchPaged(
         string baseLdapPath,
         string filter,
@@ -1301,7 +1383,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
         return entries;
     }
 
-    /// <summary>Strips the "LDAP://" prefix, returning the raw distinguished name.</summary>
+    /// <summary>
+    /// Removes an optional LDAP:// prefix from a directory path.
+    /// </summary>
+    /// <param name="ldapPath">LDAP path or DN; may be null only where declared.</param>
+    /// <returns>The raw distinguished name, preserving all other text.</returns>
     private static string LdapPathToDn(string ldapPath)
     {
         const string prefix = "LDAP://";

@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <WarningsAsErrors>$(WarningsAsErrors);CS1570;CS1572;CS1573;CS1587;CS1591</WarningsAsErrors>
     <Description>Core library for Just-In-Time logic shared by PowerShell modules and native .NET apps.</Description>
     <PackageId>KjitCore</PackageId>
     <RootNamespace>KjitCore</RootNamespace>

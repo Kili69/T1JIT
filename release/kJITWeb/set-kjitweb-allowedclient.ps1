@@ -105,7 +105,8 @@ function Resolve-AllowedClientAddresses {
 
     try {
         $addresses = @([System.Net.Dns]::GetHostAddresses($candidate) |
-            Select-Object -ExpandProperty IPAddressToString -Unique)
+            ForEach-Object { $_.IPAddressToString -replace '%\d+$', '' } |
+            Select-Object -Unique)
         if (-not $addresses -or $addresses.Count -eq 0) {
             throw "No IP addresses resolved."
         }
@@ -227,13 +228,16 @@ function Set-ClientAccessFirewallRule {
     Get-NetFirewallRule -DisplayName $RuleName -ErrorAction SilentlyContinue |
         Remove-NetFirewallRule -ErrorAction SilentlyContinue | Out-Null
 
-    $addresses = @($RemoteAddresses | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $addresses = @($RemoteAddresses |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        ForEach-Object { $_.Trim() -replace '%\d+$', '' } |
+        Select-Object -Unique)
     $isLoopbackOnly = ($addresses.Count -gt 0) -and (@($addresses | Where-Object { $_ -notin @("127.0.0.1", "::1") }).Count -eq 0)
     if ($isLoopbackOnly) {
         Write-Host "Skipping firewall rule for localhost-only mode."
         return
     }
-    New-NetFirewallRule -DisplayName $RuleName -Direction Inbound -Action Allow -Protocol TCP -LocalPort $Port -RemoteAddress $addresses -Profile Any | Out-Null
+    New-NetFirewallRule -DisplayName $RuleName -Direction Inbound -Action Allow -Protocol TCP -LocalPort $Port -RemoteAddress $addresses -Profile Any -ErrorAction Stop | Out-Null
 }
 
 <#

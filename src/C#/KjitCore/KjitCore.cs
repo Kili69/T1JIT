@@ -6,6 +6,7 @@
  * - 0.1.20260507: Initial public facade for shared identity, distinguished-name,
  *   and JIT configuration services.
  * - 0.2.20260926.4: Documented the public API and configuration-source routing.
+ * - 0.2.20260926.6: Expanded exception, null-behavior, and side-effect documentation.
  */
 
 using KjitCore.Abstractions;
@@ -65,7 +66,8 @@ public static class KjitCore
 	/// </exception>
 	/// <remarks>
 	/// Absolute paths are read as JSON files. Other values are resolved through
-	/// Active Directory as common names or distinguished names.
+	/// Active Directory as common names or distinguished names. File loading performs
+	/// synchronous I/O; directory loading binds to LDAP and performs synchronous searches.
 	/// </remarks>
 	public static JitConfigurationObject LoadJitConfiguration(string source)
 	{

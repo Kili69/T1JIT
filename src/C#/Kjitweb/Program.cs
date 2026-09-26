@@ -1,3 +1,7 @@
+// Author: Andreas Lucas (aka Kili)
+// Documentation update: 0.2.20260926.6
+// History: Existing implementation and inline operational notes are preserved.
+
 using KjitWeb.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -301,24 +305,24 @@ catch (Exception ex)
     throw;
 }
 
-// This method attempts to write startup exceptions to the Windows Application event log under a custom source. If that fails (e.g. due to permissions), it falls back to a standard source. Any exceptions during logging are swallowed to avoid masking the original startup exception.
-// This ensures that critical startup issues (like misconfiguration or connectivity problems) are recorded in the event log for administrators to diagnose, even if the service fails to start properly.
-// Note: Writing to the event log may require elevated permissions, so this method is designed to fail gracefully without throwing additional exceptions if logging is not possible.
-// The event ID 5000 is chosen to be distinct and easily identifiable as a KjitWeb startup error in the logs.
-// The log message includes the full exception details to aid in troubleshooting.
-// The fallback to the ".NET Runtime" source is a common practice when custom source creation is not permitted, as it is a standard source that should exist on all Windows systems.
-// This method is static and self-contained to ensure it can be called from the catch block without relying on any services or state that may not be available during startup failure scenarios.
-// By logging startup errors to the event log, administrators can quickly identify and address issues that prevent the service from running, improving reliability and maintainability.
+// Records a fatal startup exception in the local Windows Application event log with event ID 5000.
+// Event-log failures are suppressed so they cannot replace the original startup failure. Exception
+// details can contain sensitive configuration or path data and must remain in the administrative log.
 static void TryWriteStartupErrorToApplicationLog(Exception ex)
 {
     TryWriteToApplicationEventLog($"KjitWeb startup failed. {ex}", EventLogEntryType.Error, 5000);
 }
 
+// Records a non-sensitive informational startup message in the local Windows Application event log
+// with event ID 5001. Event-log failures are intentionally suppressed.
 static void TryWriteStartupInformationToApplicationLog(string message)
 {
     TryWriteToApplicationEventLog(message, EventLogEntryType.Information, 5001);
 }
 
+// Writes an event through the KjitWeb source and falls back to the standard .NET Runtime source.
+// Creating the source can require administrative rights and modifies machine-wide registration.
+// All failures are suppressed; callers must not include credentials or other secrets in the message.
 static void TryWriteToApplicationEventLog(string message, EventLogEntryType entryType, int eventId)
 {
     const string sourceName = "KjitWeb";

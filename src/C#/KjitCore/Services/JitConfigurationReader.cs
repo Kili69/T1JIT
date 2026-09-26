@@ -1,3 +1,14 @@
+/*
+ * File: JitConfigurationReader.cs
+ * Author: Andreas Lucas (aka Kili)
+ *
+ * Version history:
+ * - 0.1.20260507: Initial JSON and Active Directory configuration reader.
+ * - 0.2.20260907: Added compatibility aliases and configuration handling.
+ * - 0.2.20260926: Fixed cross-target JSON compatibility and package gating.
+ * - 0.2.20260926.6: Added complete API and helper documentation.
+ */
+
 using System.DirectoryServices.Protocols;
 using System.Net.NetworkInformation;
 using KjitCore.Models;
@@ -9,8 +20,18 @@ using System.Text.Json;
 
 namespace KjitCore.Services;
 
+/// <summary>
+/// Loads JIT configuration values from JSON files and Active Directory objects.
+/// </summary>
+/// <remarks>
+/// This type performs synchronous file or LDAP I/O and applies recognized values to a
+/// <see cref="JitConfigurationObject"/>, whose property setters perform validation.
+/// </remarks>
 internal static class JitConfigurationReader
 {
+    /// <summary>
+    /// Lists the current and legacy Active Directory attributes requested by LDAP searches.
+    /// </summary>
     private static readonly string[] JitConfigurationAttributeNames =
     {
         "ConfigScriptVersion",
@@ -59,6 +80,15 @@ internal static class JitConfigurationReader
         "EventSource",
     };
 
+    /// <summary>
+    /// Reads a JSON configuration file and applies its recognized properties.
+    /// </summary>
+    /// <param name="path">The local or network file path to read.</param>
+    /// <returns>A newly initialized and populated configuration object.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="path"/> is null, empty, or whitespace, or a recognized value fails validation.</exception>
+    /// <exception cref="FileNotFoundException">Thrown when the file does not exist.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when the JSON root is not an object.</exception>
+    /// <remarks>Reads the entire file synchronously. Unrecognized properties are ignored.</remarks>
     public static JitConfigurationObject LoadFromFile(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -96,6 +126,15 @@ internal static class JitConfigurationReader
         return configuration;
     }
 
+    /// <summary>
+    /// Reads configuration attributes from an Active Directory object.
+    /// </summary>
+    /// <param name="source">A common name or complete distinguished name identifying the object.</param>
+    /// <param name="ldapServer">An optional LDAP server name; when null or whitespace, the distinguished-name domain or current domain is used.</param>
+    /// <returns>A newly initialized and populated configuration object.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="source"/> is null, empty, or whitespace, or a recognized value fails validation.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when the directory object or required naming context is missing or ambiguous.</exception>
+    /// <remarks>Binds with negotiated credentials and performs synchronous LDAP searches.</remarks>
     public static JitConfigurationObject LoadFromActiveDirectory(string source, string? ldapServer = null)
     {
         if (string.IsNullOrWhiteSpace(source))
@@ -124,6 +163,13 @@ internal static class JitConfigurationReader
         return configuration;
     }
 
+    /// <summary>
+    /// Creates and binds an LDAP v3 connection using negotiated authentication.
+    /// </summary>
+    /// <param name="ldapServer">The preferred server, or null or whitespace to select a fallback.</param>
+    /// <param name="fallbackDomain">The DNS domain used before consulting the current machine domain.</param>
+    /// <returns>A bound connection that the caller must dispose.</returns>
+    /// <remarks>The method performs a network bind as the current security context.</remarks>
     private static LdapConnection CreateLdapConnection(string? ldapServer, string fallbackDomain)
     {
         var effectiveServer = string.IsNullOrWhiteSpace(ldapServer)
@@ -141,6 +187,13 @@ internal static class JitConfigurationReader
         return connection;
     }
 
+    /// <summary>
+    /// Reads one configuration object at an exact distinguished name.
+    /// </summary>
+    /// <param name="connection">The bound LDAP connection.</param>
+    /// <param name="distinguishedName">The base distinguished name to query.</param>
+    /// <returns>The first entry returned by the base-scope search.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when no entry is returned.</exception>
     private static SearchResultEntry ReadByDistinguishedName(LdapConnection connection, string distinguishedName)
     {
         var request = new SearchRequest(distinguishedName, "(objectClass=*)", SearchScope.Base, JitConfigurationAttributeNames);
@@ -153,6 +206,13 @@ internal static class JitConfigurationReader
         return response.Entries[0];
     }
 
+    /// <summary>
+    /// Finds a configuration object by common name under the configuration naming context.
+    /// </summary>
+    /// <param name="connection">The bound LDAP connection.</param>
+    /// <param name="commonName">The unescaped common-name value to locate.</param>
+    /// <returns>The single matching directory entry.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when no match or multiple matches are found.</exception>
     private static SearchResultEntry ReadByCommonName(LdapConnection connection, string commonName)
     {
         var configurationNamingContext = ReadConfigurationNamingContext(connection);
@@ -181,6 +241,12 @@ internal static class JitConfigurationReader
             $"Active Directory configuration object with cn='{commonName}' was not found below '{serviceContainer}' or '{configurationNamingContext}'.");
     }
 
+    /// <summary>
+    /// Reads the configuration naming context from RootDSE.
+    /// </summary>
+    /// <param name="connection">The bound LDAP connection.</param>
+    /// <returns>The nonempty configuration naming-context distinguished name.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when RootDSE returns no entry or no naming context.</exception>
     private static string ReadConfigurationNamingContext(LdapConnection connection)
     {
         var request = new SearchRequest(string.Empty, "(objectClass=*)", SearchScope.Base, "configurationNamingContext");
@@ -199,11 +265,21 @@ internal static class JitConfigurationReader
         return namingContext;
     }
 
+    /// <summary>
+    /// Applies the reader's lightweight distinguished-name classification.
+    /// </summary>
+    /// <param name="value">The non-null value to inspect.</param>
+    /// <returns><see langword="true"/> when the value contains both an equals sign and comma; otherwise, <see langword="false"/>.</returns>
     private static bool LooksLikeDistinguishedName(string value)
     {
         return value.Contains('=') && value.Contains(',');
     }
 
+    /// <summary>
+    /// Escapes LDAP filter metacharacters in a literal value.
+    /// </summary>
+    /// <param name="value">The non-null literal to escape.</param>
+    /// <returns>The value with backslash, wildcard, parentheses, and NUL encoded as LDAP hex escapes.</returns>
     private static string EscapeLdapFilterValue(string value)
     {
         return value
@@ -215,6 +291,12 @@ internal static class JitConfigurationReader
     }
 
 #if NET48
+    /// <summary>
+    /// Applies recognized .NET Framework JSON dictionary values to a configuration object.
+    /// </summary>
+    /// <param name="root">The deserialized JSON object.</param>
+    /// <param name="configuration">The configuration object to mutate.</param>
+    /// <remarks>Properties absent from <paramref name="root"/> retain their existing values.</remarks>
     private static void Apply(IDictionary<string, object> root, JitConfigurationObject configuration)
     {
         if (TryReadString(root, out var configScriptVersion, "ConfigScriptVersion"))
@@ -353,6 +435,12 @@ internal static class JitConfigurationReader
         }
     }
 #else
+    /// <summary>
+    /// Applies recognized JSON properties to a configuration object.
+    /// </summary>
+    /// <param name="root">The JSON object element.</param>
+    /// <param name="configuration">The configuration object to mutate.</param>
+    /// <remarks>Properties absent from <paramref name="root"/> retain their existing values.</remarks>
     private static void Apply(JsonElement root, JitConfigurationObject configuration)
     {
         if (TryReadString(root, out var configScriptVersion, "ConfigScriptVersion"))
@@ -492,6 +580,12 @@ internal static class JitConfigurationReader
     }
 #endif
 
+    /// <summary>
+    /// Applies recognized LDAP attributes to a configuration object.
+    /// </summary>
+    /// <param name="attributes">The directory attributes to inspect.</param>
+    /// <param name="configuration">The configuration object to mutate.</param>
+    /// <remarks>Attribute aliases are checked in the order supplied to each reader.</remarks>
     private static void Apply(SearchResultAttributeCollection attributes, JitConfigurationObject configuration)
     {
         if (TryReadString(attributes, out var configScriptVersion, "ConfigScriptVersion", "JitCnfg-ConfigScriptVersion"))
@@ -614,12 +708,23 @@ internal static class JitConfigurationReader
         }
     }
 
+    /// <summary>
+    /// Trims a group managed service account name and ensures it ends in a dollar sign.
+    /// </summary>
+    /// <param name="value">The non-null account name.</param>
+    /// <returns>The trimmed name with exactly the existing or one appended trailing dollar sign.</returns>
     private static string NormalizeGmsaName(string value)
     {
         var normalized = value.Trim();
         return normalized.EndsWith("$", StringComparison.Ordinal) ? normalized : normalized + "$";
     }
 
+    /// <summary>
+    /// Normalizes search-base values relative to the configuration's first DNS domain.
+    /// </summary>
+    /// <param name="values">The non-null sequence of values to normalize.</param>
+    /// <param name="configuration">The configuration that supplies the optional domain suffix.</param>
+    /// <returns>A new list in input order, with <c>&lt;DomainRoot&gt;</c> replaced and missing domain components appended.</returns>
     private static IReadOnlyList<string> NormalizeDistinguishedNames(IEnumerable<string> values, JitConfigurationObject configuration)
     {
         var domainSuffix = configuration.Domain.Count > 0 ? BuildDomainDn(configuration.Domain[0]) : string.Empty;
@@ -643,6 +748,11 @@ internal static class JitConfigurationReader
         return result;
     }
 
+    /// <summary>
+    /// Converts a dotted DNS name to an Active Directory domain distinguished name.
+    /// </summary>
+    /// <param name="dnsName">The non-null dotted DNS name.</param>
+    /// <returns>Comma-separated <c>DC=</c> components; empty when there are no nonempty labels.</returns>
     private static string BuildDomainDn(string dnsName)
     {
         var labels = dnsName.Split(new[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
@@ -656,6 +766,13 @@ internal static class JitConfigurationReader
     }
 
 #if NET48
+    /// <summary>
+    /// Tries to read the first matching dictionary value as text.
+    /// </summary>
+    /// <param name="root">The JSON dictionary to inspect.</param>
+    /// <param name="value">Receives the text, or an empty string on failure.</param>
+    /// <param name="propertyNames">Property aliases in precedence order.</param>
+    /// <returns><see langword="true"/> when a non-null value is found; otherwise, <see langword="false"/>.</returns>
     private static bool TryReadString(IDictionary<string, object> root, out string value, params string[] propertyNames)
     {
         foreach (var propertyName in propertyNames)
@@ -671,6 +788,13 @@ internal static class JitConfigurationReader
         return false;
     }
 #else
+    /// <summary>
+    /// Tries to read the first matching JSON string property.
+    /// </summary>
+    /// <param name="root">The JSON object to inspect.</param>
+    /// <param name="value">Receives the string, or an empty string on failure.</param>
+    /// <param name="propertyNames">Property aliases in precedence order.</param>
+    /// <returns><see langword="true"/> when a string property is found; otherwise, <see langword="false"/>.</returns>
     private static bool TryReadString(JsonElement root, out string value, params string[] propertyNames)
     {
         foreach (var propertyName in propertyNames)
@@ -687,6 +811,13 @@ internal static class JitConfigurationReader
     }
 #endif
 
+    /// <summary>
+    /// Tries to read the first value of the first matching directory attribute as text.
+    /// </summary>
+    /// <param name="attributes">The attribute collection to inspect.</param>
+    /// <param name="value">Receives converted text, or an empty string on failure.</param>
+    /// <param name="attributeNames">Attribute aliases in precedence order.</param>
+    /// <returns><see langword="true"/> when a value can be converted; otherwise, <see langword="false"/>.</returns>
     private static bool TryReadString(SearchResultAttributeCollection attributes, out string value, params string[] attributeNames)
     {
         foreach (var attributeName in attributeNames)
@@ -708,6 +839,13 @@ internal static class JitConfigurationReader
     }
 
 #if NET48
+    /// <summary>
+    /// Tries to parse the first matching dictionary value as a 32-bit integer.
+    /// </summary>
+    /// <param name="root">The JSON dictionary to inspect.</param>
+    /// <param name="value">Receives the parsed value, or zero on failure.</param>
+    /// <param name="propertyNames">Property aliases in precedence order.</param>
+    /// <returns><see langword="true"/> on successful parsing; otherwise, <see langword="false"/>.</returns>
     private static bool TryReadInt32(IDictionary<string, object> root, out int value, params string[] propertyNames)
     {
         foreach (var propertyName in propertyNames)
@@ -722,6 +860,13 @@ internal static class JitConfigurationReader
         return false;
     }
 #else
+    /// <summary>
+    /// Tries to read the first matching JSON number as a 32-bit integer.
+    /// </summary>
+    /// <param name="root">The JSON object to inspect.</param>
+    /// <param name="value">Receives the integer, or zero on failure.</param>
+    /// <param name="propertyNames">Property aliases in precedence order.</param>
+    /// <returns><see langword="true"/> on success; otherwise, <see langword="false"/>.</returns>
     private static bool TryReadInt32(JsonElement root, out int value, params string[] propertyNames)
     {
         foreach (var propertyName in propertyNames)
@@ -737,6 +882,13 @@ internal static class JitConfigurationReader
     }
 #endif
 
+    /// <summary>
+    /// Tries to parse a matching directory attribute as a 32-bit integer.
+    /// </summary>
+    /// <param name="attributes">The attribute collection to inspect.</param>
+    /// <param name="value">Receives the integer, or zero on failure.</param>
+    /// <param name="attributeNames">Attribute aliases in precedence order.</param>
+    /// <returns><see langword="true"/> on successful parsing; otherwise, <see langword="false"/>.</returns>
     private static bool TryReadInt32(SearchResultAttributeCollection attributes, out int value, params string[] attributeNames)
     {
         foreach (var attributeName in attributeNames)
@@ -752,6 +904,13 @@ internal static class JitConfigurationReader
     }
 
 #if NET48
+    /// <summary>
+    /// Tries to interpret a matching dictionary value as a Boolean.
+    /// </summary>
+    /// <param name="root">The JSON dictionary to inspect.</param>
+    /// <param name="value">Receives the Boolean, or <see langword="false"/> on failure.</param>
+    /// <param name="propertyNames">Property aliases in precedence order.</param>
+    /// <returns><see langword="true"/> for recognized Boolean, numeric, or textual Boolean values; otherwise, <see langword="false"/>.</returns>
     private static bool TryReadBoolean(IDictionary<string, object> root, out bool value, params string[] propertyNames)
     {
         foreach (var propertyName in propertyNames)
@@ -788,6 +947,13 @@ internal static class JitConfigurationReader
         return false;
     }
 #else
+    /// <summary>
+    /// Tries to interpret a matching JSON property as a Boolean.
+    /// </summary>
+    /// <param name="root">The JSON object to inspect.</param>
+    /// <param name="value">Receives the Boolean, or <see langword="false"/> on failure.</param>
+    /// <param name="propertyNames">Property aliases in precedence order.</param>
+    /// <returns><see langword="true"/> for JSON Booleans, zero or one, and recognized textual values; otherwise, <see langword="false"/>.</returns>
     private static bool TryReadBoolean(JsonElement root, out bool value, params string[] propertyNames)
     {
         foreach (var propertyName in propertyNames)
@@ -813,6 +979,13 @@ internal static class JitConfigurationReader
     }
 #endif
 
+    /// <summary>
+    /// Tries to interpret a matching directory attribute as a Boolean.
+    /// </summary>
+    /// <param name="attributes">The attribute collection to inspect.</param>
+    /// <param name="value">Receives the Boolean, or <see langword="false"/> on failure.</param>
+    /// <param name="attributeNames">Attribute aliases in precedence order.</param>
+    /// <returns><see langword="true"/> for textual Booleans or <c>0</c>/<c>1</c>; otherwise, <see langword="false"/>.</returns>
     private static bool TryReadBoolean(SearchResultAttributeCollection attributes, out bool value, params string[] attributeNames)
     {
         foreach (var attributeName in attributeNames)
@@ -843,6 +1016,13 @@ internal static class JitConfigurationReader
     }
 
 #if NET48
+    /// <summary>
+    /// Tries to read a matching dictionary property as one string or an array of strings.
+    /// </summary>
+    /// <param name="root">The JSON dictionary to inspect.</param>
+    /// <param name="values">Receives a new list, or an empty list on failure.</param>
+    /// <param name="propertyNames">Property aliases in precedence order.</param>
+    /// <returns><see langword="true"/> when a supported value is found; otherwise, <see langword="false"/>.</returns>
     private static bool TryReadStringList(IDictionary<string, object> root, out IReadOnlyList<string> values, params string[] propertyNames)
     {
         foreach (var propertyName in propertyNames)
@@ -867,6 +1047,13 @@ internal static class JitConfigurationReader
         return false;
     }
 #else
+    /// <summary>
+    /// Tries to read a matching JSON property as one string or an array of strings.
+    /// </summary>
+    /// <param name="root">The JSON object to inspect.</param>
+    /// <param name="values">Receives a new list, or an empty list on failure.</param>
+    /// <param name="propertyNames">Property aliases in precedence order.</param>
+    /// <returns><see langword="true"/> when a supported value is found; otherwise, <see langword="false"/>.</returns>
     private static bool TryReadStringList(JsonElement root, out IReadOnlyList<string> values, params string[] propertyNames)
     {
         foreach (var propertyName in propertyNames)
@@ -892,6 +1079,13 @@ internal static class JitConfigurationReader
     }
 #endif
 
+    /// <summary>
+    /// Reads all convertible values from the first matching directory attribute.
+    /// </summary>
+    /// <param name="attributes">The attribute collection to inspect.</param>
+    /// <param name="values">Receives nonblank converted values, or an empty list when absent.</param>
+    /// <param name="attributeNames">Attribute aliases in precedence order.</param>
+    /// <returns><see langword="true"/> when an attribute exists, even if it yields an empty list; otherwise, <see langword="false"/>.</returns>
     private static bool TryReadStringList(SearchResultAttributeCollection attributes, out IReadOnlyList<string> values, params string[] attributeNames)
     {
         foreach (var attributeName in attributeNames)
@@ -918,6 +1112,11 @@ internal static class JitConfigurationReader
     }
 
 #if NET48
+    /// <summary>
+    /// Converts non-null array elements to strings.
+    /// </summary>
+    /// <param name="arrayElement">The deserialized JSON array.</param>
+    /// <returns>A new list preserving the order of non-null elements.</returns>
     private static IReadOnlyList<string> ReadStringList(object[] arrayElement)
     {
         var values = new List<string>();
@@ -932,6 +1131,11 @@ internal static class JitConfigurationReader
         return values;
     }
 #else
+    /// <summary>
+    /// Reads string elements from a JSON array.
+    /// </summary>
+    /// <param name="arrayElement">The JSON array element.</param>
+    /// <returns>A new list preserving string-element order and omitting other kinds.</returns>
     private static IReadOnlyList<string> ReadStringList(JsonElement arrayElement)
     {
         var values = new List<string>();
@@ -948,6 +1152,13 @@ internal static class JitConfigurationReader
 #endif
 
 #if NET48
+    /// <summary>
+    /// Performs a case-insensitive dictionary property lookup.
+    /// </summary>
+    /// <param name="root">The dictionary to search.</param>
+    /// <param name="value">Receives the stored value, or null when absent.</param>
+    /// <param name="propertyName">The property name to match.</param>
+    /// <returns><see langword="true"/> when a matching key exists; otherwise, <see langword="false"/>.</returns>
     private static bool TryGetValue(IDictionary<string, object> root, out object? value, string propertyName)
     {
         foreach (var pair in root)
@@ -963,6 +1174,13 @@ internal static class JitConfigurationReader
         return false;
     }
 #else
+    /// <summary>
+    /// Performs a case-insensitive JSON property lookup.
+    /// </summary>
+    /// <param name="root">The JSON object to search.</param>
+    /// <param name="value">Receives the property value, or the default element when absent.</param>
+    /// <param name="propertyName">The property name to match.</param>
+    /// <returns><see langword="true"/> when a matching property exists; otherwise, <see langword="false"/>.</returns>
     private static bool TryGetProperty(JsonElement root, out JsonElement value, string propertyName)
     {
         foreach (var property in root.EnumerateObject())
@@ -979,6 +1197,13 @@ internal static class JitConfigurationReader
     }
 #endif
 
+    /// <summary>
+    /// Performs a case-insensitive directory-attribute lookup.
+    /// </summary>
+    /// <param name="attributes">The collection to search.</param>
+    /// <param name="attributeName">The attribute name to match.</param>
+    /// <param name="value">Receives the matching non-null attribute; otherwise, an unusable default value.</param>
+    /// <returns><see langword="true"/> when a non-null attribute is found; otherwise, <see langword="false"/>.</returns>
     private static bool TryGetAttribute(SearchResultAttributeCollection attributes, string attributeName, out DirectoryAttribute value)
     {
         foreach (var key in attributes.AttributeNames)
@@ -998,6 +1223,11 @@ internal static class JitConfigurationReader
         return false;
     }
 
+    /// <summary>
+    /// Converts a directory attribute value to text.
+    /// </summary>
+    /// <param name="value">The non-null value to convert.</param>
+    /// <returns>The string itself, UTF-8 text for a byte array, or the result of <see cref="object.ToString"/>; possibly null for other objects.</returns>
     private static string? ConvertAttributeValueToString(object value)
     {
         return value switch
@@ -1008,6 +1238,11 @@ internal static class JitConfigurationReader
         };
     }
 
+    /// <summary>
+    /// Extracts domain components from a distinguished name.
+    /// </summary>
+    /// <param name="distinguishedName">The non-null distinguished name to split.</param>
+    /// <returns>The component values joined by periods, or an empty string when no <c>DC=</c> component exists.</returns>
     private static string ExtractDomainFromDistinguishedName(string distinguishedName)
     {
         var labels = distinguishedName
@@ -1021,6 +1256,11 @@ internal static class JitConfigurationReader
         return labels.Length == 0 ? string.Empty : string.Join(".", labels);
     }
 
+    /// <summary>
+    /// Gets the current machine's configured DNS domain name.
+    /// </summary>
+    /// <returns>The trimmed, nonempty DNS domain name.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the current DNS domain cannot be resolved.</exception>
     private static string GetCurrentDomainDnsName()
     {
         var domainFqdn = IPGlobalProperties.GetIPGlobalProperties().DomainName;

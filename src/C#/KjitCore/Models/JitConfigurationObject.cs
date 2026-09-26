@@ -1,3 +1,14 @@
+/*
+ * File: JitConfigurationObject.cs
+ * Author: Andreas Lucas (aka Kili)
+ *
+ * Version history:
+ * - 0.1.20260507: Initial JIT configuration model.
+ * - 0.2.20260907: Hardened configuration validation and compatibility aliases.
+ * - 0.2.20260926: Fixed cross-target configuration compatibility.
+ * - 0.2.20260926.6: Completed API, validation, null-behavior, and helper documentation.
+ */
+
 using System.Net.NetworkInformation;
 using System.Text.RegularExpressions;
 
@@ -166,6 +177,9 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Initializes a new instance of the <see cref="JitConfigurationObject"/> class with defaults derived from the current Active Directory domain.
     /// </summary>
+    /// <exception cref="InvalidOperationException">Thrown when the current DNS domain cannot be resolved.</exception>
+    /// <exception cref="ArgumentException">Thrown when the resolved DNS domain is invalid.</exception>
+    /// <remarks>Reads the current machine's network domain and derives default distinguished-name and UNC values.</remarks>
     public JitConfigurationObject()
     {
         AdminGroupOU = BuildDefaultAdminGroupOu();
@@ -176,11 +190,13 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets the version string of the configuration schema or provisioning script.
     /// </summary>
+    /// <value>The version string; the default is <c>0.1.0</c>. No validation is performed.</value>
     public string ConfigScriptVersion { get; set; } = "0.1.0";
 
     /// <summary>
     /// Gets or sets the prefix used when constructing administrative account or group names.
     /// </summary>
+    /// <value>A trimmed SAM-compatible string of at most <see cref="MaximumSamAccountNameLength"/> characters.</value>
     /// <exception cref="ArgumentException">Thrown when the value is null, empty, or contains invalid characters or exceeds the maximum length.</exception>
     public string AdminPreFix
     {
@@ -191,8 +207,8 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets the character used to separate domain and object name segments inside generated SAM-compatible names.
     /// </summary>
+    /// <value>A character accepted by the SAM-compatible name validator; the default is <c>#</c>.</value>
     /// <exception cref="ArgumentException">Thrown when the value is not a valid SAM account name character.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when the value exceeds the maximum length for SAM account names.</exception>
     /// <remarks>
     /// The <see cref="DomainSeparator"/> is used to construct JIT compatibel group names in the format of <c>{AdminPreFix}{Domain}{DomainSeparator}{ServerName}</c>.
     /// </remarks>
@@ -205,6 +221,7 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets the distinguished name of the organizational unit that stores JIT administrator groups.
     /// </summary>
+    /// <value>A trimmed distinguished name.</value>
     /// <exception cref="ArgumentException">Thrown when the value is null, empty, or not a valid distinguished name.</exception>
     public string AdminGroupOU
     {
@@ -215,6 +232,7 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets the distinguished name of the organizational unit that stores JIT administrator groups.
     /// </summary>
+    /// <value>The same value as <see cref="AdminGroupOU"/>.</value>
     /// <remarks>
     /// This property is deprecated and will be removed in future versions. Use <see cref="AdminGroupOU"/> instead.
     /// </remarks>
@@ -226,6 +244,7 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets the UNC path to the delegation configuration file.
     /// </summary>
+    /// <value>A trimmed absolute UNC path or URI.</value>
     /// <exception cref="ArgumentException">Thrown when the value is null, empty, or not a valid UNC path.</exception>
     /// <remarks>
     /// This attribute is only used if the json configuration is used
@@ -239,7 +258,8 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets the maximum elevation duration in minutes.
     /// </summary>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when the value is not a positive integer, exceeds <see cref="MaximumElevatedTime"/>, or is less than or equal to <see cref="DefaultElevatedTime"/>.</exception>
+    /// <value>A value from 1 through <see cref="MaximumElevatedTime"/>; the default is 1440.</value>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when the value is not positive or exceeds <see cref="MaximumElevatedTime"/>.</exception>
     /// <remarks>
     /// The <see cref="MaxElevatedTime"/> default value is 1440 minutes (24 hours).
     /// </remarks>
@@ -264,6 +284,7 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets the default elevation duration in minutes.
     /// </summary>
+    /// <value>A positive value less than the current <see cref="MaxElevatedTime"/>; the default is 60.</value>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when the value is not a positive integer or is greater than or equal to <see cref="MaxElevatedTime"/>.</exception>
     /// <remarks>
     /// The <see cref="DefaultElevatedTime"/> default value is 60 minutes (1 hour).
@@ -290,6 +311,8 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets the event log name used for JIT-related entries.
     /// </summary>
+    /// <value>Trimmed, nonblank text; the default is <c>Tier 1 Management</c>.</value>
+    /// <exception cref="ArgumentException">Thrown when the value is null, empty, or whitespace.</exception>
     public string EventLog
     {
         get => _eventLog;
@@ -299,6 +322,8 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets the event source used for JIT-related event log entries.
     /// </summary>
+    /// <value>Trimmed, nonblank text; the default is <c>T1Mgmt</c>.</value>
+    /// <exception cref="ArgumentException">Thrown when the value is null, empty, or whitespace.</exception>
     public string EventSource
     {
         get => _eventSource;
@@ -309,11 +334,13 @@ public sealed class JitConfigurationObject
     /// Gets or sets the directory used for PowerShell debug log files.
     /// Environment variables are expanded by the consuming process at runtime.
     /// </summary>
+    /// <value>The unvalidated path text; the default is <c>%TEMP%</c>.</value>
     public string DebugLogPath { get; set; } = "%TEMP%";
 
     /// <summary>
     /// Gets or sets a value indicating whether delegation support is enabled.
     /// </summary>
+    /// <value><see langword="true"/> by default.</value>
     public bool EnableDelegation
     {
         get => _enableDelegation;
@@ -323,6 +350,8 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets the event identifier used for elevation operations.
     /// </summary>
+    /// <value>A positive event identifier; the default is 100.</value>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when the value is zero or negative.</exception>
     public int ElevateEventID
     {
         get => _elevateEventId;
@@ -340,6 +369,7 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets a value indicating whether multi-domain operation is enabled.
     /// </summary>
+    /// <value><see langword="true"/> by default.</value>
     /// <remarks>
     /// When enabled, the solution can operate across multiple Active Directory domains. 
     /// When disabled, it operates only within the current domain.
@@ -350,6 +380,7 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets a value indicating whether the <c>managedBy</c> attribute may be used for delegation decisions.
     /// </summary>
+    /// <value><see langword="true"/> by default.</value>
     /// <remarks>
     /// If the value is <c>true</c>, the solution may use the <c>managedBy</c> attribute of computer objects to determine delegation eligibility.
     /// If the value is <c>false</c>, the solution will ignore the <c>managedBy</c> attribute and rely solely on group membership for delegation decisions.
@@ -360,9 +391,10 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets the maximum number of servers processed concurrently.
     /// </summary>
+    /// <value>A value from 1 through <see cref="MaximumConcurrentServer"/>; the default is 50.</value>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when the value is less than 1 or greater than <see cref="MaximumConcurrentServer"/>.</exception>
     /// <remarks>
-    /// The <see cref="MaxConcurrentServer"/> default value is 10.
+    /// The <see cref="MaxConcurrentServer"/> default value is 50.
     /// </remarks>
     public int MaxConcurrentServer
     {
@@ -381,6 +413,8 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets the interval in minutes after which the group management task should run again.
     /// </summary>
+    /// <value>A value from 5 through <see cref="MaximumGroupManagementTaskRerun"/>; the default is 5.</value>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when the value is outside the supported range.</exception>
     public int GroupManagementTaskRerun
     {
         get => _groupManagementTaskRerun;
@@ -398,6 +432,9 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets the SAM-compatible name of the group managed service account used by the solution.
     /// </summary>
+    /// <value>A trimmed SAM-compatible name; the default is <c>KjitGmsa</c>.</value>
+    /// <exception cref="ArgumentException">Thrown when the value is blank or contains unsupported characters.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when the value exceeds the supported length.</exception>
     public string GroupManagedServiceAccountName
     {
         get => _groupManagedServiceAccountName;
@@ -408,6 +445,7 @@ public sealed class JitConfigurationObject
     /// Gets or sets the Active Directory identity of a server group that is excluded from delegation.
     /// The value may be a simple group name or a distinguished name.
     /// </summary>
+    /// <value>Trimmed text, or an empty string when assigned null, empty, or whitespace.</value>
     public string ExcludeServerGroupName
     {
         get => _excludeServerGroupName;
@@ -417,6 +455,7 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets the Active Directory identity of a server group that is excluded from delegation.
     /// </summary>
+    /// <value>The same value as <see cref="ExcludeServerGroupName"/>.</value>
     /// <remarks>
     /// This property is deprecated and will be removed in future versions. Use <see cref="ExcludeServerGroupName"/> instead.   
     /// </remarks>
@@ -428,6 +467,8 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets the LDAP filter used to exclude computer objects from processing.
     /// </summary>
+    /// <value>A trimmed, parenthesized LDAP filter.</value>
+    /// <exception cref="ArgumentException">Thrown when the value is null, blank, or not parenthesized.</exception>
     public string LDAPexcludeComputer
     {
         get => _ldapExcludeComputer;
@@ -436,6 +477,7 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets the LDAP filter used to search for eligible computer objects.
     /// </summary>
+    /// <value>The same value as <see cref="LDAPexcludeComputer"/>.</value>
     /// <remarks>
     /// This attribute is deprecated and will be removed in future versions. Use <see cref="LDAPexcludeComputer"/> instead.
     /// </remarks>
@@ -447,6 +489,8 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets the list of authorized server SIDs.
     /// </summary>
+    /// <value>A normalized, duplicate-free list; null is normalized to an empty list.</value>
+    /// <exception cref="ArgumentException">Thrown when a SID is invalid or duplicated.</exception>
     public IReadOnlyList<string> AuthorizedServer
     {
         get => _authorizedServer;
@@ -456,12 +500,19 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets the list of organizational units that are part of the JIT scope.
     /// </summary>
+    /// <value>A normalized, duplicate-free distinguished-name list; null is normalized to an empty list.</value>
+    /// <exception cref="ArgumentException">Thrown when a distinguished name is invalid or duplicated.</exception>
     public IReadOnlyList<string> TargetOU
     {
         get => _targetOU;
         set => _targetOU = ValidateDistinctDistinguishedNames(value);
     }
 
+    /// <summary>
+    /// Gets or sets the organizational-unit search bases through the legacy property name.
+    /// </summary>
+    /// <value>The same validated list exposed by <see cref="TargetOU"/>.</value>
+    /// <remarks>This compatibility alias delegates directly to <see cref="TargetOU"/>.</remarks>
     public IReadOnlyList<string> T1Searchbase
     {
         get => TargetOU;
@@ -471,6 +522,8 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets the list of organizational units that are excluded from computer processing.
     /// </summary>
+    /// <value>A normalized, duplicate-free distinguished-name list; null is normalized to an empty list.</value>
+    /// <exception cref="ArgumentException">Thrown when a distinguished name is invalid or duplicated.</exception>
     public IReadOnlyList<string> ExcludeComputerOU
     {
         get => _excludeComputerOu;
@@ -480,6 +533,8 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets the list of DNS domains that belong to the JIT configuration.
     /// </summary>
+    /// <value>A normalized, duplicate-free DNS-name list; null is normalized to an empty list.</value>
+    /// <exception cref="ArgumentException">Thrown when a DNS name is invalid or duplicated.</exception>
     public IReadOnlyList<string> Domain
     {
         get => _domain;
@@ -491,6 +546,7 @@ public sealed class JitConfigurationObject
     /// </summary>
     /// <param name="distinguishedName">The distinguished name to add.</param>
     /// <exception cref="ArgumentException">Thrown when the value is invalid or already exists.</exception>
+    /// <remarks>Replaces the stored list with a new list containing the appended normalized value.</remarks>
     public void AddExcludeComputerOU(string distinguishedName)
     {
         var normalized = ValidateDistinguishedName(distinguishedName);
@@ -509,6 +565,7 @@ public sealed class JitConfigurationObject
     /// </summary>
     /// <param name="distinguishedName">The distinguished name to add.</param>
     /// <exception cref="ArgumentException">Thrown when the value is invalid or already exists.</exception>
+    /// <remarks>Replaces the stored list with a new list containing the appended normalized value.</remarks>
     public void AddOU(string distinguishedName)
     {
         var normalized = ValidateDistinguishedName(distinguishedName);
@@ -527,6 +584,8 @@ public sealed class JitConfigurationObject
     /// </summary>
     /// <param name="distinguishedName">The distinguished name to remove.</param>
     /// <returns><see langword="true"/> when the value was removed; otherwise, <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="distinguishedName"/> is blank or invalid.</exception>
+    /// <remarks>Replaces the stored list with a new list even when no match is found.</remarks>
     public bool RemoveExcludeComputerOU(string distinguishedName)
     {
         var normalized = ValidateDistinguishedName(distinguishedName);
@@ -541,6 +600,8 @@ public sealed class JitConfigurationObject
     /// </summary>
     /// <param name="distinguishedName">The distinguished name to remove.</param>
     /// <returns><see langword="true"/> when the value was removed; otherwise, <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="distinguishedName"/> is blank or invalid.</exception>
+    /// <remarks>Replaces the stored list with a new list even when no match is found.</remarks>
     public bool RemoveOU(string distinguishedName)
     {
         var normalized = ValidateDistinguishedName(distinguishedName);
@@ -553,6 +614,8 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets the LDAP filter used to search for eligible computer objects.
     /// </summary>
+    /// <value>A trimmed, parenthesized LDAP filter.</value>
+    /// <exception cref="ArgumentException">Thrown when the value is null, blank, or not parenthesized.</exception>
     public string ComputerSearch
     {
         get => _computerSearch;
@@ -562,6 +625,7 @@ public sealed class JitConfigurationObject
     /// <summary>
     /// Gets or sets the LDAP filter used to search for eligible computer objects.
     /// </summary>
+    /// <value>The same value as <see cref="ComputerSearch"/>.</value>
     /// <remarks>
     /// This attribute is deprecated and will be removed in future versions. Use <see cref="ComputerSearch"/> instead.
     /// </remarks>
@@ -569,6 +633,12 @@ public sealed class JitConfigurationObject
         get => ComputerSearch;
         set => ComputerSearch = value;
     }
+    /// <summary>
+    /// Trims and validates a distinguished name.
+    /// </summary>
+    /// <param name="value">The distinguished name to validate.</param>
+    /// <returns>The trimmed distinguished name.</returns>
+    /// <exception cref="ArgumentException">Thrown when the value is null, empty, whitespace, or does not match the supported distinguished-name form.</exception>
     private static string ValidateDistinguishedName(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -585,6 +655,12 @@ public sealed class JitConfigurationObject
         return normalized;
     }
 
+    /// <summary>
+    /// Validates and case-insensitively deduplicates distinguished names.
+    /// </summary>
+    /// <param name="values">The values to validate, or null.</param>
+    /// <returns>A new normalized list, or an empty list for null or empty input.</returns>
+    /// <exception cref="ArgumentException">Thrown when an item is invalid or duplicated.</exception>
     private static IReadOnlyList<string> ValidateDistinctDistinguishedNames(IReadOnlyList<string>? values)
     {
         if (values is null || values.Count == 0)
@@ -609,6 +685,13 @@ public sealed class JitConfigurationObject
         return normalizedValues;
     }
 
+    /// <summary>
+    /// Validates and case-insensitively deduplicates DNS names.
+    /// </summary>
+    /// <param name="values">The values to validate, or null.</param>
+    /// <param name="propertyName">The property name associated with validation failures.</param>
+    /// <returns>A new normalized list, or an empty list for null or empty input.</returns>
+    /// <exception cref="ArgumentException">Thrown when an item is invalid or duplicated.</exception>
     private static IReadOnlyList<string> ValidateDistinctDnsNames(IReadOnlyList<string>? values, string propertyName)
     {
         if (values is null || values.Count == 0)
@@ -633,6 +716,13 @@ public sealed class JitConfigurationObject
         return normalizedValues;
     }
 
+    /// <summary>
+    /// Validates, uppercases, and case-insensitively deduplicates SID strings.
+    /// </summary>
+    /// <param name="values">The values to validate, or null.</param>
+    /// <param name="propertyName">The property name associated with validation failures.</param>
+    /// <returns>A new normalized list, or an empty list for null or empty input.</returns>
+    /// <exception cref="ArgumentException">Thrown when an item is invalid or duplicated.</exception>
     private static IReadOnlyList<string> ValidateDistinctSidValues(IReadOnlyList<string>? values, string propertyName)
     {
         if (values is null || values.Count == 0)
@@ -657,6 +747,13 @@ public sealed class JitConfigurationObject
         return normalizedValues;
     }
 
+    /// <summary>
+    /// Trims and validates a dotted DNS name.
+    /// </summary>
+    /// <param name="value">The DNS name to validate.</param>
+    /// <param name="propertyName">The property name associated with validation failures.</param>
+    /// <returns>The trimmed DNS name.</returns>
+    /// <exception cref="ArgumentException">Thrown when the value is null, blank, or invalid.</exception>
     private static string ValidateDnsName(string value, string propertyName)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -673,6 +770,13 @@ public sealed class JitConfigurationObject
         return normalized;
     }
 
+    /// <summary>
+    /// Trims, validates, and uppercases a security identifier.
+    /// </summary>
+    /// <param name="value">The SID string to validate.</param>
+    /// <param name="propertyName">The property name associated with validation failures.</param>
+    /// <returns>The normalized uppercase SID.</returns>
+    /// <exception cref="ArgumentException">Thrown when the value is null, blank, or invalid.</exception>
     private static string ValidateSid(string value, string propertyName)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -689,6 +793,13 @@ public sealed class JitConfigurationObject
         return normalized.ToUpperInvariant();
     }
 
+    /// <summary>
+    /// Trims and validates the outer form of an LDAP filter.
+    /// </summary>
+    /// <param name="value">The filter to validate.</param>
+    /// <param name="propertyName">The property name associated with validation failures.</param>
+    /// <returns>The trimmed parenthesized filter.</returns>
+    /// <exception cref="ArgumentException">Thrown when the value is null, blank, or not enclosed in parentheses.</exception>
     private static string ValidateLdapFilter(string value, string propertyName)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -705,6 +816,13 @@ public sealed class JitConfigurationObject
         return normalized;
     }
 
+    /// <summary>
+    /// Trims and validates an absolute UNC URI or path.
+    /// </summary>
+    /// <param name="value">The path to validate.</param>
+    /// <param name="propertyName">The property name associated with validation failures.</param>
+    /// <returns>The trimmed UNC value.</returns>
+    /// <exception cref="ArgumentException">Thrown when the value is null, blank, or not recognized as UNC.</exception>
     private static string ValidateUncPath(string value, string propertyName)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -721,6 +839,13 @@ public sealed class JitConfigurationObject
         return normalized;
     }
 
+    /// <summary>
+    /// Requires and trims a text value.
+    /// </summary>
+    /// <param name="value">The text to validate.</param>
+    /// <param name="propertyName">The property name associated with validation failures.</param>
+    /// <returns>The trimmed nonempty text.</returns>
+    /// <exception cref="ArgumentException">Thrown when the value is null, empty, or whitespace.</exception>
     private static string ValidateRequiredText(string value, string propertyName)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -731,6 +856,14 @@ public sealed class JitConfigurationObject
         return value.Trim();
     }
 
+    /// <summary>
+    /// Trims and validates text against the supported SAM account-name restrictions.
+    /// </summary>
+    /// <param name="value">The value to validate.</param>
+    /// <param name="maximumLength">The positive maximum accepted length.</param>
+    /// <returns>The trimmed validated value.</returns>
+    /// <exception cref="ArgumentException">Thrown when the value is blank, contains a forbidden or control character, or ends in a period.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="maximumLength"/> is not positive or the value is too long.</exception>
     private static string ValidateSamAccountName(string value, int maximumLength = DefaultSamAccountNameLength)
     {
         if (string.IsNullOrWhiteSpace(value))

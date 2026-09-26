@@ -1,15 +1,225 @@
 {
-  "version": "0.2.20260926.6",
+  "version": "0.2.20260926.7",
   "files": [
     {
-      "path": "History.md",
-      "version": "0.2.20260926.6",
-      "sha256": "b0328b9f6b3138680635844465f9d8f05716aef2225560f6de05dc372ca7eae0"
+      "path": "CHANGELOG.md",
+      "version": "0.2.20260926.7",
+      "sha256": "ce3bba2f68af38d3c5f4610b463ee3aac186929f4600e21face626225fd99b42"
+    },
+    {
+      "path": "release/kJITWeb/install-kjitweb.ps1",
+      "version": "0.2.20260926.7",
+      "sha256": "252d69e1dd04615ce3ce98b542ca5a9e306a9cc541e409e9f96f063f353c62ce"
+    },
+    {
+      "path": "release/kJITWeb/set-kjitweb-allowedclient.ps1",
+      "version": "0.2.20260926.7",
+      "sha256": "4474c542629828e04a4892d93efe782f44f3cb0d29c648f2856c93c5e9815efa"
+    },
+    {
+      "path": "release/kJITWeb/update-kjitweb.ps1",
+      "version": "0.2.20260926.7",
+      "sha256": "b387fc236f88ab2d6ac3e0801185e2b94097b7d80e36f5750c95a9daddb46a79"
+    },
+    {
+      "path": "src/C#/KjitCore.DebugHost/KjitCore.DebugHost.csproj",
+      "version": "0.2.20260926.7",
+      "sha256": "5383177e7ee3ec440e7446007ce9cadd31d32e57269f46ef4a528fc8f637e137"
+    },
+    {
+      "path": "src/C#/KjitCore.DebugHost/Program.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "edbdfacb8ca491c99879ce135b2bbb658d7dded7b5f36488235324425f5b6ade"
+    },
+    {
+      "path": "src/C#/KjitCore/Abstractions/IDistinguishedNameService.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "fe0c895932c0f191735a22e16aa3ceb93a3a253f71782046fa602353e18a980f"
+    },
+    {
+      "path": "src/C#/KjitCore/Abstractions/IIdentityNormalizer.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "3c0172b2b0af179494e1f6511485abb784ff642bf1eb5fabc1371fc63dbebd6b"
+    },
+    {
+      "path": "src/C#/KjitCore/KjitCore.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "de8dc762b5af45357b561e9b0c8c9c29e54c11237b14f9ed4d0553666f15d744"
+    },
+    {
+      "path": "src/C#/KjitCore/KjitCore.csproj",
+      "version": "0.2.20260926.7",
+      "sha256": "ddf4a9ef3d78ee4a146518e0472ec24e4db24d3b6b54acec2d9892f6af510005"
+    },
+    {
+      "path": "src/C#/KjitCore/Models/JitConfigurationObject.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "b5e75276dde58ea40c85ea0fb7e4cbe67beebcb4ffa93c92725eadf8ad3769ca"
+    },
+    {
+      "path": "src/C#/KjitCore/Services/DistinguishedNameService.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "50c5ceed94d5468c6be1408b58ac9e55ad1135d4d94be5205046dc33b4d9de5f"
+    },
+    {
+      "path": "src/C#/KjitCore/Services/IdentityNormalizer.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "99ce2013a180ed65a0d41805dfb2e007fe7ae3e0c4a295c625a5fd3270ced34e"
+    },
+    {
+      "path": "src/C#/KjitCore/Services/JitConfigurationReader.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "561fd21cf1e88bcdbf2eb2bd9fc5fe82d93cecc1f4884c935d1794de588348ad"
+    },
+    {
+      "path": "src/C#/Kjitweb/Controllers/HomeController.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "b496dea3fd5e0e768bc4878a050805747f55e237c964ab16b156facd17814cab"
+    },
+    {
+      "path": "src/C#/Kjitweb/GlobalUsings.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "b17f3b1aaf42320bc6fa36f9bcd6c903689e48ea1a3eb93c237b163acba2104c"
+    },
+    {
+      "path": "src/C#/Kjitweb/install-kjitweb.ps1",
+      "version": "0.2.20260926.7",
+      "sha256": "252d69e1dd04615ce3ce98b542ca5a9e306a9cc541e409e9f96f063f353c62ce"
+    },
+    {
+      "path": "src/C#/Kjitweb/KjitWeb.csproj",
+      "version": "0.2.20260926.7",
+      "sha256": "c856f8bdd2563a1c641e6646116df0209d12bfccafc9ba2c67348dfc67335750"
+    },
+    {
+      "path": "src/C#/Kjitweb/Models/ElevatedComputerViewModel.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "30d677d294424f51c3c061fe8662bd2d376c9b5ee1c28c0cd41feaaf0ec8c521"
+    },
+    {
+      "path": "src/C#/Kjitweb/Models/ServerSelectionViewModel.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "192ed20ef529e33725757607b7973ebeb669f1ffae2d25bcf308116069b39a9e"
+    },
+    {
+      "path": "src/C#/Kjitweb/Models/SwitchUserViewModel.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "514374426391767716ef7fc46dba1fd359f405ae48794a7c1450581fd7d303f6"
+    },
+    {
+      "path": "src/C#/Kjitweb/Program.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "f24bb955574b6825d35be4adcb86ac371ac92e564371edbba0ba0375ded615e2"
+    },
+    {
+      "path": "src/C#/Kjitweb/Services/ActiveDirectoryService.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "6f52c73317d47806649482da8984d8a91546b4d0b5dbb7360bc0b459846477b5"
+    },
+    {
+      "path": "src/C#/Kjitweb/Services/BasicAuthenticationHandler.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "0b73497b73722091c1c30b582de8714cc490f1528b3678436ea3e3bafec07240"
+    },
+    {
+      "path": "src/C#/Kjitweb/Services/configuration.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "ee87fd25f37dcdcb47c453bdf07ce34b53c08aa722b003a79c97cb30635e7e87"
+    },
+    {
+      "path": "src/C#/Kjitweb/Services/ConnectionAuditLogger.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "47b48485054d4299d3765e36980b007974f4211cc4d8932997549148f2dc1c04"
+    },
+    {
+      "path": "src/C#/Kjitweb/Services/DebugFileLoggerProvider.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "978ead33a1971775700a8576ce531199866b045531ab9b9c370b7087aa5643ae"
+    },
+    {
+      "path": "src/C#/Kjitweb/Services/DebugLogFileWriter.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "16d1129ec4770fee58e7ec9dd046ae4efe53342d09cc9d3795b6b0aacaba06e9"
+    },
+    {
+      "path": "src/C#/Kjitweb/Services/EventLogHealthMonitor.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "fd341e50fa9ce55d6379004162c67f20b3a4ca7bc8d57e6bc497c2da69a63149"
+    },
+    {
+      "path": "src/C#/Kjitweb/Services/EventLogHealthSnapshot.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "6478bdaf50c0c4ac288896008f871f0cae24666dcb06444cdfeb3aaef44b52b0"
+    },
+    {
+      "path": "src/C#/Kjitweb/Services/EventLogWriter.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "2f0091b050e9ee1f33e974593b5054cd050b1e731d302dc9076bd443e61e91b0"
+    },
+    {
+      "path": "src/C#/Kjitweb/Services/IActiveDirectoryService.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "ecc62c71dbfb9988db63d9ed1a2624653a121a016a244d0e1b076601548178df"
+    },
+    {
+      "path": "src/C#/Kjitweb/Services/IConnectionAuditLogger.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "e873de2eefc5c37e83464af5748991cb77e3ac0f724d0a77581c35e2c4a4b3a7"
+    },
+    {
+      "path": "src/C#/Kjitweb/Services/IEventLogHealthMonitor.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "02b4826354cfb0bdd699ec20f7dbbf67bc718be5fe135499bc3f1995a10dae9f"
+    },
+    {
+      "path": "src/C#/Kjitweb/Services/IEventLogWriter.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "339f1cad5b128cf8bf4b69d3f7d603986df16875a0b94a931514d4ef37a164e5"
+    },
+    {
+      "path": "src/C#/Kjitweb/Services/JitConfigPathResolver.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "dae1d835c29fe27ac9fa422451d4930fe7d2708109f974f6271e28fec160ddd2"
+    },
+    {
+      "path": "src/C#/Kjitweb/Services/MutualTlsCertificateValidator.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "c5df42def8158c2cb27cbfe5b65e80995eb0f17a7243e5ba928ed8799a527876"
+    },
+    {
+      "path": "src/C#/Kjitweb/Services/MutualTlsOptions.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "c0505a7f7103d01eeca95d3f4e954fcafd4e604fe85deb6b4f74b6deb41227b8"
+    },
+    {
+      "path": "src/C#/Kjitweb/Services/WindowsCredentialValidator.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "c059b2e2f289c1e31110820d073272a8612b7be28be219d839014d3f82b65ca0"
+    },
+    {
+      "path": "src/C#/Kjitweb/set-kjitweb-allowedclient.ps1",
+      "version": "0.2.20260926.7",
+      "sha256": "4474c542629828e04a4892d93efe782f44f3cb0d29c648f2856c93c5e9815efa"
+    },
+    {
+      "path": "src/C#/Kjitweb/SharedResource.cs",
+      "version": "0.2.20260926.7",
+      "sha256": "0739e582db2d591d6109ab3c9b18247e37577518efed99a4f1824ddccd417986"
+    },
+    {
+      "path": "src/C#/Kjitweb/update-kjitweb.ps1",
+      "version": "0.2.20260926.7",
+      "sha256": "b387fc236f88ab2d6ac3e0801185e2b94097b7d80e36f5750c95a9daddb46a79"
+    },
+    {
+      "path": "tests/PowerShell/Modules.Tests.ps1",
+      "version": "0.2.20260926.7",
+      "sha256": "0aaa002b5b8e9cf85290c0e7574fb166c99cb952a39c4e4dd9d4f11cc2e45f77"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20260926.6",
-      "sha256": "7d79275ba5c6d1ba79faefb5973975ccd6351d666a55430e984b6524c832adae"
+      "version": "0.2.20260926.7",
+      "sha256": "5e92c1a6988d0f4507e97aab936f6de1ca9bbbbf6b69ccee36a3da36f305c5b0"
     }
   ]
 }

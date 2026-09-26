@@ -312,7 +312,8 @@ function Resolve-AllowedClientAddresses {
 
     try {
         $addresses = @([System.Net.Dns]::GetHostAddresses($candidate) |
-            Select-Object -ExpandProperty IPAddressToString -Unique)
+            ForEach-Object { $_.IPAddressToString -replace '%\d+$', '' } |
+            Select-Object -Unique)
         if (-not $addresses -or $addresses.Count -eq 0) {
             throw "No IP addresses resolved."
         }
@@ -728,14 +729,17 @@ function Set-ClientAccessFirewallRule {
         Remove-NetFirewallRule -ErrorAction SilentlyContinue | Out-Null
 
     # For localhost-only mode, service binding already prevents remote access.
-    $addresses = @($RemoteAddresses | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $addresses = @($RemoteAddresses |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        ForEach-Object { $_.Trim() -replace '%\d+$', '' } |
+        Select-Object -Unique)
     $isLoopbackOnly = ($addresses.Count -gt 0) -and (@($addresses | Where-Object { $_ -notin @("127.0.0.1", "::1") }).Count -eq 0)
     if ($isLoopbackOnly) {
         Write-Host "Skipping firewall rule for localhost-only mode."
         return
     }
     # For non-localhost modes, we create a firewall rule to allow inbound access on the specified port from the specified remote addresses. This is necessary to allow remote clients to connect to the KJITweb service when it is configured to allow remote access. By specifying the allowed remote addresses, we can help to secure the service by restricting access to known clients, while still allowing the necessary connectivity for JIT administration.
-    New-NetFirewallRule -DisplayName $RuleName -Direction Inbound -Action Allow -Protocol TCP -LocalPort $Port -RemoteAddress $addresses -Profile Any | Out-Null
+    New-NetFirewallRule -DisplayName $RuleName -Direction Inbound -Action Allow -Protocol TCP -LocalPort $Port -RemoteAddress $addresses -Profile Any -ErrorAction Stop | Out-Null
 }
 
 <#

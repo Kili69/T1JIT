@@ -1,29 +1,55 @@
+/*
+ * File: EventLogHealthMonitor.cs
+ * Author: Andreas Lucas (aka Kili)
+ *
+ * Version history:
+ * - 0.2.20260926.6: Added complete monitor, lifecycle, and scan documentation.
+ */
+
 using System.Diagnostics;
 
 namespace KjitWeb.Services;
 
 /// <summary>
-///     Periodically scans the configured Windows Event Log (the "Tier 1 Management" log by default)
-///     for Error and Warning entries written within the last 24 hours, so that the website can show a
-///     symbolized health indicator next to the version number. The scan is refreshed every 5 minutes by
-///     a background timer rather than on every page request, keeping event log I/O off the request path.
+/// Periodically scans the configured Windows Event Log and publishes a cached health snapshot.
 /// </summary>
 /// <remarks>
-///     Event IDs 2003 (elevation duration capped to the configured maximum) and 2009 (user exceeded
-///     MaxConcurrentServer) are expected, routine Warning-level events raised by ElevateUser.ps1 during
-///     normal operation. They are intentionally excluded from the health indicator so that these
-///     non-actionable warnings do not trigger it.
+/// The monitor scans the previous 24 hours every five minutes. Event IDs 2003 (duration capped)
+/// and 2009 (concurrent-server limit reached) are expected warnings and are excluded.
 /// </remarks>
 public sealed class EventLogHealthMonitor : BackgroundService, IEventLogHealthMonitor
 {
+    /// <summary>The delay between completed scan attempts.</summary>
     private static readonly TimeSpan RefreshInterval = TimeSpan.FromMinutes(5);
+
+    /// <summary>The age range included in each scan.</summary>
     private static readonly TimeSpan LookBackWindow = TimeSpan.FromHours(24);
+
+    /// <summary>The routine warning event identifiers excluded from health counts.</summary>
     private static readonly HashSet<int> IgnoredEventIds = new() { 2003, 2009 };
 
+    /// <summary>The configured Windows Event Log name.</summary>
     private readonly string _logName;
+
+    /// <summary>The logger used to report scan failures.</summary>
     private readonly ILogger<EventLogHealthMonitor> _logger;
+
+    /// <summary>The latest snapshot, accessed atomically through <see cref="Volatile"/>.</summary>
     private EventLogHealthSnapshot _current = new() { CheckedAtUtc = DateTime.MinValue };
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EventLogHealthMonitor"/> class.
+    /// </summary>
+    /// <param name="configuration">
+    /// Application configuration used to resolve the JIT configuration file.
+    /// </param>
+    /// <param name="logger">The logger that receives non-fatal scan failures.</param>
+    /// <remarks>
+    /// Loads the configured event-log name immediately. When no explicit JIT configuration path
+    /// exists, the default <see cref="JitConfiguration"/> source is used.
+    /// </remarks>
+    /// <exception cref="ArgumentException">The resolved JIT configuration path is invalid.</exception>
+    /// <exception cref="IOException">The JIT configuration file cannot be read.</exception>
     public EventLogHealthMonitor(IConfiguration configuration, ILogger<EventLogHealthMonitor> logger)
     {
         _logger = logger;
@@ -34,9 +60,19 @@ public sealed class EventLogHealthMonitor : BackgroundService, IEventLogHealthMo
         _logName = jitConfig.EventLogName;
     }
 
-    /// <inheritdoc />
+    /// <inheritdoc/>
+    /// <remarks>The returned reference is read atomically and is never <see langword="null"/>.</remarks>
     public EventLogHealthSnapshot Current => Volatile.Read(ref _current);
 
+    /// <summary>
+    /// Runs scans until host shutdown is requested.
+    /// </summary>
+    /// <param name="stoppingToken">The token signaled when the hosted service must stop.</param>
+    /// <returns>A task that completes after cancellation ends the monitoring loop.</returns>
+    /// <remarks>
+    /// A scan runs immediately, then after each refresh interval. Cancellation during the delay
+    /// is treated as normal shutdown and is not propagated.
+    /// </remarks>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
@@ -54,6 +90,14 @@ public sealed class EventLogHealthMonitor : BackgroundService, IEventLogHealthMo
         }
     }
 
+    /// <summary>
+    /// Scans recent entries and atomically replaces the cached health snapshot.
+    /// </summary>
+    /// <remarks>
+    /// Entries are traversed newest-first until the look-back cutoff. On any read failure, the
+    /// method logs a warning and publishes an <see cref="EventLogHealthLevel.Ok"/> snapshot so the
+    /// background service and website remain available.
+    /// </remarks>
     private void RefreshStatus()
     {
         try

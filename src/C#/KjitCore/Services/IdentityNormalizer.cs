@@ -1,9 +1,22 @@
+/*
+ * File: IdentityNormalizer.cs
+ * Author: Andreas Lucas (aka Kili)
+ *
+ * Version history:
+ * - 0.1.20260507: Initial identity-normalization implementation.
+ * - 0.2.20260926.6: Added complete implementation documentation.
+ */
+
 using KjitCore.Abstractions;
 
 namespace KjitCore.Services;
 
+/// <summary>
+/// Normalizes server identities expressed as plain, slash-delimited, or backslash-delimited names.
+/// </summary>
 public sealed class IdentityNormalizer : IIdentityNormalizer
 {
+    /// <inheritdoc />
     public string NormalizeServerName(string value, string? defaultDomain = null)
     {
         if (string.IsNullOrWhiteSpace(value))

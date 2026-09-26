@@ -1,25 +1,18 @@
+// Author: Andreas Lucas (aka Kili)
+// Documentation update: 0.2.20260926.6
+// History: Existing configuration formats, compatibility aliases, and parsing behavior are preserved.
+
 using System.Net.NetworkInformation;
 using System.Text.Json;
 
 namespace KjitWeb.Services;
-/// <summary>
-/// The ActiveDirectoryService class provides methods for interacting with Active Directory to support Just-In-Time (JIT) access management. 
-/// It retrieves information about the authenticated user's group memberships, available domains, default domain, and server names based on configured search bases. 
-/// The service is designed to be resilient to common issues such as misconfiguration or LDAP query failures, logging warnings and errors as appropriate without throwing exceptions that would disrupt the user experience. This allows the application to continue functioning even if Active Directory information cannot be retrieved, albeit with reduced functionality.
-/// </summary>
+/// <summary>Loads and exposes the immutable Just-In-Time access settings from <c>JIT.config</c>.</summary>
 /// <remarks>
-/// The GetCurrentElevationGroups method retrieves the groups that the authenticated user is currently a member of, which can be used to determine their current elevation level. The GetAvailableDomains method lists the domains in the current forest, while GetDefaultDomainForUser attempts to infer the user's default domain from their UPN or the service's domain configuration. The GetServerNames method queries Active Directory for computer objects based on configured search bases and optional domain filtering, supporting delegation rules to limit results based on group membership.
-/// The service also includes helper methods for parsing and normalizing LDAP paths, extracting information from search results, and handling security identifiers. It is designed to be resilient to common issues such as misconfiguration or LDAP query failures, logging warnings and errors as appropriate without throwing exceptions that would disrupt the user experience. This allows the application to continue functioning even if Active Directory information cannot be retrieved, albeit with reduced functionality.
-/// </remarks>	
-/// <example>
-/// <code>	
-/// var adService = new ActiveDirectoryService(configuration, logger);
-/// var elevationGroups = adService.GetCurrentElevationGroups();	
-/// var domains = adService.GetAvailableDomains();
-/// var defaultDomain = adService.GetDefaultDomainForUser();
-/// var serverNames = adService.GetServerNames();
-/// </code>
-/// </example>	
+/// Property names are matched case-insensitively. Optional malformed values use documented fallbacks, while
+/// missing required event-source data, inaccessible files, and invalid JSON fail fast. Configuration values
+/// influence privileged directory discovery and elevation duration and must therefore come from a trusted,
+/// administrator-controlled file.
+/// </remarks>
 public class JitConfiguration
 {
 	/// <summary>
@@ -30,8 +23,9 @@ public class JitConfiguration
 	/// </summary> 	
 	public const int MinimumElevationDurationMinutes = 5;
 	/// <summary>
-	/// 	The JitConfiguration class represents the configuration settings for Just-In-Time (JIT) access management in the application.
+	/// Gets the exact file path from which this instance was loaded.
 	/// </summary>
+	/// <value>A non-null, non-blank path; the value is not normalized or resolved by the constructor.</value>
 	public string JitConfigPath { get; }
 	/// <summary>
 	/// The DomainFqdn property represents the fully qualified domain name (FQDN) of the Active Directory domain that the application is operating in.
@@ -106,6 +100,9 @@ public class JitConfiguration
 	/// 	The JitConfiguration class constructor initializes the configuration settings for Just-In-Time access management by reading from a specified JIT.config file.
 	/// 	If the constructor is called without parameters, it attempts to build a default path to the JIT.config file based on the domain information of the system, looking for the file in the SYSVOL share of the domain.
 	/// </summary>
+	/// <exception cref="InvalidOperationException">The machine domain cannot be resolved, or the configuration cannot be read or parsed.</exception>
+	/// <exception cref="FileNotFoundException">The inferred SYSVOL configuration file does not exist.</exception>
+	/// <remarks>Reads the machine domain and performs synchronous file I/O against SYSVOL.</remarks>
 	public JitConfiguration()
 		: this(BuildDefaultJitConfigPath())
 	{
@@ -115,6 +112,12 @@ public class JitConfiguration
 	/// </summary>
 	/// <param name="jitConfigPath">The path to the JIT.config file.</param>
 	/// <exception cref="ArgumentException">Thrown when the jitConfigPath is null, empty, or whitespace.</exception>
+	/// <exception cref="FileNotFoundException">The specified configuration file does not exist.</exception>
+	/// <exception cref="InvalidOperationException">The file cannot be read, contains invalid JSON, or omits a required event-source value.</exception>
+	/// <remarks>
+	/// Reads the file synchronously. The caller must protect the file from unauthorized modification because its
+	/// values govern event logging, directory scope, delegation, and elevation duration.
+	/// </remarks>
 	public JitConfiguration(string jitConfigPath)
 	{
 		if (string.IsNullOrWhiteSpace(jitConfigPath)) // If the provided jitConfigPath is null, empty, or consists only of whitespace, we cannot proceed with loading the configuration, so we throw an ArgumentException to indicate that a valid path must be provided. This ensures that the application fails fast with a clear error message if the configuration path is not properly specified, preventing further issues down the line when attempting to read the configuration file.
@@ -143,6 +146,10 @@ public class JitConfiguration
 	}
 	// This helper method builds the default path to the JIT.config file based on the domain information of the system. 
 	// It retrieves the fully qualified domain name (FQDN) of the current domain using IPGlobalProperties, and constructs a UNC path to the JIT.config file located in the SYSVOL share of the domain. If the domain FQDN cannot be resolved, it throws an InvalidOperationException with a clear error message indicating that the domain could not be resolved for SYSVOL lookup, and suggests using the constructor with an explicit JIT.config path as an alternative.
+	/// <summary>Builds the conventional domain SYSVOL path for <c>JIT.config</c>.</summary>
+	/// <returns>A non-null UNC path containing the current machine's DNS domain name.</returns>
+	/// <exception cref="InvalidOperationException">The machine's DNS domain name is unavailable or blank.</exception>
+	/// <remarks>Reads local network configuration but does not access the returned file path.</remarks>
 	private static string BuildDefaultJitConfigPath()
 	{
 		var domainFqdn = IPGlobalProperties.GetIPGlobalProperties().DomainName; // We attempt to retrieve the fully qualified domain name (FQDN) of the current domain using IPGlobalProperties. This provides us with the domain context that we can use to construct the default path to the JIT.config file in the SYSVOL share. If we are unable to retrieve a valid domain FQDN, we will not be able to construct the correct path to the JIT.config file, so we need to handle this case appropriately.
@@ -159,6 +166,12 @@ public class JitConfiguration
 	}
 
 	// This helper method opens the specified JIT.config file and parses it as a JSON document. It checks if the file exists, and if not, it throws a FileNotFoundException with a clear error message indicating that the JIT.config file was not found. If the file exists but cannot be parsed as valid JSON, it catches the JsonException and throws an InvalidOperationException with a clear error message indicating that the JIT.config file is not a valid JSON file, along with the original exception for more details. This ensures that we handle common issues with file access and JSON parsing gracefully, providing clear feedback on what went wrong when attempting to read the configuration file.
+	/// <summary>Synchronously reads and parses a JIT configuration file.</summary>
+	/// <param name="path">The non-null file path to read.</param>
+	/// <returns>An owned JSON document that the caller must dispose.</returns>
+	/// <exception cref="FileNotFoundException">No file exists at <paramref name="path"/>.</exception>
+	/// <exception cref="InvalidOperationException">The file cannot be read or is not valid JSON.</exception>
+	/// <remarks>Reads potentially security-sensitive configuration from disk; callers must use a trusted path.</remarks>
 	private static JsonDocument OpenJsonDocument(string path)
 	{
 		// We check if the specified file exists at the given path. If it does not exist, we throw a FileNotFoundException with a clear error message indicating that the JIT.config file was not found, along with the path that was attempted. This provides immediate feedback to users or administrators that the configuration file is missing, allowing them to take corrective action by ensuring that the file is in place at the expected location.
@@ -185,6 +198,12 @@ public class JitConfiguration
 
 	// This helper method reads the T1SearchBaseLdapPaths from the root element of the JSON document. 
 	// It checks if the "T1Searchbase" property exists and is an array, and if so, it enumerates the array to extract string values, normalizes them as LDAP paths, and returns a distinct list of valid LDAP paths. If the property does not exist or is not an array, it returns an empty list. This allows us to have a strongly typed property that represents the search bases for Tier 1 servers, and it can be used throughout the application to perform LDAP queries based on these configured paths.
+	/// <summary>Reads distinct, valid Tier 1 LDAP search bases from a configuration root.</summary>
+	/// <param name="root">The JSON element expected to contain a <c>T1Searchbase</c> array.</param>
+	/// <returns>
+	/// A non-null list of normalized LDAP paths and preserved <c>&lt;DomainRoot&gt;</c> markers; empty when the
+	/// property is absent, has the wrong type, or contains no valid string entries.
+	/// </returns>
 	private static IReadOnlyList<string> ReadT1SearchBaseLdapPaths(JsonElement root)
 	{
 		// We check if the "T1Searchbase" property exists in the root element of the JSON document and if it is an array. 
@@ -206,6 +225,9 @@ public class JitConfiguration
 			.ToList();
 	}
 
+	/// <summary>Normalizes a Tier 1 search-base value while preserving the domain-root sentinel.</summary>
+	/// <param name="value">A possibly null, quoted, or whitespace-padded configuration value.</param>
+	/// <returns>The sentinel or normalized LDAP path; otherwise <see langword="null"/>.</returns>
 	private static string? NormalizeT1SearchBase(string? value)
 	{
 		var trimmed = value?.Trim().Trim('"', '\'');
@@ -220,6 +242,9 @@ public class JitConfiguration
 	// This allows us to have an optional configuration setting for the file path to a delegation configuration file that defines rules for limiting server discovery based on group membership. 
 	// If this setting is provided, the application will read the delegation rules from the specified file and apply them when determining which servers to include in the results of server discovery queries. 
 	// If this setting is not provided, the application will not apply any delegation rules and will return all servers that match the configured search criteria.
+	/// <summary>Reads the optional delegation configuration path.</summary>
+	/// <param name="root">The JSON configuration root.</param>
+	/// <returns>The trimmed path, or <see langword="null"/> when missing, non-string, empty, or whitespace.</returns>
 	private static string? ReadDelegationConfigPath(JsonElement root)
 	{
 		// We check if the "DelegationConfigPath" property exists in the root element of the JSON document and if it is a string. 
@@ -239,6 +264,9 @@ public class JitConfiguration
 	// If the property does not exist, is not a string, or is empty/whitespace, it returns null. 
 	// This allows us to have a property that represents the domain context for the application, which can be used for constructing LDAP paths, forming event log entries, and other operations that require knowledge of the domain FQDN. 
 	// If the DomainFqdn is not specified in the configuration, it will be null, and the application can attempt to infer it from system information or handle it accordingly.
+	/// <summary>Reads the optional Active Directory DNS domain name.</summary>
+	/// <param name="root">The JSON configuration root.</param>
+	/// <returns>The trimmed domain, or <see langword="null"/> when missing, non-string, empty, or whitespace.</returns>
 	private static string? ReadDomainFqdn(JsonElement root)
 	{
 		// We check if the "Domain" property exists in the root element of the JSON document and if it is a string. 
@@ -258,6 +286,10 @@ public class JitConfiguration
 	// It checks if the "EnableDelegation" property exists and is a boolean value (true or false). 
 	// If it does not exist or is not a valid boolean, it returns false. 
 	// This allows us to have a configuration setting that specifies whether delegation rules should be applied when determining which servers to include in the results of server discovery queries. If this setting is true, the application will read the delegation rules from the specified DelegationConfigPath file and apply them based on the user's group memberships in Active Directory. If this setting is false, the application will ignore any delegation rules and return all servers that match the configured search criteria, regardless of the user's group memberships.
+	/// <summary>Reads whether delegation-based server filtering is enabled.</summary>
+	/// <param name="root">The JSON configuration root.</param>
+	/// <returns>The configured Boolean, or <see langword="false"/> when absent or not a JSON Boolean.</returns>
+	/// <remarks>An invalid value fails closed with respect to enabling delegation, but callers must decide whether unfiltered discovery is acceptable.</remarks>
 	private static bool ReadEnableDelegation(JsonElement root)
 	{
 		// We check if the "EnableDelegation" property exists in the root element of the JSON document and if it is a boolean value (true or false). 
@@ -275,6 +307,11 @@ public class JitConfiguration
 	// It checks if the specified property exists and is a string, and if so, it returns the trimmed string value. 
 	// If the property does not exist, is not a string, or is empty/whitespace, it returns the provided fallback value. 
 	// This allows us to read optional string properties from the configuration with a specified default value, while also handling the case where the property is not provided or is not valid without throwing an exception.
+	/// <summary>Reads a non-blank string property using a case-insensitive property name.</summary>
+	/// <param name="root">The JSON object to inspect.</param>
+	/// <param name="propertyName">The non-null property name to match.</param>
+	/// <param name="fallbackValue">The value returned for a missing, non-string, or blank property.</param>
+	/// <returns>The trimmed configured value, or <paramref name="fallbackValue"/>.</returns>
 	private static string ReadString(JsonElement root, string propertyName, string fallbackValue)
 	{
 		// We check if the specified property exists in the root element of the JSON document and if it is a string. 
@@ -293,6 +330,11 @@ public class JitConfiguration
 	// It checks if the specified property exists and is a string, and if so, it returns the trimmed string value. 
 	// If the property does not exist, is not a string, or is empty/whitespace, it throws an InvalidOperationException with a clear error message indicating that the required property must be provided with a non-empty string value. 
 	// This ensures that we have a required configuration setting for critical properties, and it provides a clear error message if this configuration is missing or invalid, allowing users or administrators to quickly identify and resolve the issue with the configuration file.
+	/// <summary>Reads a required non-blank string property using a case-insensitive property name.</summary>
+	/// <param name="root">The JSON object to inspect.</param>
+	/// <param name="propertyName">The non-null property name to match.</param>
+	/// <returns>The trimmed, non-null configured value.</returns>
+	/// <exception cref="InvalidOperationException">The property is absent, is not a string, or is blank.</exception>
 	private static string ReadRequiredString(JsonElement root, string propertyName)
 	{
 		// We check if the specified property exists in the root element of the JSON document and if it is a string. 
@@ -315,6 +357,10 @@ public class JitConfiguration
 		return value.Trim();
 	}
 
+	/// <summary>Reads the event-log source, supporting the legacy <c>EventSource</c> alias.</summary>
+	/// <param name="root">The JSON configuration root.</param>
+	/// <returns>The non-null <c>EventLogSource</c> value, or the legacy <c>EventSource</c> value.</returns>
+	/// <exception cref="InvalidOperationException">Neither property contains a non-blank string.</exception>
 	private static string ReadEventLogSourceName(JsonElement root)
 	{
 		var eventLogSource = ReadOptionalString(root, "EventLogSource");
@@ -336,6 +382,10 @@ public class JitConfiguration
 	// It checks if the specified property exists and is a string, and if so, it returns the trimmed string value. 
 	// If the property does not exist, is not a string, or is empty/whitespace, it returns null. 
 	// This allows us to have optional configuration settings for string properties, where the absence of the property or an invalid value (e.g., an empty string) is treated as null, allowing the application to handle these cases gracefully without throwing exceptions, while still providing valid string values when they are properly specified in the configuration.
+	/// <summary>Reads an optional string property using a case-insensitive property name.</summary>
+	/// <param name="root">The JSON object to inspect.</param>
+	/// <param name="propertyName">The non-null property name to match.</param>
+	/// <returns>The trimmed string, or <see langword="null"/> when absent, non-string, empty, or whitespace.</returns>
 	private static string? ReadOptionalString(JsonElement root, string propertyName)
 	{
 		// We check if the specified property exists in the root element of the JSON document and if it is a string. 
@@ -355,6 +405,11 @@ public class JitConfiguration
 	// It checks if the specified property exists and is a number that can be parsed as an integer, and if so, it returns the integer value if it is greater than 0. 
 	// If the property does not exist, is not a number, cannot be parsed as an integer, or is less than or equal to 0, it returns the provided fallback value. 
 	// This allows us to read optional integer properties from the configuration with a specified default value, while also ensuring that the value is a valid positive integer, and providing a sensible default when it is not.
+	/// <summary>Reads a positive 32-bit integer property using a case-insensitive property name.</summary>
+	/// <param name="root">The JSON object to inspect.</param>
+	/// <param name="propertyName">The non-null property name to match.</param>
+	/// <param name="fallbackValue">The value returned when the configured value is missing, invalid, or not positive.</param>
+	/// <returns>The configured positive integer, or <paramref name="fallbackValue"/>.</returns>
 	private static int ReadPositiveInteger(JsonElement root, string propertyName, int fallbackValue)
 	{
 		// We check if the specified property exists in the root element of the JSON document and if it is a number that can be parsed as an integer. 
@@ -374,6 +429,11 @@ public class JitConfiguration
 	// If a matching property is found, it returns true and outputs the value of the property. 
 	// If no matching property is found, it returns false and outputs a default JsonElement value.
 
+	/// <summary>Attempts to retrieve an object property by case-insensitive name.</summary>
+	/// <param name="root">The element to inspect; non-object values never match.</param>
+	/// <param name="propertyName">The non-null property name to match.</param>
+	/// <param name="value">Receives the matched value, or the default JSON element when not found.</param>
+	/// <returns><see langword="true"/> when a matching property is found; otherwise <see langword="false"/>.</returns>
 	private static bool TryGetPropertyIgnoreCase(JsonElement root, string propertyName, out JsonElement value)
 	{
 		// We check if the provided JsonElement is an object, as only objects can have properties. 
@@ -400,6 +460,13 @@ public class JitConfiguration
 	// It checks if the value is null, empty, or consists only of whitespace, and if so, it returns null. 
 	// It then trims the value and any surrounding quotes, and checks if it starts with "LDAP://", "OU=", "CN=", or "DC=", ignoring case. 
 	// If it starts with "LDAP://", it returns the trimmed value as is.
+	/// <summary>Normalizes a supported LDAP distinguished-name path.</summary>
+	/// <param name="value">A possibly null, quoted, or whitespace-padded LDAP URL or distinguished name.</param>
+	/// <returns>
+	/// The trimmed input when it already starts with <c>LDAP://</c>, an LDAP-prefixed value for an <c>OU=</c>,
+	/// <c>CN=</c>, or <c>DC=</c> distinguished name, or <see langword="null"/> for unsupported or blank input.
+	/// </returns>
+	/// <remarks>This performs syntactic prefix normalization only; it neither escapes nor validates LDAP components.</remarks>
 	public static string? NormalizeLdapPath(string? value)
 	{
 		// We check if the provided value is null, empty, or consists only of whitespace. If it is, we return null, indicating that there is no valid LDAP path. 
@@ -431,38 +498,36 @@ public class JitConfiguration
 }
 
 /// <summary>
-/// 	Represents a delegation rule that defines a mapping between a security identifier (SID) and an LDAP search base path. 
-/// 	This is used to limit server discovery based on group membership in Active Directory, where each rule specifies that if a user is a member of the group identified by the SID, then the application should only return servers that are located within the specified LDAP search base path during server discovery queries. This allows for granular control over which servers are visible to users based on their group memberships, enhancing security and ensuring that users only have access to the servers they are authorized to manage.
+/// Maps a normalized Active Directory security identifier to an LDAP search scope.
 /// </summary>
-/// <param name="SecurityIdentifier">The security identifier (SID) of the Active Directory group that the delegation rule applies to. This should be a string representation of the SID, such as "S-1-5-21-..." for a group in Active Directory.</param>
-/// <param name="SearchBaseLdapPath">The LDAP search base path that defines the scope of server discovery for users who are members of the group identified by the SecurityIdentifier. This should be a valid LDAP path, such as "LDAP://OU=Servers,DC=example,DC=com", that specifies the location in Active Directory where the application should search for servers to include in the results of server discovery queries for users who match this delegation rule.</param>	
+/// <param name="SecurityIdentifier">The non-blank SID text, normalized to uppercase by the configuration loader.</param>
+/// <param name="SearchBaseLdapPath">The non-blank LDAP URL used to scope computer discovery.</param>
 /// <remarks>
-/// 	Delegation rules are used to implement Just-In-Time (JIT) access control by limiting the visibility of servers during discovery based on group membership. 
-/// 	When delegation is enabled, the application will read the delegation rules from a specified configuration file and apply them when determining which servers to include in the results of server discovery queries. If a user is a member of a group that matches a delegation rule, the application will only return servers that are located within the LDAP search base path defined by that rule. This allows for more secure and controlled access to servers, ensuring that users only see the servers they are authorized to manage based on their group memberships in Active Directory.
+/// The record itself does not validate constructor arguments. Instances created by <see cref="DelegationConfiguration"/>
+/// contain normalized values; direct callers can still supply null at runtime despite the non-null annotations.
 /// </remarks>
 public record DelegationRule(string SecurityIdentifier, string SearchBaseLdapPath);
 
 /// <summary>
-/// 	Represents the configuration for delegation rules, including the path to the configuration file and the list of rules.
+/// Loads immutable delegation rules from an administrator-controlled JSON file.
 /// </summary> 
 /// <remarks>
-/// 	The DelegationConfiguration class is responsible for loading and managing delegation rules from a specified configuration file. It provides properties to access the path to the configuration file and the list of delegation rules. This class ensures that the configuration file exists and is a valid JSON file, and it parses the rules into a collection of DelegationRule objects.
+/// Property names are matched case-insensitively. Invalid rule shapes are ignored, duplicate normalized rules
+/// are removed, and transient I/O or JSON failures are retried. Because these rules constrain privileged server
+/// discovery, the file path and contents must be writable only by trusted administrators.
 /// </remarks>
 
 public class DelegationConfiguration
 {
 	/// <summary>
-	/// 	Gets the file path to the delegation configuration file that defines the rules for limiting server discovery based on group membership. 
-	/// 	This property is set during initialization and is used to load the delegation rules from the specified file. 
-	/// 	The application will read the delegation rules from this file and apply them when determining which servers to include in the results of server discovery queries, based on the user's group memberships in Active Directory. If this property is null, empty, or consists only of whitespace, it indicates that there is no delegation configuration file specified, and the application will not apply any delegation rules.
+	/// Gets the exact non-blank path from which the delegation rules were loaded.
 	/// </summary>
+	/// <value>The constructor-supplied path; it is not normalized or resolved.</value>
 	public string DelegationConfigPath { get; }
 	/// <summary>
-	/// 	Gets the list of delegation rules that have been loaded from the delegation configuration file. 
-	/// 	Each rule in the list defines a mapping between a security identifier (SID) and an LDAP search base path, which is used to limit server discovery based on group membership in Active Directory. 
-	/// 	If delegation is enabled in the main configuration, the application will use this list of rules to determine which servers to include in the results of server discovery queries for users based on their group memberships. 
-	/// 	If the list is empty, it indicates that there are no valid delegation rules defined in the configuration file, and the application will not apply any delegation-based filtering to server discovery results.
+	/// Gets the distinct valid rules parsed from the file.
 	/// </summary>	
+	/// <value>A non-null, possibly empty list. Invalid JSON entries are omitted.</value>
 	public IReadOnlyList<DelegationRule> Rules { get; }
 	/// <summary>
 	/// 	Initializes a new instance of the DelegationConfiguration class by loading delegation rules from the specified configuration file path. 
@@ -494,6 +559,12 @@ public class DelegationConfiguration
 	// This helper method reads the delegation rules from the specified configuration file path. 
 	// It checks if the file exists, and if not, it throws a FileNotFoundException with a clear error message indicating that the delegation config file was not found, along with the path that was attempted. 
 	// If the file exists, it attempts to read the contents of the file and parse it as a JSON document. If the file cannot be read due to an I/O error, it catches the IOException and throws an InvalidOperationException with a clear error message indicating that there was an error reading the delegation config file, along with the original exception for more details. If the file is read successfully but cannot be parsed as valid JSON, it catches the JsonException and throws an InvalidOperationException with a clear error message indicating that the delegation config is not a valid JSON file, along with the original exception for more details. If the file is read and parsed successfully, it extracts the delegation rules from the JSON document and returns them as a distinct list of DelegationRule objects.	
+	/// <summary>Reads, parses, normalizes, and deduplicates delegation rules from a file.</summary>
+	/// <param name="path">The non-null file path to read.</param>
+	/// <returns>A non-null, possibly empty list of valid distinct rules.</returns>
+	/// <exception cref="FileNotFoundException">No file exists at <paramref name="path"/>.</exception>
+	/// <exception cref="InvalidOperationException">The file remains unreadable or invalid after retry attempts.</exception>
+	/// <remarks>Performs synchronous file I/O and omits malformed individual rule entries.</remarks>
 	private static IReadOnlyList<DelegationRule> ReadRules(string path)
 	{
 		// We check if the specified file exists at the given path. If it does not exist, we throw a FileNotFoundException with a clear error message indicating that the delegation config file was not found, along with the path that was attempted. This provides immediate feedback to users or administrators that the configuration file is missing, allowing them to take corrective action by ensuring that the file is in place at the expected location.
@@ -524,6 +595,12 @@ public class DelegationConfiguration
 		}
 	}
 
+	/// <summary>Reads and parses a delegation file, retrying transient read or parse failures.</summary>
+	/// <param name="path">The non-null file path to read.</param>
+	/// <returns>An owned JSON document that the caller must dispose.</returns>
+	/// <exception cref="IOException">The final file-read attempt fails.</exception>
+	/// <exception cref="JsonException">The final content is empty or invalid JSON.</exception>
+	/// <remarks>Performs up to three synchronous attempts and blocks for 50 milliseconds between failed attempts.</remarks>
 	private static JsonDocument ReadJsonDocumentWithRetry(string path)
 	{
 		const int maximumReadAttempts = 3;
@@ -556,6 +633,12 @@ public class DelegationConfiguration
 	// If the element is an object, it looks for the "ComputerOU" property to determine the search base LDAP path and the "ADObject" property to read the security identifiers (SIDs). 
 	// For each valid combination of search base and SID, it yields a new DelegationRule. 
 	// This allows for flexible JSON structures where rules can be defined in arrays or nested objects, while ensuring that only valid rules with both a search base and at least one SID are returned.
+	/// <summary>Recursively extracts valid delegation rules from arrays and rule objects.</summary>
+	/// <param name="element">A JSON array, rule object, or unsupported value.</param>
+	/// <returns>
+	/// A lazy sequence containing one rule per non-blank <c>ADObject</c> SID paired with a valid
+	/// <c>ComputerOU</c>; unsupported and malformed values yield no rules.
+	/// </returns>
 	private static IEnumerable<DelegationRule> ExtractRules(JsonElement element)
 	{
 		// We check if the provided JsonElement is an array. If it is, we enumerate the array and recursively call ExtractRules for each item in the array, yielding any rules that are found. 
@@ -613,6 +696,10 @@ public class DelegationConfiguration
 	// This helper method reads security identifiers (SIDs) from a JsonElement, which can be either a string or an array of strings. 
 	// If the element is a string, it normalizes the string as a SID and yields it. If the element is an array, it enumerates the array and yields each string item as a normalized SID. 
 	// If the element is neither a string nor an array, it yields nothing.
+	/// <summary>Reads one or more security identifier strings from a JSON value.</summary>
+	/// <param name="element">A string, an array of strings, or an unsupported value.</param>
+	/// <returns>A lazy sequence of trimmed, unquoted, uppercase non-blank values; unsupported values yield none.</returns>
+	/// <remarks>The returned text is normalized but is not validated as a structurally valid Windows SID.</remarks>
 	private static IEnumerable<string> ReadSecurityIdentifiers(JsonElement element)
 	{
 		// We check if the provided JsonElement is a string. If it is, we retrieve the string value, normalize it as a SID using the NormalizeSecurityIdentifier helper method, and yield it if it is not null, empty, or whitespace. 
@@ -659,6 +746,11 @@ public class DelegationConfiguration
 	// It checks if the JsonElement is an object, and if so, it enumerates the properties of the object to find a match for the specified property name, ignoring case. 
 	// If a matching property is found, it returns true and outputs the value of the property. 
 	// If no matching property is found, it returns false and outputs a default JsonElement value.	
+	/// <summary>Attempts to retrieve an object property by case-insensitive name.</summary>
+	/// <param name="root">The element to inspect; non-object values never match.</param>
+	/// <param name="propertyName">The non-null property name to match.</param>
+	/// <param name="value">Receives the matched value, or the default JSON element when not found.</param>
+	/// <returns><see langword="true"/> when a match is found; otherwise <see langword="false"/>.</returns>
 	private static bool TryGetPropertyIgnoreCase(JsonElement root, string propertyName, out JsonElement value)
 	{
 		// We check if the provided JsonElement is an object, as only objects can have properties. 
@@ -687,6 +779,10 @@ public class DelegationConfiguration
 
 	// This helper method normalizes a string value as a security identifier (SID). 
 	// It trims the value, removes any surrounding quotes, and converts it to uppercase invariant.
+	/// <summary>Normalizes configured SID text for ordinal comparisons.</summary>
+	/// <param name="value">The non-null value to normalize.</param>
+	/// <returns>The value with surrounding whitespace and quotes removed and letters converted to uppercase.</returns>
+	/// <remarks>This does not validate SID syntax.</remarks>
 	private static string NormalizeSecurityIdentifier(string value)
 	{
 		return value.Trim().Trim('"', '\'').ToUpperInvariant(); // We trim the input value to remove any leading or trailing whitespace, as well as any surrounding quotes (both double and single quotes).
@@ -696,6 +792,9 @@ public class DelegationConfiguration
 	// It then trims the value and any surrounding quotes, and checks if it starts with "LDAP://", "OU=", "CN=", or "DC=", ignoring case. 
 	// If it starts with "LDAP://", it returns the trimmed value as is. If it starts with "OU=", "CN=", or "DC=", it prepends "LDAP://" to construct a full LDAP path.
 
+	/// <summary>Delegates LDAP path normalization to <see cref="JitConfiguration.NormalizeLdapPath(string?)"/>.</summary>
+	/// <param name="value">A possibly null LDAP path or distinguished name.</param>
+	/// <returns>A normalized LDAP URL, or <see langword="null"/> for blank or unsupported input.</returns>
 	private static string? NormalizeLdapPath(string? value)
 	{
 		return JitConfiguration.NormalizeLdapPath(value); // We call the NormalizeLdapPath method from the JitConfiguration class to perform the normalization of the LDAP path. This allows us to reuse the same logic for normalizing LDAP paths across different parts of the application, ensuring consistency in how LDAP paths are handled and allowing for any future updates to the normalization logic to be applied in one place.
