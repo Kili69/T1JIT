@@ -13,7 +13,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 No changes have been recorded since the latest published release.
 
-## [0.2.20260926.16] - 2026-09-26
+## [0.2.20260926.18] - 2026-09-26
 
 Changes promoted from `dev` to `main` since the last published release
 (`v0.1.20260908.12`).

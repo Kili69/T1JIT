@@ -16,10 +16,10 @@ jobs:
       - name: Reject development-only test scripts
         shell: pwsh
         run: |
-            $testScripts = @(git ls-files -- "src/Powershell/TestEnvironment" | Where-Object { $_ -like "*.ps1" })
+          $testScripts = @(git ls-files -- "src/Powershell/TestEnvironment" | Where-Object { $_ -like "*.ps1" })
 
           if ($testScripts.Count -gt 0) {
-            Write-Error "Development-only TestEnvironment scripts must not be included in main: $($testScripts -join ', ')"
+              Write-Error "Development-only TestEnvironment scripts must not be included in main: $($testScripts -join ', ')"
               exit 1
           }
 

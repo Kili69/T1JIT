@@ -1,15 +1,20 @@
 {
-  "version": "0.2.20260926.16",
+  "version": "0.2.20260926.17",
   "files": [
     {
-      "path": "History.md",
-      "version": "0.2.20260926.16",
-      "sha256": "cb67c13e9a6a8fda7a23626e71a5eb9f57effe001ec2f5e03d5f016ddd8447fb"
+      "path": ".github/workflows/version-policy.yml",
+      "version": "0.2.20260926.17",
+      "sha256": "861582032476169cdcb58879ceacb1d4bd9c0d21956096485af008409a31f6f3"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "version": "0.2.20260926.17",
+      "sha256": "492b922b43020fcb243841b5fe3e8cd3b94c0cb28e97e80f30712fc7073b4818"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20260926.16",
-      "sha256": "5adfba2a921cdd2e4719cd8b57416b6044d2a8de1c12d4874f15d17ea5069a9b"
+      "version": "0.2.20260926.17",
+      "sha256": "6aea6bbbb41a2d38547e90a9240f356596873b9c953b08697c6240e187f79baa"
     }
   ]
 }
