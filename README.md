@@ -1,8 +1,18 @@
 
 # Just-In-Time Solution for Active Directory Member Servers
 
+## Download
+
+[**Download the latest T1JIT installation package**](https://github.com/Kili69/T1JIT/releases/latest/download/T1JIT-latest.zip)
+
+The matching
+[SHA-256 checksum](https://github.com/Kili69/T1JIT/releases/latest/download/T1JIT-latest.zip.sha256)
+is available separately. Version-specific packages and release notes are available on the
+[GitHub Releases page](https://github.com/Kili69/T1JIT/releases/latest).
+
 ## Table of Contents
 
+- [Download](#download)
 - [Project Description](#project-description)
 - [Problem Statement](#problem-statement)
 - [How does T1JIT works](#how-does-t1jit-works)
@@ -138,7 +148,9 @@ Required installation permissions:
 
 ### Install Just-In-Time
 
-1. Download the latest installation package and extract it into a temporary directory.
+1. Download the
+   [latest installation package](https://github.com/Kili69/T1JIT/releases/latest/download/T1JIT-latest.zip)
+   and extract it into a temporary directory.
 2. Open an elevated Windows PowerShell session. Perform the following steps as a Domain
    Administrator or as a local administrator on the JIT server. When using an account that
    is **not** a Domain Administrator, all prerequisites and delegated permissions listed
