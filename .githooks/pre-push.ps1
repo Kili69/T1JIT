@@ -61,8 +61,10 @@ foreach ($update in $refUpdates) {
     $remoteRef = $parts[2]
     $remoteHash = $parts[3]
     if ($remoteRef -eq "refs/heads/main") {
-        $mainTestScripts = @(& git -C $repoRoot ls-tree -r --name-only $localHash -- "src/Powershell/TestEnvironment") |
-            Where-Object { $_ -like "*.ps1" }
+        $mainTestScripts = @(
+            @(& git -C $repoRoot ls-tree -r --name-only $localHash -- "src/Powershell/TestEnvironment") |
+                Where-Object { $_ -like "*.ps1" }
+        )
         if ($LASTEXITCODE -ne 0) {
             throw "Unable to inspect TestEnvironment scripts in $localHash."
         }
