@@ -90,7 +90,12 @@ foreach ($update in $refUpdates) {
         if ($LASTEXITCODE -ne 0) {
             throw "Unable to inspect commit $commit."
         }
-        $historyCommitFiles = @("History.md", "VERSION", "file-versions.json")
+        $historyCommitFiles = @(
+            "History.md",
+            "VERSION",
+            "file-versions.json",
+            "src/Powershell/modules/Just-In-time.psd1"
+        )
         $otherChangedFiles = @($changedFiles | Where-Object {
             $_ -notin $historyCommitFiles -and $_ -notlike "release/*"
         })
