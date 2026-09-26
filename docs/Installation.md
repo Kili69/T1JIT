@@ -64,7 +64,13 @@ The JIT solution requires one or more Windows servers. On these servers, users o
 The installation is based on the installation of the solution and configuration of the T1JIT solution. Download the latest version from the relasefolder from https://github.com/Kili69/T1JIT/release
 
 ### First Server Installation
-To install the T1JIT solution run the .\install-JIT.ps1 with local Administrator privileges. This script copies the required Powershell modules and scripts to the server. 
+To install the T1JIT solution run the `.\install-JIT.ps1` script with local Administrator privileges. This script copies the required PowerShell modules and scripts to the server. Before changing the system, the installer verifies that the Active Directory RSAT PowerShell module and all required AD cmdlets are available. If RSAT is missing, install it with `Install-WindowsFeature RSAT-AD-PowerShell` on Windows Server or `Add-WindowsCapability -Online -Name Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0` on Windows 10/11.
+
+During an interactive installation, the script also offers to install the KjitWeb interface as a Windows service. If selected, the web installer asks for the company name displayed in the navigation bar. An empty response uses `Active Directory Just-in-Time Administration`. The web installer also asks for the TCP port. Port `5240` is offered as the default when it is available; otherwise, another free port must be entered. The selected port is used consistently for the service URL and Windows Firewall rule.
+
+The release package contains KjitWeb as a self-contained Windows x64 application. The required .NET and ASP.NET Core runtimes are included, so neither a system-wide .NET installation nor `winget` is required on the target server.
+
+The global JIT setting `DebugLogPath` controls the directory used by `Tier1LocalAdminGroup.ps1`. Its default value is `%TEMP%`, which resolves in the scheduled task account's local context. The active file is named `Tier1LocalAdminGroup-<server>.log`. At 1 MiB it is rotated to `.sav`; an existing `.sav` is deleted first so exactly one parent generation is retained.
 
 ### Additional Server Installation
 
@@ -125,14 +131,27 @@ On every OU who ist listed in the JIT configruation apply a Group Policy In this
 
 #### Get the current configured OU
 
-With the *Get-JITServerOU* command you will retrieve a list of OU who are currently configured
- 
+`Get-JITServerOU` displays the currently configured OUs as a readable list and
+returns the complete configuration object to the pipeline. For example, the search
+bases can be processed separately with:
+
+```powershell
+$searchBases = (Get-JITServerOU).T1Searchbase
+```
+
 To add a new OU for member servers use the *Add-JITServerOU*. This command adds a new searchbase to the configuration
 Add-JITServerOU -OU "<DistringuishedName>"
 Example: Add-JITServerOU -OU "OU=MyOrg,DC=contoso,DC=com"
 Within this command, any computer object in the OU OU=MyOrg,DC=contoso,DC=com is now part of the JIT Administation 
 
-To remove a OU from the configuration use the Remove-JITServerOU command. e.g. Remove-JITServer -OU "OU=MyOrg,DC=contoso,DC=com"
+To remove an OU from the configuration, including all delegation references to that
+OU, use `Remove-JITServerOU`. The command returns an object containing the removed OU
+and delegation entries:
+
+```powershell
+$removed = Remove-JITServerOU -OU "OU=MyOrg,DC=contoso,DC=com"
+$removed.RemovedDelegations
+```
 
 ### Delegation configuration
 

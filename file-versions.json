@@ -1,0 +1,15 @@
+{
+  "version": "0.2.20260926.10",
+  "files": [
+    {
+      "path": "History.md",
+      "version": "0.2.20260926.10",
+      "sha256": "77acddbe231b557650af31933a577a3c4e2a6ab405f1a2fc0fa3309aa690a31e"
+    },
+    {
+      "path": "src/Powershell/modules/Just-In-time.psd1",
+      "version": "0.2.20260926.10",
+      "sha256": "935c710819c67a19d777be396175e10040d881092aac8fbcad6a2dc22a4237be"
+    }
+  ]
+}

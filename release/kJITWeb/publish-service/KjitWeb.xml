@@ -1,0 +1,1758 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>KjitWeb</name>
+    </assembly>
+    <members>
+        <member name="T:KjitWeb.Controllers.HomeController">
+            <summary>
+            Handles the authenticated JIT elevation workflow, status polling, localization, and switched-user sign-in.
+            </summary>
+            <remarks>
+            Authorization is required by default. Only language selection and switched-user sign-in are anonymous.
+            Submitted server and duration values are revalidated against server-side configuration and directory results.
+            Credentials are accepted only by the switch-user POST action and are cleared from the returned model.
+            </remarks>
+        </member>
+        <member name="M:KjitWeb.Controllers.HomeController.#ctor(KjitWeb.Services.IActiveDirectoryService,Microsoft.Extensions.Configuration.IConfiguration,KjitWeb.Services.IEventLogWriter,KjitWeb.Services.IEventLogHealthMonitor,Microsoft.Extensions.Logging.ILogger{KjitWeb.Controllers.HomeController},Microsoft.Extensions.Localization.IStringLocalizer{KjitWeb.SharedResource},KjitWeb.Services.WindowsCredentialValidator)">
+            <summary>Initializes the controller with its directory, configuration, logging, localization, and credential services.</summary>
+            <param name="activeDirectoryService">Provides directory lookup and current-elevation data.</param>
+            <param name="configuration">Provides the configured JIT configuration path.</param>
+            <param name="eventLogWriter">Writes validated elevation requests to the management event log.</param>
+            <param name="eventLogHealthMonitor">Provides the latest cached event-log health snapshot.</param>
+            <param name="logger">Records operational and failure information; credentials are never intentionally logged.</param>
+            <param name="localizer">Resolves localized UI and validation messages.</param>
+            <param name="credentialValidator">Validates switched-user Windows credentials.</param>
+            <remarks>The dependencies are stored as supplied; passing <see langword="null"/> causes later action execution to fail.</remarks>
+        </member>
+        <member name="M:KjitWeb.Controllers.HomeController.Index(System.String)">
+            <summary>Displays the server-selection page for the current principal.</summary>
+            <param name="selectedDomain">An optional requested domain; <see langword="null"/> selects the user's default domain.</param>
+            <returns>A view populated with domains, servers, current elevations, and configured duration limits.</returns>
+            <remarks>Performs Active Directory reads and loads JIT configuration; it does not grant elevation.</remarks>
+        </member>
+        <member name="M:KjitWeb.Controllers.HomeController.CurrentElevatedComputers">
+            <summary>Returns the computers on which the current principal is elevated.</summary>
+            <returns>A non-cacheable JSON result produced by the directory service.</returns>
+            <remarks>The response is authorization-protected and may disclose privileged computer names to the authenticated caller.</remarks>
+        </member>
+        <member name="M:KjitWeb.Controllers.HomeController.EventLogHealthStatus">
+            <summary>
+                Returns the current event log health indicator (Ok/Warning/Error), computed periodically in
+                the background so this request does not need to query the Windows Event Log itself. Polled
+                by the footer script every 5 minutes to keep the indicator next to the version number current.
+            </summary>
+            <returns>A non-cacheable JSON object containing level, error and warning counts, and the UTC check time.</returns>
+            <remarks>Returns cached monitor state and does not query the Windows Event Log during the request.</remarks>
+        </member>
+        <member name="M:KjitWeb.Controllers.HomeController.SetLanguage(System.String,System.String)">
+            <summary>Sets the UI culture cookie and redirects to a safe local destination.</summary>
+            <param name="culture">Requested culture. Values other than <c>de</c> or <c>en</c> fall back to <c>en</c>.</param>
+            <param name="returnUrl">Optional local redirect URL; external, malformed, or <see langword="null"/> values use the index action.</param>
+            <returns>A local redirect response.</returns>
+            <remarks>
+            This anonymous endpoint writes an essential, one-year culture cookie with <see cref="F:Microsoft.AspNetCore.Http.SameSiteMode.Lax"/>.
+            <see cref="M:Microsoft.AspNetCore.Mvc.IUrlHelper.IsLocalUrl(System.String)"/> prevents open redirects.
+            </remarks>
+        </member>
+        <member name="M:KjitWeb.Controllers.HomeController.SwitchUser">
+            <summary>Shows an empty switch-user login form.</summary>
+            <returns>The switch-user view.</returns>
+            <remarks>
+            This anonymous GET intentionally preserves any existing authentication cookie so the antiforgery token
+            remains bound to the same identity between form rendering and submission.
+            </remarks>
+        </member>
+        <member name="M:KjitWeb.Controllers.HomeController.SwitchUser(KjitWeb.Models.SwitchUserViewModel)">
+            <summary>Validates supplied Windows credentials and establishes a switched-user cookie.</summary>
+            <param name="model">Form values. The password is cleared before redisplaying a rejected submission.</param>
+            <returns>
+            A redirect to <see cref="M:KjitWeb.Controllers.HomeController.Index(System.String)"/> after successful authentication; otherwise, the form view with
+            a generic validation message that does not reveal which credential was invalid.
+            </returns>
+            <remarks>
+            Requires an antiforgery token. On success, replaces the existing application cookie with a persistent,
+            refreshable identity cookie. The password is passed to the validator but is not logged.
+            </remarks>
+        </member>
+        <member name="M:KjitWeb.Controllers.HomeController.Index(KjitWeb.Models.ServerSelectionViewModel)">
+            <summary>Validates and submits a JIT elevation request.</summary>
+            <param name="model">The posted domain, server, and duration selection. Missing values are validated server-side.</param>
+            <returns>The selection view with validation errors, an error message, or a success message.</returns>
+            <remarks>
+            Refreshes allowed domains and servers before accepting the request, preventing a client from selecting an
+            unlisted server. A successful request writes security-relevant user, server, domain, and duration data to
+            the Windows Event Log and application log; it does not return credentials.
+            </remarks>
+        </member>
+        <member name="M:KjitWeb.Controllers.HomeController.CreateModel(System.String)">
+            <summary>Creates the initial selection model for the current authenticated principal.</summary>
+            <param name="selectedDomain">Optional requested domain; <see langword="null"/> permits default-domain selection.</param>
+            <returns>A fully populated, non-null selection model with the default elevation duration.</returns>
+            <remarks>Reads JIT configuration and Active Directory state and may perform network I/O.</remarks>
+        </member>
+        <member name="M:KjitWeb.Controllers.HomeController.ApplyDomainSelection(KjitWeb.Models.ServerSelectionViewModel)">
+            <summary>Populates domains and chooses or retains the model's selected domain.</summary>
+            <param name="model">The non-null model to mutate.</param>
+            <remarks>
+            Performs directory lookups. If a selected/default domain is absent from a non-empty directory result, it is
+            added, deduplicated case-insensitively, and sorted. A <see langword="null"/> model causes a null-reference failure.
+            </remarks>
+        </member>
+        <member name="M:KjitWeb.Controllers.HomeController.ApplyJitSettings(KjitWeb.Models.ServerSelectionViewModel)">
+            <summary>Loads configured duration bounds into a selection model and supplies the default duration when needed.</summary>
+            <param name="model">The non-null model to mutate.</param>
+            <remarks>
+            Reads the configured local or SYSVOL JIT configuration file. Invalid or inaccessible configuration is allowed
+            to propagate so startup/request handling can report the administrative error. A <see langword="null"/> model fails.
+            </remarks>
+            <exception cref="T:System.ArgumentException">The configured explicit JIT configuration path is blank.</exception>
+            <exception cref="T:System.IO.FileNotFoundException">The resolved JIT configuration file does not exist.</exception>
+            <exception cref="T:System.InvalidOperationException">The domain cannot be resolved or the configuration cannot be read or parsed.</exception>
+        </member>
+        <member name="T:KjitWeb.Models.ElevatedComputerViewModel">
+            <summary>
+            Represents a computer on which the current user has active Just-In-Time access.
+            </summary>
+        </member>
+        <member name="P:KjitWeb.Models.ElevatedComputerViewModel.ComputerName">
+            <summary>
+            Gets the computer name displayed to the user.
+            </summary>
+            <value>A non-null computer name supplied when the model is initialized.</value>
+        </member>
+        <member name="P:KjitWeb.Models.ElevatedComputerViewModel.Domain">
+            <summary>
+            Gets the DNS domain associated with the computer.
+            </summary>
+            <value>The domain name, or <see langword="null"/> when no domain is available.</value>
+        </member>
+        <member name="P:KjitWeb.Models.ElevatedComputerViewModel.RemainingSeconds">
+            <summary>
+            Gets the estimated time remaining for the elevation.
+            </summary>
+            <value>
+            The remaining duration in seconds, or <see langword="null"/> when it cannot be determined.
+            </value>
+        </member>
+        <member name="T:KjitWeb.Models.ServerSelectionViewModel">
+            <summary>
+            Carries the domain, server, and elevation-duration state used by the server-selection view.
+            </summary>
+        </member>
+        <member name="P:KjitWeb.Models.ServerSelectionViewModel.Domains">
+            <summary>
+            Gets or sets the domains available for selection.
+            </summary>
+            <value>A mutable list that is empty by default.</value>
+        </member>
+        <member name="P:KjitWeb.Models.ServerSelectionViewModel.SelectedDomain">
+            <summary>
+            Gets or sets the selected domain.
+            </summary>
+            <value>The selected domain name, or <see langword="null"/> when none is selected.</value>
+        </member>
+        <member name="P:KjitWeb.Models.ServerSelectionViewModel.CurrentElevatedComputers">
+            <summary>
+            Gets or sets the computers on which the user currently has elevated access.
+            </summary>
+            <value>A mutable list that is empty by default.</value>
+        </member>
+        <member name="P:KjitWeb.Models.ServerSelectionViewModel.Servers">
+            <summary>
+            Gets or sets the servers available in the selected domain.
+            </summary>
+            <value>A mutable list that is empty by default.</value>
+        </member>
+        <member name="P:KjitWeb.Models.ServerSelectionViewModel.SelectedServer">
+            <summary>
+            Gets or sets the server selected for elevation.
+            </summary>
+            <value>The selected server name, or <see langword="null"/> when none is selected.</value>
+        </member>
+        <member name="P:KjitWeb.Models.ServerSelectionViewModel.ElevationDurationMinutes">
+            <summary>
+            Gets or sets the requested elevation duration, in minutes.
+            </summary>
+        </member>
+        <member name="P:KjitWeb.Models.ServerSelectionViewModel.MinElevationDurationMinutes">
+            <summary>
+            Gets or sets the minimum permitted elevation duration, in minutes.
+            </summary>
+        </member>
+        <member name="P:KjitWeb.Models.ServerSelectionViewModel.MaxElevationDurationMinutes">
+            <summary>
+            Gets or sets the maximum permitted elevation duration, in minutes.
+            </summary>
+        </member>
+        <member name="P:KjitWeb.Models.ServerSelectionViewModel.DefaultElevationDurationMinutes">
+            <summary>
+            Gets or sets the configured default elevation duration, in minutes.
+            </summary>
+        </member>
+        <member name="T:KjitWeb.Models.SwitchUserViewModel">
+            <summary>
+            Carries credentials and validation feedback for the switch-user form.
+            </summary>
+            <remarks>
+            The password is transient form input and callers clear it before redisplaying a failed request.
+            </remarks>
+        </member>
+        <member name="P:KjitWeb.Models.SwitchUserViewModel.Username">
+            <summary>
+            Gets or sets the identity to validate.
+            </summary>
+            <value>The entered user name, or <see langword="null"/> when omitted.</value>
+        </member>
+        <member name="P:KjitWeb.Models.SwitchUserViewModel.Password">
+            <summary>
+            Gets or sets the password submitted for validation.
+            </summary>
+            <value>The entered password, or <see langword="null"/> when omitted or cleared.</value>
+        </member>
+        <member name="P:KjitWeb.Models.SwitchUserViewModel.ErrorMessage">
+            <summary>
+            Gets or sets the validation message displayed by the form.
+            </summary>
+            <value>A user-facing error message, or <see langword="null"/> when no error is present.</value>
+        </member>
+        <member name="T:KjitWeb.Services.SearchScope">
+            <summary>
+            Provides integer values corresponding to LDAP search scopes.
+            </summary>
+            <remarks>Values are cast to System.DirectoryServices.Protocols.SearchScope when requests are created.</remarks>
+        </member>
+        <member name="F:KjitWeb.Services.SearchScope.Base">
+            <summary>
+            Searches only the named base directory object.
+            </summary>
+        </member>
+        <member name="F:KjitWeb.Services.SearchScope.OneLevel">
+            <summary>
+            Searches the immediate children of the base directory object.
+            </summary>
+        </member>
+        <member name="F:KjitWeb.Services.SearchScope.Subtree">
+            <summary>
+            Searches the base directory object and all descendants.
+            </summary>
+        </member>
+        <member name="T:KjitWeb.Services.SearchResultEntry">
+            <summary>
+            Represents the subset of an LDAP search result consumed by this service.
+            </summary>
+            <remarks>Missing attributes are absent; attribute names are case-insensitive.</remarks>
+        </member>
+        <member name="P:KjitWeb.Services.SearchResultEntry.DistinguishedName">
+            <summary>
+            Gets or sets the entry distinguished name.
+            </summary>
+            <remarks>Never null; an empty string represents an unavailable name.</remarks>
+        </member>
+        <member name="P:KjitWeb.Services.SearchResultEntry.Attributes">
+            <summary>
+            Gets or sets the attributes returned for the entry.
+            </summary>
+            <remarks>Initialized to a non-null, case-insensitive collection.</remarks>
+        </member>
+        <member name="T:KjitWeb.Services.DirectoryAttributeCollection">
+            <summary>
+            Stores LDAP attributes using case-insensitive names.
+            </summary>
+        </member>
+        <member name="M:KjitWeb.Services.DirectoryAttributeCollection.#ctor">
+            <summary>
+            Initializes an empty collection that compares LDAP attribute names without regard to case.
+            </summary>
+        </member>
+        <member name="T:KjitWeb.Services.DirectoryAttribute">
+            <summary>
+            Represents one named, potentially multi-valued LDAP attribute.
+            </summary>
+        </member>
+        <member name="P:KjitWeb.Services.DirectoryAttribute.Name">
+            <summary>
+            Gets or sets the LDAP attribute name.
+            </summary>
+            <remarks>Never null; an empty string denotes an unspecified name.</remarks>
+        </member>
+        <member name="T:KjitWeb.Services.ActiveDirectoryService">
+            <summary>
+            Queries Active Directory for users, elevations, domains, and visible servers.
+            </summary>
+            <remarks>LDAP uses default Windows credentials with Negotiate, signing, sealing, LDAP v3, and no referral chasing. Delegated server visibility fails closed when authorization data is unavailable.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.#ctor(Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{KjitWeb.Services.ActiveDirectoryService})">
+            <summary>
+            Initializes the service and resolves JIT, domain, search-base, and delegation configuration.
+            </summary>
+            <param name="configuration">Application configuration used to locate JIT and Active Directory settings; expected to be non-null.</param>
+            <param name="logger">Logger that receives configuration, authorization, LDAP, and fallback diagnostics; expected to be non-null.</param>
+            <remarks>
+            Construction reads configuration files and may inspect the host DNS domain. It does not bind to LDAP.
+            </remarks>
+            <exception cref="T:System.InvalidOperationException">The domain or required server search bases cannot be resolved.</exception>
+            <exception cref="T:System.Exception">The configured JIT file cannot be loaded or parsed; the original exception is logged and propagated.</exception>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.GetCurrentElevatedComputers(System.Security.Claims.ClaimsPrincipal)">
+            <summary>
+            Gets computers for which the user currently has direct membership in configured elevation groups.
+            </summary>
+            <param name="user">Principal used for identity or delegation checks; may be null.</param>
+            <returns>A new ordered list; empty when configuration, identity resolution, or LDAP access is unavailable.</returns>
+            <remarks>Queries group membership with link TTL metadata. Failures are logged and suppressed; this reports directory state and does not grant authorization.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.GetAvailableDomains">
+            <summary>
+            Gets the domain encoded in the configured domain LDAP path.
+            </summary>
+            <returns>A new list containing one FQDN, or an empty list when it cannot be parsed.</returns>
+            <remarks>Performs no forest discovery or network request.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.GetDefaultDomainForUser(System.Security.Claims.ClaimsPrincipal)">
+            <summary>
+            Determines the preferred domain for a principal.
+            </summary>
+            <param name="user">Principal used for identity or delegation checks; may be null.</param>
+            <returns>The UPN suffix, configured LDAP domain, or an empty string.</returns>
+            <remarks>A missing UPN claim can trigger an LDAP lookup; failures are logged and converted to fallback text.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.GetServerNames(System.Security.Claims.ClaimsPrincipal)">
+            <summary>
+            Gets visible server names without a domain filter.
+            </summary>
+            <param name="user">Principal used for identity or delegation checks; may be null.</param>
+            <returns>A new distinct, case-insensitively ordered list.</returns>
+            <remarks>Equivalent to the two-parameter overload with a null domain. Delegation uses the principal and fails closed.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.GetServerNames(System.Security.Claims.ClaimsPrincipal,System.String)">
+            <summary>
+            Gets visible server names, optionally restricted to one DNS domain.
+            </summary>
+            <param name="user">Principal used for identity or delegation checks; may be null.</param>
+            <param name="selectedDomain">Optional DNS domain; null or blank disables filtering.</param>
+            <returns>A new distinct, case-insensitively ordered list; never null.</returns>
+            <remarks>Queries authorized bases independently and logs/skips failures, so partial results are possible. Visibility filtering does not itself authorize access to a computer.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.MatchesSelectedDomain(KjitWeb.Services.SearchResultEntry,System.String)">
+            <summary>
+            Tests whether a computer entry belongs to the selected normalized domain.
+            </summary>
+            <param name="entry">LDAP search result to inspect.</param>
+            <param name="selectedDomain">Optional DNS domain; null or blank disables filtering.</param>
+            <returns>True when no filter is active or the entry domain matches; otherwise false.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.ResolveComputerDomain(KjitWeb.Services.SearchResultEntry)">
+            <summary>
+            Resolves a computer domain from its DNS host name, then its distinguished name.
+            </summary>
+            <param name="entry">LDAP search result to inspect.</param>
+            <returns>The normalized domain, or null when neither attribute contains one.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.ReadEntryAttribute(KjitWeb.Services.SearchResultEntry,System.String)">
+            <summary>
+            Reads the first LDAP attribute value as text.
+            </summary>
+            <param name="entry">LDAP search result to inspect.</param>
+            <param name="attributeName">Case-insensitive LDAP attribute name.</param>
+            <returns>The first value converted to text, or null when missing, empty, or null.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.ExtractDomainFromDnsHostName(System.String)">
+            <summary>
+            Extracts and normalizes the suffix following the first dot in a DNS host name.
+            </summary>
+            <param name="dnsHostName">DNS host name to parse; may be null or blank.</param>
+            <returns>A normalized domain, or null for an unqualified or invalid host name.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.NormalizeDomain(System.String)">
+            <summary>
+            Normalizes a DNS domain for comparison.
+            </summary>
+            <param name="domain">Domain to normalize; may be null or blank.</param>
+            <returns>A trimmed lower-case value without trailing dots, or null for missing input.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.ResolveSearchBasesForUser(System.Security.Claims.ClaimsPrincipal)">
+            <summary>
+            Resolves LDAP server search bases allowed for a principal.
+            </summary>
+            <param name="user">Principal used for identity or delegation checks; may be null.</param>
+            <returns>Configured bases when delegation is off, authorized bases when on, or an empty list.</returns>
+            <remarks>Delegation fails closed when rules or SID tokens are unavailable. LDAP enrichment and failures are logged.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.GetUserDistinguishedName(System.String)">
+            <summary>
+            Resolves an identity to an Active Directory distinguished name.
+            </summary>
+            <param name="identityName">SAM name, DOMAIN\account, or UPN; nullable where declared.</param>
+            <returns>The directory DN, original identity fallback, or "unknown-user" for missing input.</returns>
+            <remarks>Input is escaped against LDAP injection. Failures are logged and suppressed.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.GetUserPrincipalName(System.String)">
+            <summary>
+            Resolves an identity to an Active Directory user principal name.
+            </summary>
+            <param name="identityName">SAM name, DOMAIN\account, or UPN; nullable where declared.</param>
+            <returns>The directory UPN, original identity fallback, or an empty string for missing input.</returns>
+            <remarks>Input is escaped against LDAP injection. Failures are logged and suppressed.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.EscapeLdapFilter(System.String)">
+            <summary>
+            Escapes LDAP filter metacharacters according to RFC 4515.
+            </summary>
+            <param name="value">Value to process; expected non-null unless declared nullable.</param>
+            <returns>A filter-safe representation of the value.</returns>
+            <remarks>Prevents identity text from changing LDAP filter structure.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.ExtractDomainFromUpn(System.String)">
+            <summary>
+            Extracts the suffix after the last at-sign in a UPN.
+            </summary>
+            <param name="upn">UPN to parse; may be null or blank.</param>
+            <returns>The trimmed suffix, or null when none exists.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.ExtractCommonNameFromDn(System.String)">
+            <summary>
+            Extracts the leading common-name component from a distinguished name.
+            </summary>
+            <param name="distinguishedName">Distinguished name to inspect; expected non-null.</param>
+            <returns>The leading CN value, or the original value for an unexpected format.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.ExtractGroupDisplayName(KjitWeb.Services.SearchResultEntry)">
+            <summary>
+            Gets a displayable group name from cn or the distinguished name.
+            </summary>
+            <param name="entry">LDAP search result to inspect.</param>
+            <returns>A group name, or null when none is usable.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.GetDirectMembershipTimeToLive(KjitWeb.Services.SearchResultEntry,System.String)">
+            <summary>
+            Finds direct membership and optional LDAP link time-to-live metadata.
+            </summary>
+            <param name="entry">Group entry whose <c>member</c> values are inspected.</param>
+            <param name="userDistinguishedName">User distinguished name compared without regard to case.</param>
+            <returns>A tuple indicating membership and its parseable remaining seconds.</returns>
+            <remarks>Nested membership does not count unless the user DN is present directly in member values.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.ParseElevatedComputer(System.String,System.Nullable{System.Int32})">
+            <summary>
+            Parses an elevation-group name into computer, domain, and TTL data.
+            </summary>
+            <param name="groupName">Elevation-group display name to parse.</param>
+            <param name="remainingSeconds">Optional remaining link TTL.</param>
+            <returns>A populated model, or null when prefix validation fails or no computer remains.</returns>
+            <remarks>Removes the configured prefix and splits on the first configured domain separator.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.IsSearchBaseAllowed(System.String)">
+            <summary>
+            Checks whether a delegated search base is within configured server bases.
+            </summary>
+            <param name="searchBase">Search-base token, LDAP path, or relative DN.</param>
+            <returns>True for an exact configured path or a path ending in a configured base DN.</returns>
+            <remarks>This allow-list prevents delegation rules from expanding directory visibility.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.ResolveDomainLdapPath(KjitWeb.Services.JitConfiguration)">
+            <summary>
+            Resolves the LDAP domain root from JIT, application, or host DNS configuration.
+            </summary>
+            <param name="jitConfiguration">Loaded JIT configuration.</param>
+            <returns>The domain LDAP path.</returns>
+            <exception cref="T:System.InvalidOperationException">No domain can be resolved.</exception>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.BuildDomainLdapPath(System.String)">
+            <summary>
+            Builds an LDAP domain-root path from an FQDN.
+            </summary>
+            <param name="domainFqdn">Dot-separated domain FQDN.</param>
+            <returns>An LDAP path composed of DC components.</returns>
+            <remarks>Empty labels are removed; no DNS validation occurs.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.ResolveJitConfiguration">
+            <summary>
+            Loads JIT configuration from the resolved configuration path.
+            </summary>
+            <returns>A loaded configuration, or a default instance when no path is set.</returns>
+            <remarks>Load failures are logged and rethrown.</remarks>
+            <exception cref="T:System.Exception">The configured file cannot be loaded or parsed.</exception>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.ResolveServerSearchBasesFromJitConfiguration(KjitWeb.Services.JitConfiguration)">
+            <summary>
+            Resolves and domain-qualifies configured server search bases.
+            </summary>
+            <param name="jitConfig">JIT configuration containing search bases.</param>
+            <returns>A distinct case-insensitive list.</returns>
+            <exception cref="T:System.InvalidOperationException">No search base is configured.</exception>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.QualifySearchBaseForDomain(System.String,System.String)">
+            <summary>
+            Qualifies a search-base token or relative DN against the domain path.
+            </summary>
+            <param name="searchBase">Search-base token, LDAP path, or relative DN.</param>
+            <param name="domainLdapPath">Domain LDAP path used for qualification.</param>
+            <returns>A fully prefixed LDAP path.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.ResolveDelegationRules(KjitWeb.Services.JitConfiguration)">
+            <summary>
+            Loads delegation rules when delegation is enabled.
+            </summary>
+            <param name="jitConfiguration">Loaded JIT configuration.</param>
+            <returns>Loaded rules, or an empty list when disabled or loading fails.</returns>
+            <remarks>Failures are logged and suppressed; an empty result later fails authorization closed.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.ResolveUserGroupTokens(System.Security.Claims.ClaimsPrincipal)">
+            <summary>
+            Collects normalized user and group SIDs for delegation matching.
+            </summary>
+            <param name="user">Principal used for identity or delegation checks; may be null.</param>
+            <returns>A case-insensitive SID set from claims, Windows identity, and directory token groups.</returns>
+            <remarks>Directory enrichment can query LDAP; failures are logged and suppressed.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.AddWindowsIdentityTokens(System.Security.Principal.WindowsIdentity,System.Collections.Generic.ISet{System.String})">
+            <summary>
+            Adds the Windows user SID and effective group SIDs to a token set.
+            </summary>
+            <param name="identity">Windows identity; may be null.</param>
+            <param name="tokens">Mutable destination SID set.</param>
+            <remarks>Mutates the destination set and performs no network access.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.AddDirectoryIdentityTokens(System.String,System.Collections.Generic.ISet{System.String})">
+            <summary>
+            Adds the directory user SID and computed tokenGroups SIDs to a token set.
+            </summary>
+            <param name="identityName">SAM name, DOMAIN\account, or UPN; nullable where declared.</param>
+            <param name="tokens">Mutable destination SID set.</param>
+            <remarks>Performs LDAP searches, mutates the set, and logs/suppresses lookup failures.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.BuildUserLookupFilter(System.String)">
+            <summary>
+            Builds an injection-safe LDAP user filter for an identity.
+            </summary>
+            <param name="identityName">SAM name, DOMAIN\account, or UPN; nullable where declared.</param>
+            <returns>A filter restricted to user objects.</returns>
+            <remarks>Every identity fragment is escaped before interpolation.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.IsGroupSidClaim(System.Security.Claims.Claim)">
+            <summary>
+            Tests whether a claim type represents a group or primary-group SID.
+            </summary>
+            <param name="claim">Claim to inspect.</param>
+            <returns>True for recognized SID claim types; otherwise false.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.NormalizeSecurityIdentifier(System.String)">
+            <summary>
+            Normalizes SID text for authorization comparisons.
+            </summary>
+            <param name="value">Value to process; expected non-null unless declared nullable.</param>
+            <returns>The trimmed, unquoted, upper-case SID text.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.ResolveDomainFqdn">
+            <summary>
+            Resolves the directory DNS domain from configuration or host networking.
+            </summary>
+            <returns>The resolved domain FQDN.</returns>
+            <exception cref="T:System.InvalidOperationException">No domain can be determined.</exception>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.ParseDomainFqdnFromLdapPath(System.String)">
+            <summary>
+            Extracts DC components from an LDAP path or distinguished name.
+            </summary>
+            <param name="ldapPath">LDAP path or DN; may be null only where declared.</param>
+            <returns>Dot-joined DC labels, or null when none exist.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.NormalizeLdapPath(System.String)">
+            <summary>
+            Normalizes a recognizable LDAP path or distinguished name.
+            </summary>
+            <param name="value">Value to process; expected non-null unless declared nullable.</param>
+            <returns>A trimmed LDAP path with LDAP:// prefix, or null when unrecognized.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.CreateLdapConnection">
+            <summary>
+            Creates and binds an LDAP connection using the process security context.
+            </summary>
+            <returns>A bound connection owned by the caller.</returns>
+            <remarks>Uses Negotiate/default credentials, signing, sealing, port 389, LDAP v3, and no referral chasing. Binding authenticates but does not modify directory data.</remarks>
+            <exception cref="T:System.DirectoryServices.Protocols.LdapException">The endpoint is unavailable or authentication fails.</exception>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.LdapSearchPaged(System.String,System.String,System.Int32,System.String[])">
+            <summary>
+            Executes a paged LDAP search without link TTL metadata.
+            </summary>
+            <param name="baseLdapPath">LDAP path or raw base DN.</param>
+            <param name="filter">LDAP filter; untrusted values must already be escaped.</param>
+            <param name="scope">Numeric SearchScope value.</param>
+            <param name="attributes">LDAP attributes to request.</param>
+            <returns>All successfully parsed entries across pages.</returns>
+            <remarks>Binds with the service context, pages by 500, logs metadata, and skips malformed entries.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.LdapSearchPagedWithLinkTtl(System.String,System.String,System.Int32,System.String[])">
+            <summary>
+            Executes a paged LDAP search requesting Active Directory link TTL metadata.
+            </summary>
+            <param name="baseLdapPath">LDAP path or raw base DN.</param>
+            <param name="filter">LDAP filter; untrusted values must already be escaped.</param>
+            <param name="scope">Numeric SearchScope value.</param>
+            <param name="attributes">LDAP attributes to request.</param>
+            <returns>All successfully parsed entries across pages.</returns>
+            <remarks>Adds the show-link-TTL control; other security and paging behavior matches the normal search.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.LdapSearchPaged(System.String,System.String,System.Int32,System.Boolean,System.String[])">
+            <summary>
+            Implements LDAP paging and optional Active Directory link TTL retrieval.
+            </summary>
+            <param name="baseLdapPath">LDAP path or raw base DN.</param>
+            <param name="filter">LDAP filter; untrusted values must already be escaped.</param>
+            <param name="scope">Numeric SearchScope value.</param>
+            <param name="showLinkTimeToLive">Whether to request Active Directory link TTL metadata.</param>
+            <param name="attributes">LDAP attributes to request.</param>
+            <returns>A mutable list of successfully converted entries.</returns>
+            <remarks>Creates and disposes a bound connection and issues read-only searches; transport failures propagate.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.LdapPathToDn(System.String)">
+            <summary>
+            Removes an optional LDAP:// prefix from a directory path.
+            </summary>
+            <param name="ldapPath">LDAP path or DN; may be null only where declared.</param>
+            <returns>The raw distinguished name, preserving all other text.</returns>
+        </member>
+        <member name="T:KjitWeb.Services.BasicAuthenticationHandler">
+            <summary>
+            Authenticates HTTP Basic credentials against the Windows security authority.
+            </summary>
+            <remarks>
+            Credentials are decoded from UTF-8 Base64 and validated with a network logon. The handler
+            accepts <c>DOMAIN\user</c>, UPN, and unqualified user names; unqualified names use the
+            hard-coded <c>BLOEDGELABER</c> domain. Passwords are neither retained nor logged. Successful
+            validation creates a <see cref="T:System.Security.Principal.GenericPrincipal"/> without role claims and closes the native
+            token handle. This handler is Windows-only and Basic authentication does not itself protect
+            credentials in transit, so callers must use TLS.
+            </remarks>
+        </member>
+        <member name="F:KjitWeb.Services.BasicAuthenticationHandler.AuthorizationHeaderName">
+            <summary>The HTTP request header containing authentication credentials.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.BasicAuthenticationHandler.BasicScheme">
+            <summary>The authentication scheme token recognized and emitted by this handler.</summary>
+        </member>
+        <member name="M:KjitWeb.Services.BasicAuthenticationHandler.LogonUser(System.String,System.String,System.String,System.Int32,System.Int32,System.IntPtr@)">
+            <summary>
+            Requests Windows credential validation and returns a native access-token handle on success.
+            </summary>
+            <param name="lpszUsername">The Windows user name or UPN.</param>
+            <param name="lpszDomain">The Windows domain, or <see langword="null"/> for a UPN.</param>
+            <param name="lpszPassword">The plaintext password supplied by the client.</param>
+            <param name="dwLogonType">The requested Windows logon type.</param>
+            <param name="dwLogonProvider">The Windows logon provider.</param>
+            <param name="phToken">Receives the native token handle when validation succeeds.</param>
+            <returns><see langword="true"/> when Windows accepts the credentials; otherwise, <see langword="false"/>.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.BasicAuthenticationHandler.CloseHandle(System.IntPtr)">
+            <summary>Releases a native Windows handle.</summary>
+            <param name="hHandle">The native handle to release.</param>
+            <returns><see langword="true"/> when the handle is closed; otherwise, <see langword="false"/>.</returns>
+        </member>
+        <member name="F:KjitWeb.Services.BasicAuthenticationHandler.LOGON32_LOGON_NETWORK">
+            <summary>Requests validation without an interactive logon or local interactive-logon rights.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.BasicAuthenticationHandler.LOGON32_PROVIDER_DEFAULT">
+            <summary>Directs Windows to select its default logon provider.</summary>
+        </member>
+        <member name="M:KjitWeb.Services.BasicAuthenticationHandler.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions},Microsoft.Extensions.Logging.ILoggerFactory,System.Text.Encodings.Web.UrlEncoder)">
+            <summary>Initializes a new instance of the <see cref="T:KjitWeb.Services.BasicAuthenticationHandler"/> class.</summary>
+            <param name="options">The monitor that supplies authentication scheme options.</param>
+            <param name="logger">The factory used by the base handler to create its logger.</param>
+            <param name="encoder">The URL encoder used by the base authentication handler.</param>
+            <exception cref="T:System.ArgumentNullException">
+            Thrown by the base authentication handler when a required dependency is <see langword="null"/>.
+            </exception>
+        </member>
+        <member name="M:KjitWeb.Services.BasicAuthenticationHandler.HandleAuthenticateAsync">
+            <summary>Authenticates the current request's HTTP Basic credentials against Windows.</summary>
+            <returns>
+            A completed task containing no result when the Basic header is absent or uses another
+            scheme, a failed result for malformed or rejected credentials, or a successful ticket for
+            accepted credentials.
+            </returns>
+            <remarks>
+            This method reads the request header, invokes the Windows <c>LogonUser</c> API, closes a
+            successful token, and logs the normalized identity and outcome without logging the
+            password. Parsing and platform errors are converted to failed authentication results.
+            </remarks>
+        </member>
+        <member name="M:KjitWeb.Services.BasicAuthenticationHandler.HandleChallengeAsync(Microsoft.AspNetCore.Authentication.AuthenticationProperties)">
+            <summary>Issues an HTTP Basic challenge for the current request.</summary>
+            <param name="properties">Properties associated with the authentication challenge.</param>
+            <returns>A task that completes after the base handler has written the challenge response.</returns>
+            <remarks>
+            Sets <c>WWW-Authenticate</c> to a realm containing the current Unix timestamp in seconds
+            before invoking the base implementation. Changing the realm discourages browsers from
+            reusing cached Basic credentials, but challenges within the same second share a realm.
+            The response headers and status can be modified by the base handler.
+            </remarks>
+            <exception cref="T:System.ArgumentNullException">
+            May be thrown by the base implementation if <paramref name="properties"/> is
+            <see langword="null"/>.
+            </exception>
+        </member>
+        <member name="T:KjitWeb.Services.JitConfiguration">
+            <summary>Loads and exposes the immutable Just-In-Time access settings from <c>JIT.config</c>.</summary>
+            <remarks>
+            Property names are matched case-insensitively. Optional malformed values use documented fallbacks, while
+            missing required event-source data, inaccessible files, and invalid JSON fail fast. Configuration values
+            influence privileged directory discovery and elevation duration and must therefore come from a trusted,
+            administrator-controlled file.
+            </remarks>
+        </member>
+        <member name="F:KjitWeb.Services.JitConfiguration.MinimumElevationDurationMinutes">
+            <summary>
+            	The minimum elevation duration in minutes that can be requested. 
+            	This is used to enforce a lower bound on the elevation duration to prevent excessively short elevation periods that may not be practical for users. 
+            	The value is set to 5 minutes, which is a reasonable minimum duration for most administrative tasks while still allowing for quick elevations when needed. 
+            	This constant can be used throughout the application to validate user input for elevation duration and ensure that it meets the minimum requirement.
+            </summary> 	
+        </member>
+        <member name="P:KjitWeb.Services.JitConfiguration.JitConfigPath">
+            <summary>
+            Gets the exact file path from which this instance was loaded.
+            </summary>
+            <value>A non-null, non-blank path; the value is not normalized or resolved by the constructor.</value>
+        </member>
+        <member name="P:KjitWeb.Services.JitConfiguration.DomainFqdn">
+            <summary>
+            The DomainFqdn property represents the fully qualified domain name (FQDN) of the Active Directory domain that the application is operating in.
+            This value is used for various purposes such as constructing LDAP paths, determining the domain context for queries, and forming event log entries. 
+            It is read from the JIT.config file, and if not specified there, it can be inferred from the system's domain information. 
+            This allows the application to adapt to different domain environments without requiring hardcoded values, while still providing a way to explicitly configure the domain FQDN if needed.
+            </summary>
+        </member>
+        <member name="P:KjitWeb.Services.JitConfiguration.EventLogName">
+            <summary>
+            The EventLogName property specifies the name of the Windows Event Log where JIT management events will be recorded.
+            This allows administrators to easily identify and filter JIT-related events in the event log.
+            </summary>
+        </member>
+        <member name="P:KjitWeb.Services.JitConfiguration.EventLogSourceName">
+            <summary>
+            	The EventLogSourceName property specifies the source name that will be used when writing events to the Windows Event Log for JIT management activities.
+            	This allows administrators to easily identify the source of JIT-related events in the event log, and it is typically set to a value that clearly indicates its association with the JIT access management functionality of the application.
+            </summary>
+        </member>
+        <member name="P:KjitWeb.Services.JitConfiguration.AdminPreFix">
+            <summary>
+            	The AdminPreFix property specifies a prefix that will be used when constructing server group names for event logging purposes.
+            	This allows for consistent naming of server groups in event log entries, which can help administrators quickly identify the context of the events and correlate them with specific servers or domains. The prefix can be configured to include relevant information such as the domain name or a specific identifier to further enhance the clarity of event log entries related to JIT management activities.
+            </summary>
+        </member>
+        <member name="P:KjitWeb.Services.JitConfiguration.DomainSeparator">
+            <summary>
+            	The DomainSeparator property specifies a string that will be used to separate the domain and server name when constructing server group names for event logging purposes.
+            	This allows for consistent formatting of server group names in event log entries, making it easier for administrators to parse and understand the context of the events. 
+            	The separator can be configured to use a specific character or string that is commonly used in the organization's naming conventions, such as a backslash, forward slash, or hyphen, to enhance the readability of event log entries related to JIT management activities.
+            </summary>
+        </member>
+        <member name="P:KjitWeb.Services.JitConfiguration.GroupOuDistinguishedName">
+            <summary>
+            	The GroupOuDistinguishedName property represents the distinguished name of the organizational unit (OU) in Active Directory where the server groups are located.
+            	This value is used when constructing LDAP paths for querying server objects in Active Directory, allowing the application to target specific OUs for server discovery.
+            	If this value is not specified, the application may default to searching the entire directory or use other configured search bases, which may result in broader queries and potentially more results. 
+            	By specifying the GroupOuDistinguishedName, administrators can optimize server discovery by limiting the search scope to a specific OU that contains the relevant server objects, improving performance and relevance of query results.
+            </summary>
+        </member>
+        <member name="P:KjitWeb.Services.JitConfiguration.DelegationConfigPath">
+            <summary>
+            	The DelegationConfigPath property represents the file path to an optional delegation configuration file that defines rules for limiting server discovery based on group membership.
+            	This allows administrators to specify a separate JSON configuration file that contains rules for delegating access to specific servers based on the user's group memberships in Active Directory. 
+            	If this property is set, the application will read the delegation rules from the specified file and apply them when determining which servers to include in the results of server discovery queries. 
+            	The delegation configuration file can contain rules that specify which groups have access to which servers, allowing for fine-grained control over server discovery and ensuring that users only see servers they are authorized to access based on their group memberships. If this property is not set, the application will not apply any delegation rules and will return all servers that match the configured search criteria.
+            </summary>
+        </member>
+        <member name="P:KjitWeb.Services.JitConfiguration.EnableDelegation">
+            <summary>
+            	The EnableDelegation property specifies whether delegation rules should be applied when determining which servers to include in the results of server discovery queries.
+            	If this property is set to true, the application will read the delegation rules from the specified DelegationConfigPath file and apply them based on the user's group memberships in Active Directory.
+            	If this property is set to false, the application will ignore any delegation rules and return all servers that match the configured search criteria, regardless of the user's group memberships.
+            </summary>
+        </member>
+        <member name="P:KjitWeb.Services.JitConfiguration.MaxElevatedTimeMinutes">
+            <summary>
+            	The MaxElevatedTimeMinutes property specifies the maximum duration in minutes that a user can request for elevation when using Just-In-Time access management.
+            	This value is used to enforce an upper bound on the elevation duration to prevent excessively long elevation periods that could pose security risks.
+            	The value is read from the JIT.config file, and if not specified, it defaults to 60 minutes, which is a reasonable maximum duration for most administrative tasks while still allowing for sufficient time to complete necessary actions.
+            	This property can be used throughout the application to validate user input for elevation duration and ensure that it does not exceed the maximum allowed duration, helping to maintain a secure and controlled elevation process for users requesting Just-In-Time access.
+            </summary>
+        </member>
+        <member name="P:KjitWeb.Services.JitConfiguration.DefaultElevatedTimeMinutes">
+            <summary>
+            	The DefaultElevatedTimeMinutes property specifies the default duration in minutes that will be used for elevation when a user requests Just-In-Time access without specifying a duration.
+            	This value is used to provide a sensible default elevation duration for users who do not specify a duration when requesting elevation, ensuring that they are granted access for a reasonable amount of time to complete their tasks without needing to input a specific duration.
+            	The value is read from the JIT.config file, and if not specified, it defaults to the MinimumElevationDurationMinutes constant (5 minutes), which is a reasonable default duration for most administrative tasks while still allowing for quick elevations when needed.
+            	The value is also clamped to ensure that it is not set below the minimum elevation duration or above the maximum elevation duration, providing a safeguard against misconfiguration that could result in impractical elevation durations. This property can be used throughout the application as the default duration for elevation requests, providing a consistent and controlled experience for users requesting Just-In-Time access.	
+            </summary>
+        </member>
+        <member name="P:KjitWeb.Services.JitConfiguration.T1SearchBaseLdapPaths">
+            <summary>
+            	The T1SearchBaseLdapPaths property represents a list of LDAP paths that are used as search bases for querying Tier 1 servers in Active Directory.
+            	These paths are read from the JIT.config file and can be configured to target specific OUs or containers in Active Directory where Tier 1 servers are located, allowing for optimized queries that focus on relevant parts of the directory.
+            	The application will use these LDAP paths as the base for searching computer objects that represent Tier 1 servers, and it may apply additional filters based on domain or delegation rules to further refine the search results.
+            	If this list is empty, the application may default to searching the entire directory or use other configured search bases, which may result in broader queries and potentially more results. By specifying the T1SearchBaseLdapPaths, administrators can optimize server discovery by limiting the search scope to specific OUs or containers that contain Tier 1 server objects, improving performance and relevance of query results.	
+            </summary>
+        </member>
+        <member name="M:KjitWeb.Services.JitConfiguration.#ctor">
+            <summary>
+            	The JitConfiguration class constructor initializes the configuration settings for Just-In-Time access management by reading from a specified JIT.config file.
+            	If the constructor is called without parameters, it attempts to build a default path to the JIT.config file based on the domain information of the system, looking for the file in the SYSVOL share of the domain.
+            </summary>
+            <exception cref="T:System.InvalidOperationException">The machine domain cannot be resolved, or the configuration cannot be read or parsed.</exception>
+            <exception cref="T:System.IO.FileNotFoundException">The inferred SYSVOL configuration file does not exist.</exception>
+            <remarks>Reads the machine domain and performs synchronous file I/O against SYSVOL.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.JitConfiguration.#ctor(System.String)">
+            <summary>
+            The JitConfiguration class constructor initializes the configuration settings for Just-In-Time access management by reading from a specified JIT.config file.
+            </summary>
+            <param name="jitConfigPath">The path to the JIT.config file.</param>
+            <exception cref="T:System.ArgumentException">Thrown when the jitConfigPath is null, empty, or whitespace.</exception>
+            <exception cref="T:System.IO.FileNotFoundException">The specified configuration file does not exist.</exception>
+            <exception cref="T:System.InvalidOperationException">The file cannot be read, contains invalid JSON, or omits a required event-source value.</exception>
+            <remarks>
+            Reads the file synchronously. The caller must protect the file from unauthorized modification because its
+            values govern event logging, directory scope, delegation, and elevation duration.
+            </remarks>
+        </member>
+        <member name="M:KjitWeb.Services.JitConfiguration.BuildDefaultJitConfigPath">
+            <summary>Builds the conventional domain SYSVOL path for <c>JIT.config</c>.</summary>
+            <returns>A non-null UNC path containing the current machine's DNS domain name.</returns>
+            <exception cref="T:System.InvalidOperationException">The machine's DNS domain name is unavailable or blank.</exception>
+            <remarks>Reads local network configuration but does not access the returned file path.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.JitConfiguration.OpenJsonDocument(System.String)">
+            <summary>Synchronously reads and parses a JIT configuration file.</summary>
+            <param name="path">The non-null file path to read.</param>
+            <returns>An owned JSON document that the caller must dispose.</returns>
+            <exception cref="T:System.IO.FileNotFoundException">No file exists at <paramref name="path"/>.</exception>
+            <exception cref="T:System.InvalidOperationException">The file cannot be read or is not valid JSON.</exception>
+            <remarks>Reads potentially security-sensitive configuration from disk; callers must use a trusted path.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.JitConfiguration.ReadT1SearchBaseLdapPaths(System.Text.Json.JsonElement)">
+            <summary>Reads distinct, valid Tier 1 LDAP search bases from a configuration root.</summary>
+            <param name="root">The JSON element expected to contain a <c>T1Searchbase</c> array.</param>
+            <returns>
+            A non-null list of normalized LDAP paths and preserved <c>&lt;DomainRoot&gt;</c> markers; empty when the
+            property is absent, has the wrong type, or contains no valid string entries.
+            </returns>
+        </member>
+        <member name="M:KjitWeb.Services.JitConfiguration.NormalizeT1SearchBase(System.String)">
+            <summary>Normalizes a Tier 1 search-base value while preserving the domain-root sentinel.</summary>
+            <param name="value">A possibly null, quoted, or whitespace-padded configuration value.</param>
+            <returns>The sentinel or normalized LDAP path; otherwise <see langword="null"/>.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.JitConfiguration.ReadDelegationConfigPath(System.Text.Json.JsonElement)">
+            <summary>Reads the optional delegation configuration path.</summary>
+            <param name="root">The JSON configuration root.</param>
+            <returns>The trimmed path, or <see langword="null"/> when missing, non-string, empty, or whitespace.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.JitConfiguration.ReadDomainFqdn(System.Text.Json.JsonElement)">
+            <summary>Reads the optional Active Directory DNS domain name.</summary>
+            <param name="root">The JSON configuration root.</param>
+            <returns>The trimmed domain, or <see langword="null"/> when missing, non-string, empty, or whitespace.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.JitConfiguration.ReadEnableDelegation(System.Text.Json.JsonElement)">
+            <summary>Reads whether delegation-based server filtering is enabled.</summary>
+            <param name="root">The JSON configuration root.</param>
+            <returns>The configured Boolean, or <see langword="false"/> when absent or not a JSON Boolean.</returns>
+            <remarks>An invalid value fails closed with respect to enabling delegation, but callers must decide whether unfiltered discovery is acceptable.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.JitConfiguration.ReadString(System.Text.Json.JsonElement,System.String,System.String)">
+            <summary>Reads a non-blank string property using a case-insensitive property name.</summary>
+            <param name="root">The JSON object to inspect.</param>
+            <param name="propertyName">The non-null property name to match.</param>
+            <param name="fallbackValue">The value returned for a missing, non-string, or blank property.</param>
+            <returns>The trimmed configured value, or <paramref name="fallbackValue"/>.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.JitConfiguration.ReadRequiredString(System.Text.Json.JsonElement,System.String)">
+            <summary>Reads a required non-blank string property using a case-insensitive property name.</summary>
+            <param name="root">The JSON object to inspect.</param>
+            <param name="propertyName">The non-null property name to match.</param>
+            <returns>The trimmed, non-null configured value.</returns>
+            <exception cref="T:System.InvalidOperationException">The property is absent, is not a string, or is blank.</exception>
+        </member>
+        <member name="M:KjitWeb.Services.JitConfiguration.ReadEventLogSourceName(System.Text.Json.JsonElement)">
+            <summary>Reads the event-log source, supporting the legacy <c>EventSource</c> alias.</summary>
+            <param name="root">The JSON configuration root.</param>
+            <returns>The non-null <c>EventLogSource</c> value, or the legacy <c>EventSource</c> value.</returns>
+            <exception cref="T:System.InvalidOperationException">Neither property contains a non-blank string.</exception>
+        </member>
+        <member name="M:KjitWeb.Services.JitConfiguration.ReadOptionalString(System.Text.Json.JsonElement,System.String)">
+            <summary>Reads an optional string property using a case-insensitive property name.</summary>
+            <param name="root">The JSON object to inspect.</param>
+            <param name="propertyName">The non-null property name to match.</param>
+            <returns>The trimmed string, or <see langword="null"/> when absent, non-string, empty, or whitespace.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.JitConfiguration.ReadPositiveInteger(System.Text.Json.JsonElement,System.String,System.Int32)">
+            <summary>Reads a positive 32-bit integer property using a case-insensitive property name.</summary>
+            <param name="root">The JSON object to inspect.</param>
+            <param name="propertyName">The non-null property name to match.</param>
+            <param name="fallbackValue">The value returned when the configured value is missing, invalid, or not positive.</param>
+            <returns>The configured positive integer, or <paramref name="fallbackValue"/>.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.JitConfiguration.TryGetPropertyIgnoreCase(System.Text.Json.JsonElement,System.String,System.Text.Json.JsonElement@)">
+            <summary>Attempts to retrieve an object property by case-insensitive name.</summary>
+            <param name="root">The element to inspect; non-object values never match.</param>
+            <param name="propertyName">The non-null property name to match.</param>
+            <param name="value">Receives the matched value, or the default JSON element when not found.</param>
+            <returns><see langword="true"/> when a matching property is found; otherwise <see langword="false"/>.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.JitConfiguration.NormalizeLdapPath(System.String)">
+            <summary>Normalizes a supported LDAP distinguished-name path.</summary>
+            <param name="value">A possibly null, quoted, or whitespace-padded LDAP URL or distinguished name.</param>
+            <returns>
+            The trimmed input when it already starts with <c>LDAP://</c>, an LDAP-prefixed value for an <c>OU=</c>,
+            <c>CN=</c>, or <c>DC=</c> distinguished name, or <see langword="null"/> for unsupported or blank input.
+            </returns>
+            <remarks>This performs syntactic prefix normalization only; it neither escapes nor validates LDAP components.</remarks>
+        </member>
+        <member name="T:KjitWeb.Services.DelegationRule">
+            <summary>
+            Maps a normalized Active Directory security identifier to an LDAP search scope.
+            </summary>
+            <param name="SecurityIdentifier">The non-blank SID text, normalized to uppercase by the configuration loader.</param>
+            <param name="SearchBaseLdapPath">The non-blank LDAP URL used to scope computer discovery.</param>
+            <remarks>
+            The record itself does not validate constructor arguments. Instances created by <see cref="T:KjitWeb.Services.DelegationConfiguration"/>
+            contain normalized values; direct callers can still supply null at runtime despite the non-null annotations.
+            </remarks>
+        </member>
+        <member name="M:KjitWeb.Services.DelegationRule.#ctor(System.String,System.String)">
+            <summary>
+            Maps a normalized Active Directory security identifier to an LDAP search scope.
+            </summary>
+            <param name="SecurityIdentifier">The non-blank SID text, normalized to uppercase by the configuration loader.</param>
+            <param name="SearchBaseLdapPath">The non-blank LDAP URL used to scope computer discovery.</param>
+            <remarks>
+            The record itself does not validate constructor arguments. Instances created by <see cref="T:KjitWeb.Services.DelegationConfiguration"/>
+            contain normalized values; direct callers can still supply null at runtime despite the non-null annotations.
+            </remarks>
+        </member>
+        <member name="P:KjitWeb.Services.DelegationRule.SecurityIdentifier">
+            <summary>The non-blank SID text, normalized to uppercase by the configuration loader.</summary>
+        </member>
+        <member name="P:KjitWeb.Services.DelegationRule.SearchBaseLdapPath">
+            <summary>The non-blank LDAP URL used to scope computer discovery.</summary>
+        </member>
+        <member name="T:KjitWeb.Services.DelegationConfiguration">
+            <summary>
+            Loads immutable delegation rules from an administrator-controlled JSON file.
+            </summary> 
+            <remarks>
+            Property names are matched case-insensitively. Invalid rule shapes are ignored, duplicate normalized rules
+            are removed, and transient I/O or JSON failures are retried. Because these rules constrain privileged server
+            discovery, the file path and contents must be writable only by trusted administrators.
+            </remarks>
+        </member>
+        <member name="P:KjitWeb.Services.DelegationConfiguration.DelegationConfigPath">
+            <summary>
+            Gets the exact non-blank path from which the delegation rules were loaded.
+            </summary>
+            <value>The constructor-supplied path; it is not normalized or resolved.</value>
+        </member>
+        <member name="P:KjitWeb.Services.DelegationConfiguration.Rules">
+            <summary>
+            Gets the distinct valid rules parsed from the file.
+            </summary>	
+            <value>A non-null, possibly empty list. Invalid JSON entries are omitted.</value>
+        </member>
+        <member name="M:KjitWeb.Services.DelegationConfiguration.#ctor(System.String)">
+            <summary>
+            	Initializes a new instance of the DelegationConfiguration class by loading delegation rules from the specified configuration file path. 
+            	The constructor checks if the provided path is valid, ensures that the file exists, and reads the rules from the file, parsing it as a JSON document. 
+            	If the file does not exist, is not a valid JSON file, or if the path is invalid, it throws appropriate exceptions with clear error messages to indicate the issue with loading the delegation configuration. 
+            </summary>	
+            <param name="delegationConfigPath">The file path to the delegation configuration file that defines the rules for limiting server discovery based on group membership. This should be a valid file path to a JSON file that contains the delegation rules. If the path is null, empty, or consists only of whitespace, an ArgumentException will be thrown.</param>	
+            <exception cref="T:System.ArgumentException">Thrown when the provided delegationConfigPath is null, empty, or consists only of whitespace.</exception>
+            <exception cref="T:System.IO.FileNotFoundException">Thrown when the specified delegation configuration file does not exist at the provided path.</exception>
+            <exception cref="T:System.InvalidOperationException">Thrown when there is an error reading the delegation configuration file or when the file is not a valid JSON file.</exception>
+            <remarks>
+            	The constructor of the DelegationConfiguration class is responsible for initializing the configuration by loading the delegation rules from the specified file path. 
+            	It performs validation on the input path, checks for the existence of the file, and reads the rules from the file while handling potential exceptions that may arise during this process. This ensures that the DelegationConfiguration instance is properly initialized with valid rules or fails gracefully with clear error messages if there are issues with the configuration file.
+            </remarks>	
+        </member>
+        <member name="M:KjitWeb.Services.DelegationConfiguration.ReadRules(System.String)">
+            <summary>Reads, parses, normalizes, and deduplicates delegation rules from a file.</summary>
+            <param name="path">The non-null file path to read.</param>
+            <returns>A non-null, possibly empty list of valid distinct rules.</returns>
+            <exception cref="T:System.IO.FileNotFoundException">No file exists at <paramref name="path"/>.</exception>
+            <exception cref="T:System.InvalidOperationException">The file remains unreadable or invalid after retry attempts.</exception>
+            <remarks>Performs synchronous file I/O and omits malformed individual rule entries.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.DelegationConfiguration.ReadJsonDocumentWithRetry(System.String)">
+            <summary>Reads and parses a delegation file, retrying transient read or parse failures.</summary>
+            <param name="path">The non-null file path to read.</param>
+            <returns>An owned JSON document that the caller must dispose.</returns>
+            <exception cref="T:System.IO.IOException">The final file-read attempt fails.</exception>
+            <exception cref="T:System.Text.Json.JsonException">The final content is empty or invalid JSON.</exception>
+            <remarks>Performs up to three synchronous attempts and blocks for 50 milliseconds between failed attempts.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.DelegationConfiguration.ExtractRules(System.Text.Json.JsonElement)">
+            <summary>Recursively extracts valid delegation rules from arrays and rule objects.</summary>
+            <param name="element">A JSON array, rule object, or unsupported value.</param>
+            <returns>
+            A lazy sequence containing one rule per non-blank <c>ADObject</c> SID paired with a valid
+            <c>ComputerOU</c>; unsupported and malformed values yield no rules.
+            </returns>
+        </member>
+        <member name="M:KjitWeb.Services.DelegationConfiguration.ReadSecurityIdentifiers(System.Text.Json.JsonElement)">
+            <summary>Reads one or more security identifier strings from a JSON value.</summary>
+            <param name="element">A string, an array of strings, or an unsupported value.</param>
+            <returns>A lazy sequence of trimmed, unquoted, uppercase non-blank values; unsupported values yield none.</returns>
+            <remarks>The returned text is normalized but is not validated as a structurally valid Windows SID.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.DelegationConfiguration.TryGetPropertyIgnoreCase(System.Text.Json.JsonElement,System.String,System.Text.Json.JsonElement@)">
+            <summary>Attempts to retrieve an object property by case-insensitive name.</summary>
+            <param name="root">The element to inspect; non-object values never match.</param>
+            <param name="propertyName">The non-null property name to match.</param>
+            <param name="value">Receives the matched value, or the default JSON element when not found.</param>
+            <returns><see langword="true"/> when a match is found; otherwise <see langword="false"/>.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.DelegationConfiguration.NormalizeSecurityIdentifier(System.String)">
+            <summary>Normalizes configured SID text for ordinal comparisons.</summary>
+            <param name="value">The non-null value to normalize.</param>
+            <returns>The value with surrounding whitespace and quotes removed and letters converted to uppercase.</returns>
+            <remarks>This does not validate SID syntax.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.DelegationConfiguration.NormalizeLdapPath(System.String)">
+            <summary>Delegates LDAP path normalization to <see cref="M:KjitWeb.Services.JitConfiguration.NormalizeLdapPath(System.String)"/>.</summary>
+            <param name="value">A possibly null LDAP path or distinguished name.</param>
+            <returns>A normalized LDAP URL, or <see langword="null"/> for blank or unsupported input.</returns>
+        </member>
+        <member name="T:KjitWeb.Services.ConnectionAuditLogger">
+            <summary>
+            Records connection audit events through a <see cref="T:KjitWeb.Services.DebugLogFileWriter"/>.
+            </summary>
+            <remarks>
+            This class performs no normalization or redaction; it forwards nullable user and address
+            values to the writer, which determines the destination, formatting, and I/O behavior.
+            </remarks>
+        </member>
+        <member name="F:KjitWeb.Services.ConnectionAuditLogger._writer">
+            <summary>The writer that persists connection audit events.</summary>
+        </member>
+        <member name="M:KjitWeb.Services.ConnectionAuditLogger.#ctor(KjitWeb.Services.DebugLogFileWriter)">
+            <summary>Initializes a new instance of the <see cref="T:KjitWeb.Services.ConnectionAuditLogger"/> class.</summary>
+            <param name="writer">The writer to which connection events are delegated.</param>
+            <remarks>The argument is stored without an explicit null check.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ConnectionAuditLogger.LogConnection(System.String,System.String)">
+            <inheritdoc />
+        </member>
+        <member name="T:KjitWeb.Services.DebugFileLoggerProvider">
+            <summary>
+            Creates category-specific loggers that write informational and higher-severity events
+            through a shared <see cref="T:KjitWeb.Services.DebugLogFileWriter"/>.
+            </summary>
+        </member>
+        <member name="F:KjitWeb.Services.DebugFileLoggerProvider._writer">
+            <summary>The shared destination used by loggers created by this provider.</summary>
+        </member>
+        <member name="M:KjitWeb.Services.DebugFileLoggerProvider.#ctor(KjitWeb.Services.DebugLogFileWriter)">
+            <summary>
+            Initializes a new instance of the <see cref="T:KjitWeb.Services.DebugFileLoggerProvider"/> class.
+            </summary>
+            <param name="writer">The non-null file writer used by every created logger.</param>
+        </member>
+        <member name="M:KjitWeb.Services.DebugFileLoggerProvider.CreateLogger(System.String)">
+            <summary>
+            Creates a logger for the specified category.
+            </summary>
+            <param name="categoryName">The category included in each emitted log entry.</param>
+            <returns>A new logger backed by the provider's shared file writer.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.DebugFileLoggerProvider.Dispose">
+            <summary>
+            Releases provider resources.
+            </summary>
+            <remarks>
+            The provider owns no disposable resources, so this method has no side effects.
+            </remarks>
+        </member>
+        <member name="T:KjitWeb.Services.DebugFileLoggerProvider.DebugFileLogger">
+            <summary>
+            Implements the logging pipeline for one category.
+            </summary>
+        </member>
+        <member name="F:KjitWeb.Services.DebugFileLoggerProvider.DebugFileLogger._categoryName">
+            <summary>The category written with each log entry.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.DebugFileLoggerProvider.DebugFileLogger._writer">
+            <summary>The destination for formatted log entries.</summary>
+        </member>
+        <member name="M:KjitWeb.Services.DebugFileLoggerProvider.DebugFileLogger.#ctor(System.String,KjitWeb.Services.DebugLogFileWriter)">
+            <summary>
+            Initializes a new instance of the <see cref="T:KjitWeb.Services.DebugFileLoggerProvider.DebugFileLogger"/> class.
+            </summary>
+            <param name="categoryName">The category to associate with emitted messages.</param>
+            <param name="writer">The file writer that persists emitted messages.</param>
+        </member>
+        <member name="M:KjitWeb.Services.DebugFileLoggerProvider.DebugFileLogger.BeginScope``1(``0)">
+            <summary>
+            Begins a logical operation scope.
+            </summary>
+            <typeparam name="TState">The type of state attached to the scope.</typeparam>
+            <param name="state">The non-null scope state. It is not inspected or retained.</param>
+            <returns>
+            Always <see langword="null"/> because this logger does not support external scopes.
+            </returns>
+        </member>
+        <member name="M:KjitWeb.Services.DebugFileLoggerProvider.DebugFileLogger.IsEnabled(Microsoft.Extensions.Logging.LogLevel)">
+            <summary>
+            Determines whether the specified severity is written.
+            </summary>
+            <param name="logLevel">The severity to evaluate.</param>
+            <returns>
+            <see langword="true"/> for <see cref="F:Microsoft.Extensions.Logging.LogLevel.Information"/> and higher severities;
+            otherwise, <see langword="false"/>.
+            </returns>
+        </member>
+        <member name="M:KjitWeb.Services.DebugFileLoggerProvider.DebugFileLogger.Log``1(Microsoft.Extensions.Logging.LogLevel,Microsoft.Extensions.Logging.EventId,``0,System.Exception,System.Func{``0,System.Exception,System.String})">
+            <summary>
+            Formats and writes an enabled log event.
+            </summary>
+            <typeparam name="TState">The type of the event state.</typeparam>
+            <param name="logLevel">The event severity.</param>
+            <param name="eventId">The event identifier; this implementation does not persist it.</param>
+            <param name="state">The state passed to <paramref name="formatter"/>.</param>
+            <param name="exception">
+            The associated exception, or <see langword="null"/> when the event has no exception.
+            </param>
+            <param name="formatter">The callback used to produce the message text.</param>
+            <remarks>
+            Disabled events return without invoking <paramref name="formatter"/>. Enabled events
+            append to the debug log and may rotate the existing file.
+            </remarks>
+            <exception cref="T:System.IO.IOException">The log file cannot be written or rotated.</exception>
+            <exception cref="T:System.UnauthorizedAccessException">The process cannot access the log path.</exception>
+        </member>
+        <member name="T:KjitWeb.Services.DebugLogFileWriter">
+            <summary>
+            Appends diagnostic and connection records to a size-limited UTF-8 text file.
+            </summary>
+            <remarks>
+            Writes are serialized per writer instance. Before an entry would make the active file exceed
+            one MiB, the active file replaces the sibling <c>.sav</c> archive.
+            </remarks>
+        </member>
+        <member name="F:KjitWeb.Services.DebugLogFileWriter.MaxLogFileSizeBytes">
+            <summary>The maximum size of an active log file and of a single stored entry.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.DebugLogFileWriter.TruncatedEntryMarker">
+            <summary>The suffix used when an oversized entry is shortened.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.DebugLogFileWriter.Utf8WithoutBom">
+            <summary>The BOM-free UTF-8 encoding used for size calculations and persistence.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.DebugLogFileWriter._syncRoot">
+            <summary>Coordinates file access performed through this writer instance.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.DebugLogFileWriter._logFilePath">
+            <summary>The resolved path of the active diagnostic log.</summary>
+        </member>
+        <member name="M:KjitWeb.Services.DebugLogFileWriter.#ctor(Microsoft.Extensions.Configuration.IConfiguration)">
+            <summary>
+            Initializes a new instance of the <see cref="T:KjitWeb.Services.DebugLogFileWriter"/> class.
+            </summary>
+            <param name="configuration">
+            Application configuration used after the <c>DebugLog__Path</c> environment variable
+            to resolve <c>DebugLog:Path</c>.
+            </param>
+            <remarks>
+            Creates the containing directory when necessary and immediately writes an initialization
+            record. If no configured path exists, the file defaults to
+            <c>%APPDATA%\KjitWeb\debug.log</c>.
+            </remarks>
+            <exception cref="T:System.IO.IOException">The directory or initialization record cannot be created.</exception>
+            <exception cref="T:System.UnauthorizedAccessException">The process cannot access the resolved path.</exception>
+        </member>
+        <member name="P:KjitWeb.Services.DebugLogFileWriter.LogFilePath">
+            <summary>
+            Gets the resolved path of the active diagnostic log file.
+            </summary>
+        </member>
+        <member name="M:KjitWeb.Services.DebugLogFileWriter.WriteError(Microsoft.Extensions.Logging.LogLevel,System.String,System.String,System.Exception)">
+            <summary>
+            Writes a structured diagnostic record and an optional exception.
+            </summary>
+            <param name="level">The severity included in the record.</param>
+            <param name="category">The logger category included in the record.</param>
+            <param name="message">The formatted message included in the record.</param>
+            <param name="exception">
+            The exception appended on a new line, or <see langword="null"/> when none is associated.
+            </param>
+            <remarks>The operation may truncate the entry or rotate the active file.</remarks>
+            <exception cref="T:System.IO.IOException">The log file cannot be written or rotated.</exception>
+            <exception cref="T:System.UnauthorizedAccessException">The process cannot access the log path.</exception>
+        </member>
+        <member name="M:KjitWeb.Services.DebugLogFileWriter.WriteConnection(System.String,System.String)">
+            <summary>
+            Writes a connection audit record.
+            </summary>
+            <param name="userName">
+            The connecting identity; <c>unknown-user</c> is written when it is null, empty, or whitespace.
+            </param>
+            <param name="remoteIp">
+            The remote address; <c>unknown-ip</c> is written when it is null, empty, or whitespace.
+            </param>
+            <remarks>The operation may rotate the active file.</remarks>
+            <exception cref="T:System.IO.IOException">The log file cannot be written or rotated.</exception>
+            <exception cref="T:System.UnauthorizedAccessException">The process cannot access the log path.</exception>
+        </member>
+        <member name="M:KjitWeb.Services.DebugLogFileWriter.WriteLine(System.String)">
+            <summary>
+            Appends one line while serializing access, enforcing the entry limit, and rotating as needed.
+            </summary>
+            <param name="line">The record text without its final platform newline.</param>
+            <exception cref="T:System.IO.IOException">The log file cannot be written or rotated.</exception>
+            <exception cref="T:System.UnauthorizedAccessException">The process cannot access the log path.</exception>
+        </member>
+        <member name="M:KjitWeb.Services.DebugLogFileWriter.LimitLogEntrySize(System.String)">
+            <summary>
+            Adds the platform newline and truncates an entry that would exceed the file-size limit.
+            </summary>
+            <param name="line">The entry text without its final newline.</param>
+            <returns>
+            A newline-terminated entry whose UTF-8 representation is no larger than
+            <see cref="F:KjitWeb.Services.DebugLogFileWriter.MaxLogFileSizeBytes"/>.
+            </returns>
+        </member>
+        <member name="M:KjitWeb.Services.DebugLogFileWriter.ResolveLogFilePath(Microsoft.Extensions.Configuration.IConfiguration)">
+            <summary>
+            Resolves the diagnostic log path according to the supported precedence rules.
+            </summary>
+            <param name="configuration">The configuration containing an optional <c>DebugLog:Path</c>.</param>
+            <returns>
+            The environment-variable path when present, then the configured path, or the default
+            application-data path.
+            </returns>
+        </member>
+        <member name="M:KjitWeb.Services.DebugLogFileWriter.EnsureDirectoryExists(System.String)">
+            <summary>
+            Creates the parent directory of a log path when the path includes one.
+            </summary>
+            <param name="logFilePath">The active log file path.</param>
+            <remarks>A path without a directory component causes no side effect.</remarks>
+            <exception cref="T:System.IO.IOException">The directory cannot be created.</exception>
+            <exception cref="T:System.UnauthorizedAccessException">The process cannot create the directory.</exception>
+        </member>
+        <member name="M:KjitWeb.Services.DebugLogFileWriter.RotateLogIfRequired(System.String,System.Int32)">
+            <summary>
+            Archives the active log when appending an entry would exceed the size limit.
+            </summary>
+            <param name="logFilePath">The active log file path.</param>
+            <param name="incomingByteCount">The UTF-8 byte count of the entry to append.</param>
+            <remarks>
+            If rotation is required, an existing <c>.sav</c> file is deleted before the active log
+            is moved to that archive path.
+            </remarks>
+            <exception cref="T:System.IO.IOException">File inspection, deletion, or movement fails.</exception>
+            <exception cref="T:System.UnauthorizedAccessException">The process cannot access either log file.</exception>
+        </member>
+        <member name="T:KjitWeb.Services.EventLogHealthMonitor">
+            <summary>
+            Periodically scans the configured Windows Event Log and publishes a cached health snapshot.
+            </summary>
+            <remarks>
+            The monitor scans the previous 24 hours every five minutes. Event IDs 2003 (duration capped)
+            and 2009 (concurrent-server limit reached) are expected warnings and are excluded.
+            </remarks>
+        </member>
+        <member name="F:KjitWeb.Services.EventLogHealthMonitor.RefreshInterval">
+            <summary>The delay between completed scan attempts.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.EventLogHealthMonitor.LookBackWindow">
+            <summary>The age range included in each scan.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.EventLogHealthMonitor.IgnoredEventIds">
+            <summary>The routine warning event identifiers excluded from health counts.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.EventLogHealthMonitor._logName">
+            <summary>The configured Windows Event Log name.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.EventLogHealthMonitor._logger">
+            <summary>The logger used to report scan failures.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.EventLogHealthMonitor._current">
+            <summary>The latest snapshot, accessed atomically through <see cref="T:System.Threading.Volatile"/>.</summary>
+        </member>
+        <member name="M:KjitWeb.Services.EventLogHealthMonitor.#ctor(Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{KjitWeb.Services.EventLogHealthMonitor})">
+            <summary>
+            Initializes a new instance of the <see cref="T:KjitWeb.Services.EventLogHealthMonitor"/> class.
+            </summary>
+            <param name="configuration">
+            Application configuration used to resolve the JIT configuration file.
+            </param>
+            <param name="logger">The logger that receives non-fatal scan failures.</param>
+            <remarks>
+            Loads the configured event-log name immediately. When no explicit JIT configuration path
+            exists, the default <see cref="T:KjitWeb.Services.JitConfiguration"/> source is used.
+            </remarks>
+            <exception cref="T:System.ArgumentException">The resolved JIT configuration path is invalid.</exception>
+            <exception cref="T:System.IO.IOException">The JIT configuration file cannot be read.</exception>
+        </member>
+        <member name="P:KjitWeb.Services.EventLogHealthMonitor.Current">
+            <inheritdoc/>
+            <remarks>The returned reference is read atomically and is never <see langword="null"/>.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.EventLogHealthMonitor.ExecuteAsync(System.Threading.CancellationToken)">
+            <summary>
+            Runs scans until host shutdown is requested.
+            </summary>
+            <param name="stoppingToken">The token signaled when the hosted service must stop.</param>
+            <returns>A task that completes after cancellation ends the monitoring loop.</returns>
+            <remarks>
+            A scan runs immediately, then after each refresh interval. Cancellation during the delay
+            is treated as normal shutdown and is not propagated.
+            </remarks>
+        </member>
+        <member name="M:KjitWeb.Services.EventLogHealthMonitor.RefreshStatus">
+            <summary>
+            Scans recent entries and atomically replaces the cached health snapshot.
+            </summary>
+            <remarks>
+            Entries are traversed newest-first until the look-back cutoff. On any read failure, the
+            method logs a warning and publishes an <see cref="F:KjitWeb.Services.EventLogHealthLevel.Ok"/> snapshot so the
+            background service and website remain available.
+            </remarks>
+        </member>
+        <member name="T:KjitWeb.Services.EventLogHealthLevel">
+            <summary>
+            Defines the severity reported by the KjitWeb event-log health indicator.
+            </summary>
+        </member>
+        <member name="F:KjitWeb.Services.EventLogHealthLevel.Ok">
+            <summary>No qualifying error or warning entries were found.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.EventLogHealthLevel.Warning">
+            <summary>At least one qualifying warning, but no qualifying error, was found.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.EventLogHealthLevel.Error">
+            <summary>At least one qualifying error was found.</summary>
+        </member>
+        <member name="T:KjitWeb.Services.EventLogHealthSnapshot">
+            <summary>
+            Represents the outcome of a scan of the configured Windows Event Log.
+            </summary>
+        </member>
+        <member name="P:KjitWeb.Services.EventLogHealthSnapshot.Level">
+            <summary>
+            Gets the overall severity.
+            </summary>
+            <value>
+            <see cref="F:KjitWeb.Services.EventLogHealthLevel.Error"/> when errors exist; otherwise
+            <see cref="F:KjitWeb.Services.EventLogHealthLevel.Warning"/> when warnings exist; otherwise
+            <see cref="F:KjitWeb.Services.EventLogHealthLevel.Ok"/>.
+            </value>
+        </member>
+        <member name="P:KjitWeb.Services.EventLogHealthSnapshot.ErrorCount">
+            <summary>
+            Gets the number of qualifying error entries found in the monitored window.
+            </summary>
+        </member>
+        <member name="P:KjitWeb.Services.EventLogHealthSnapshot.WarningCount">
+            <summary>
+            Gets the number of qualifying warning entries found in the monitored window.
+            </summary>
+        </member>
+        <member name="P:KjitWeb.Services.EventLogHealthSnapshot.CheckedAtUtc">
+            <summary>
+            Gets the UTC time at which the scan completed.
+            </summary>
+        </member>
+        <member name="T:KjitWeb.Services.EventLogWriter">
+            <summary>
+            Writes structured Just-In-Time elevation requests to the Windows Event Log.
+            </summary>
+            <remarks>
+            The destination log, event source, administrative prefix, and domain separator are loaded
+            from the JIT configuration during construction. The writer creates the configured source
+            on first use when it does not already exist.
+            </remarks>
+        </member>
+        <member name="F:KjitWeb.Services.EventLogWriter.ManagementEventId">
+            <summary>The event identifier assigned to management requests.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.EventLogWriter._logName">
+            <summary>The Windows Event Log that owns a newly created source.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.EventLogWriter._eventSource">
+            <summary>The source under which management events are written.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.EventLogWriter._adminPreFix">
+            <summary>The prefix used to construct the target server-group name.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.EventLogWriter._domainSeparator">
+            <summary>The separator inserted between the server domain and name.</summary>
+        </member>
+        <member name="M:KjitWeb.Services.EventLogWriter.#ctor(Microsoft.Extensions.Configuration.IConfiguration)">
+            <summary>
+            Initializes a new instance of the <see cref="T:KjitWeb.Services.EventLogWriter"/> class.
+            </summary>
+            <param name="configuration">
+            Application configuration used to resolve the JIT configuration path.
+            </param>
+            <remarks>
+            When no explicit JIT configuration path is available, the default
+            <see cref="T:KjitWeb.Services.JitConfiguration"/> source is loaded.
+            </remarks>
+            <exception cref="T:System.ArgumentException">The resolved JIT configuration path is invalid.</exception>
+            <exception cref="T:System.IO.IOException">The JIT configuration file cannot be read.</exception>
+            <exception cref="T:System.Text.Json.JsonException">The JIT configuration file contains invalid JSON.</exception>
+        </member>
+        <member name="M:KjitWeb.Services.EventLogWriter.WriteManagementEvent(System.String,System.String,System.String,System.Int32,System.String)">
+            <summary>
+            Writes an informational event containing a JSON elevation-request payload.
+            </summary>
+            <param name="userDistinguishedName">The distinguished name of the user receiving access.</param>
+            <param name="serverName">The target server name.</param>
+            <param name="serverDomain">The target server's domain.</param>
+            <param name="elevationDurationMinutes">The requested elevation duration, in minutes.</param>
+            <param name="callingUserUpn">The user principal name of the request initiator.</param>
+            <remarks>
+            The payload includes the user, server domain, constructed server-group name, duration,
+            and calling user. The method creates the configured event source when it is absent, then
+            writes event ID 100. String arguments are serialized as supplied and are expected to be
+            non-null.
+            </remarks>
+            <exception cref="T:System.ArgumentException">
+            The configured source is invalid or is registered to a different log.
+            </exception>
+            <exception cref="T:System.InvalidOperationException">
+            The event log is unavailable or the source cannot be opened or created.
+            </exception>
+            <exception cref="T:System.Security.SecurityException">
+            The process lacks permission to inspect, create, or write the event source.
+            </exception>
+        </member>
+        <member name="M:KjitWeb.Services.EventLogWriter.EnsureSourceExists">
+            <summary>
+            Ensures that the configured event source is registered.
+            </summary>
+            <remarks>
+            Creates a machine-wide Windows Event Log source associated with the configured log when
+            the source does not exist. Event-source registration may require administrative privileges.
+            </remarks>
+            <exception cref="T:System.ArgumentException">The source or log name is invalid.</exception>
+            <exception cref="T:System.InvalidOperationException">The source cannot be queried or created.</exception>
+            <exception cref="T:System.Security.SecurityException">
+            The process lacks permission to inspect or create event sources.
+            </exception>
+        </member>
+        <member name="T:KjitWeb.Services.IActiveDirectoryService">
+            <summary>
+            Defines Active Directory lookups used to discover domains, delegated servers, elevation
+            state, and canonical user identifiers.
+            </summary>
+            <remarks>
+            Implementations may query a directory and write diagnostic logs. Callers should treat returned
+            distinguished names, UPNs, computer names, and domain names as directory-derived security data.
+            </remarks>
+        </member>
+        <member name="M:KjitWeb.Services.IActiveDirectoryService.GetAvailableDomains">
+            <summary>
+            Retrieves the configured Active Directory domains available to the application.
+            </summary>
+            <returns>A non-null, potentially empty list of domain DNS names.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.IActiveDirectoryService.GetDefaultDomainForUser(System.Security.Claims.ClaimsPrincipal)">
+            <summary>
+            Determines the default domain for a user.
+            </summary>
+            <param name="user">
+            The claims principal to inspect, or <see langword="null"/> to use implementation-specific
+            configuration fallback behavior.
+            </param>
+            <returns>The inferred domain DNS name, or an empty string when it cannot be determined.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.IActiveDirectoryService.GetCurrentElevatedComputers(System.Security.Claims.ClaimsPrincipal)">
+            <summary>
+            Retrieves computers on which a user currently has time-limited elevation.
+            </summary>
+            <param name="user">
+            The principal whose directory membership is queried, or <see langword="null"/> when no user
+            context is available.
+            </param>
+            <returns>A non-null, potentially empty list describing elevated computers.</returns>
+            <remarks>
+            Implementations may perform LDAP searches and typically return an empty list when the
+            principal, configuration, membership, or directory is unavailable.
+            </remarks>
+        </member>
+        <member name="M:KjitWeb.Services.IActiveDirectoryService.GetServerNames(System.Security.Claims.ClaimsPrincipal)">
+            <summary>
+            Retrieves server names accessible to a user across all permitted domains.
+            </summary>
+            <param name="user">
+            The principal used to enforce delegation, or <see langword="null"/> when no user context is
+            available.
+            </param>
+            <returns>A non-null, potentially empty list of distinct server names.</returns>
+            <remarks>
+            When delegation is enabled, implementations should fail closed if the user's group
+            memberships or applicable search bases cannot be resolved.
+            </remarks>
+        </member>
+        <member name="M:KjitWeb.Services.IActiveDirectoryService.GetServerNames(System.Security.Claims.ClaimsPrincipal,System.String)">
+            <summary>
+            Retrieves server names accessible to a user, optionally restricted to a domain.
+            </summary>
+            <param name="user">
+            The principal used to enforce delegation, or <see langword="null"/> when no user context is
+            available.
+            </param>
+            <param name="selectedDomain">
+            The domain filter, or <see langword="null"/>, empty, or whitespace to include every
+            permitted domain.
+            </param>
+            <returns>A non-null, potentially empty list of distinct server names.</returns>
+            <remarks>
+            Implementations may perform LDAP searches and log lookup failures. Delegation must be
+            applied before the optional domain filter.
+            </remarks>
+        </member>
+        <member name="M:KjitWeb.Services.IActiveDirectoryService.GetUserDistinguishedName(System.String)">
+            <summary>
+            Resolves a user identity to its Active Directory distinguished name.
+            </summary>
+            <param name="identityName">
+            A Windows account name or UPN, or <see langword="null"/> when the identity is unavailable.
+            </param>
+            <returns>
+            The directory distinguished name, <c>unknown-user</c> when the input is blank, or the
+            original identity when the directory value cannot be resolved.
+            </returns>
+            <remarks>Implementations may query LDAP and log failures.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.IActiveDirectoryService.GetUserPrincipalName(System.String)">
+            <summary>
+            Resolves a user identity to its user principal name (UPN).
+            </summary>
+            <param name="identityName">
+            A Windows account name or UPN, or <see langword="null"/> when the identity is unavailable.
+            </param>
+            <returns>
+            The resolved UPN, an empty string when <paramref name="identityName"/> is blank, or the
+            original identity when directory lookup is not possible.
+            </returns>
+            <remarks>Implementations may query LDAP and log failures.</remarks>
+        </member>
+        <member name="T:KjitWeb.Services.IConnectionAuditLogger">
+            <summary>Defines a sink for recording incoming connection audit events.</summary>
+        </member>
+        <member name="M:KjitWeb.Services.IConnectionAuditLogger.LogConnection(System.String,System.String)">
+            <summary>Records a connection associated with an optional identity and remote address.</summary>
+            <param name="userName">
+            The connected user's name, or <see langword="null"/> when no identity is available.
+            Implementations determine whether and how this potentially sensitive value is persisted.
+            </param>
+            <param name="remoteIp">
+            The remote IP address text, or <see langword="null"/> when it is unavailable.
+            Implementations determine whether and how this value is persisted.
+            </param>
+            <remarks>Implementations may perform I/O and may propagate failures from their audit sink.</remarks>
+        </member>
+        <member name="T:KjitWeb.Services.IEventLogHealthMonitor">
+            <summary>
+            Exposes the most recently computed event-log health state.
+            </summary>
+            <remarks>
+            Consumers read the cached snapshot without querying the Windows Event Log on the request path.
+            </remarks>
+        </member>
+        <member name="P:KjitWeb.Services.IEventLogHealthMonitor.Current">
+            <summary>
+            Gets the health snapshot produced by the latest completed background scan.
+            </summary>
+            <value>A non-null immutable snapshot reference.</value>
+        </member>
+        <member name="T:KjitWeb.Services.IEventLogWriter">
+            <summary>
+            Defines Windows Event Log output for Just-In-Time management requests.
+            </summary>
+        </member>
+        <member name="M:KjitWeb.Services.IEventLogWriter.WriteManagementEvent(System.String,System.String,System.String,System.Int32,System.String)">
+            <summary>
+            Writes one informational management event describing an elevation request.
+            </summary>
+            <param name="userDistinguishedName">The distinguished name of the user receiving access.</param>
+            <param name="serverName">The target server name.</param>
+            <param name="serverDomain">The target server's domain.</param>
+            <param name="elevationDurationMinutes">The requested elevation duration, in minutes.</param>
+            <param name="callingUserUpn">The user principal name of the identity initiating the request.</param>
+            <remarks>
+            Implementations may create an event source as a side effect before writing the event.
+            String arguments are expected to be non-null; implementations need not normalize them.
+            </remarks>
+        </member>
+        <member name="T:KjitWeb.Services.JitConfigPathResolver">
+            <summary>Resolves the configured location of the just-in-time configuration file.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.JitConfigPathResolver.ConfigKey">
+            <summary>The application configuration key checked first.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.JitConfigPathResolver.EnvironmentVariableKey">
+            <summary>The fallback process environment variable.</summary>
+        </member>
+        <member name="M:KjitWeb.Services.JitConfigPathResolver.Resolve(Microsoft.Extensions.Configuration.IConfiguration)">
+            <summary>Resolves the JIT configuration path from configuration or the environment.</summary>
+            <param name="configuration">The application configuration to inspect.</param>
+            <returns>
+            The configured value when it is not null, empty, or whitespace; otherwise, the environment
+            variable value when nonblank; otherwise, <see langword="null"/>.
+            </returns>
+            <remarks>
+            Values are returned verbatim and are not trimmed, normalized, made absolute, or checked for
+            existence. The configuration value takes precedence. Reading the environment does not
+            modify process state.
+            </remarks>
+            <exception cref="T:System.NullReferenceException">
+            Thrown when <paramref name="configuration"/> is <see langword="null"/>.
+            </exception>
+        </member>
+        <member name="T:KjitWeb.Services.MutualTlsCertificateValidator">
+            <summary>Provides stateless validation of mutual-TLS client certificate policy and EKUs.</summary>
+        </member>
+        <member name="M:KjitWeb.Services.MutualTlsCertificateValidator.Validate(System.Security.Cryptography.X509Certificates.X509Certificate2,System.Net.Security.SslPolicyErrors,System.Collections.Generic.IReadOnlyCollection{System.String})">
+            <summary>
+            Determines whether a client certificate has no TLS policy errors and contains every
+            required enhanced key usage (EKU) object identifier.
+            </summary>
+            <param name="certificate">The client certificate whose EKU extension is inspected.</param>
+            <param name="policyErrors">
+            TLS policy errors reported by the transport. Any value other than
+            <see cref="F:System.Net.Security.SslPolicyErrors.None"/> causes immediate rejection.
+            </param>
+            <param name="requiredEkuOids">
+            EKU OID values that must all occur in the certificate. An empty collection accepts any
+            certificate that has an EKU extension and no policy errors. Null entries never match.
+            </param>
+            <returns>
+            <see langword="true"/> only when there are no policy errors, an EKU extension is present,
+            and every required OID matches using ordinal, case-sensitive comparison; otherwise,
+            <see langword="false"/>.
+            </returns>
+            <remarks>
+            This method does not build a certificate chain, perform revocation checks, validate names
+            or dates independently, or mutate the certificate. Those checks must be represented by
+            <paramref name="policyErrors"/> or performed by the caller.
+            </remarks>
+            <exception cref="T:System.NullReferenceException">
+            Thrown when validation reaches a <see langword="null"/> <paramref name="certificate"/> or
+            <paramref name="requiredEkuOids"/> argument.
+            </exception>
+        </member>
+        <member name="T:KjitWeb.Services.MutualTlsOptions">
+            <summary>Represents configuration settings for mutual TLS client-certificate validation.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.MutualTlsOptions.SectionName">
+            <summary>The configuration section from which these options are bound.</summary>
+        </member>
+        <member name="P:KjitWeb.Services.MutualTlsOptions.Enabled">
+            <summary>Gets or sets whether mutual TLS validation is enabled.</summary>
+            <value><see langword="true"/> to enable mutual TLS; otherwise, <see langword="false"/>.</value>
+        </member>
+        <member name="P:KjitWeb.Services.MutualTlsOptions.CheckCertificateRevocation">
+            <summary>Gets or sets whether certificate-chain validation checks revocation status.</summary>
+            <value>
+            <see langword="true"/> to request revocation checking; otherwise, <see langword="false"/>.
+            The default is <see langword="true"/>.
+            </value>
+            <remarks>The component consuming these options is responsible for enforcing this setting.</remarks>
+        </member>
+        <member name="P:KjitWeb.Services.MutualTlsOptions.RequiredEkuOids">
+            <summary>Gets or sets the EKU object identifiers required on a client certificate.</summary>
+            <value>
+            A mutable array of OID strings. The default is an empty array, meaning that no particular
+            EKU OID is required beyond the validator's requirement that an EKU extension exist. The
+            property is settable and can therefore be assigned <see langword="null"/> despite its
+            non-nullable annotation; consumers do not necessarily tolerate that value.
+            </value>
+        </member>
+        <member name="T:KjitWeb.Services.WindowsCredentialValidator">
+            <summary>Validates supplied credentials against the Windows security authority.</summary>
+            <remarks>
+            Validation uses a Windows network logon, which checks credentials without requiring
+            interactive-logon rights. The plaintext password is passed directly to Windows and is not
+            stored or logged. This service is Windows-only.
+            </remarks>
+        </member>
+        <member name="M:KjitWeb.Services.WindowsCredentialValidator.LogonUser(System.String,System.String,System.String,System.Int32,System.Int32,System.IntPtr@)">
+            <summary>
+            Requests Windows credential validation and returns a native access-token handle on success.
+            </summary>
+            <param name="lpszUsername">The Windows user name or UPN.</param>
+            <param name="lpszDomain">The Windows domain, or <see langword="null"/> for a UPN.</param>
+            <param name="lpszPassword">The plaintext password to validate.</param>
+            <param name="dwLogonType">The requested Windows logon type.</param>
+            <param name="dwLogonProvider">The Windows logon provider.</param>
+            <param name="phToken">Receives the native token handle when validation succeeds.</param>
+            <returns><see langword="true"/> when Windows accepts the credentials; otherwise, <see langword="false"/>.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.WindowsCredentialValidator.CloseHandle(System.IntPtr)">
+            <summary>Releases a native Windows handle.</summary>
+            <param name="hHandle">The native handle to release.</param>
+            <returns><see langword="true"/> when the handle is closed; otherwise, <see langword="false"/>.</returns>
+        </member>
+        <member name="F:KjitWeb.Services.WindowsCredentialValidator.LOGON32_LOGON_NETWORK">
+            <summary>Requests validation without an interactive logon or local interactive-logon rights.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.WindowsCredentialValidator.LOGON32_PROVIDER_DEFAULT">
+            <summary>Directs Windows to select its default logon provider.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.WindowsCredentialValidator._defaultDomain">
+            <summary>The domain used for user names that do not specify one.</summary>
+        </member>
+        <member name="F:KjitWeb.Services.WindowsCredentialValidator._logger">
+            <summary>The logger used to record validation outcomes without passwords.</summary>
+        </member>
+        <member name="M:KjitWeb.Services.WindowsCredentialValidator.#ctor(Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{KjitWeb.Services.WindowsCredentialValidator})">
+            <summary>Initializes a new instance of the <see cref="T:KjitWeb.Services.WindowsCredentialValidator"/> class.</summary>
+            <param name="configuration">
+            Configuration containing the optional <c>ActiveDirectory:DefaultDomain</c> value.
+            </param>
+            <param name="logger">The logger used to record normalized identities and outcomes.</param>
+            <exception cref="T:System.NullReferenceException">
+            Thrown when <paramref name="configuration"/> is <see langword="null"/>.
+            </exception>
+        </member>
+        <member name="M:KjitWeb.Services.WindowsCredentialValidator.Validate(System.String,System.String,System.String@)">
+            <summary>
+            Validates Windows credentials and produces the identity form used for logging and callers.
+            </summary>
+            <param name="rawUsername">
+            A <c>DOMAIN\user</c> name, UPN, or unqualified user name. A UPN is passed intact with a null
+            domain; an unqualified name uses the configured default domain when nonblank.
+            </param>
+            <param name="password">The plaintext password passed to Windows for validation.</param>
+            <param name="normalizedIdentity">
+            Receives <c>DOMAIN\user</c> when a domain is used, or the input user/UPN otherwise. It is set
+            before Windows validation and therefore receives a value on both success and failure.
+            </param>
+            <returns><see langword="true"/> when Windows accepts the credentials; otherwise, <see langword="false"/>.</returns>
+            <remarks>
+            A successful native token is closed before this method returns. The normalized identity and
+            result are logged, but the password is not. Native invocation failures can propagate, and
+            the return value of <c>CloseHandle</c> is not inspected.
+            </remarks>
+            <exception cref="T:System.NullReferenceException">
+            Thrown when <paramref name="rawUsername"/> is <see langword="null"/>.
+            </exception>
+            <exception cref="T:System.DllNotFoundException">Thrown when the Windows native libraries are unavailable.</exception>
+            <exception cref="T:System.EntryPointNotFoundException">Thrown when a required Windows API entry point is unavailable.</exception>
+        </member>
+        <member name="T:KjitWeb.SharedResource">
+            <summary>
+            Identifies the shared localization resource set used across KjitWeb.
+            </summary>
+            <remarks>
+            This marker type intentionally contains no members; its fully qualified name is the
+            resource base name consumed by <c>IStringLocalizer&lt;SharedResource&gt;</c>.
+            </remarks>
+        </member>
+    </members>
+</doc>

@@ -1,8 +1,13 @@
-﻿<#
-Module Info
+﻿#requires -PSEdition Desktop
 
+<#
+Module: just-in-Time-GUIs
 Author: Andreas Luy [MSFT]
-Download: 
+Documentation: Andreas Lucas (aka Kili)
+
+Version history:
+  0.1.20241219    Initial legacy module version recorded by this file.
+  0.2.20260926.4  Completed and normalized module documentation.
 
 Disclaimer:
 This sample script is not supported under any Microsoft standard support program or service. 
@@ -41,6 +46,35 @@ $UIModuleVersion = "0.1.20241219"
 
 #region Functions
 
+    <#
+    .SYNOPSIS
+    Displays a critical-error message and terminates the current PowerShell session.
+
+    .DESCRIPTION
+    Opens a modal Windows Forms message box with a stop icon and the title
+    "Critical Error!", then invokes exit. Use this helper only for errors that
+    prevent the current operation from continuing.
+
+    .PARAMETER Message
+    Specifies the critical-error text displayed in the message box.
+
+    .INPUTS
+    None. This function does not accept pipeline input.
+
+    .OUTPUTS
+    None. The message-box result is discarded and the function terminates the
+    current PowerShell session.
+
+    .NOTES
+    Requires Windows PowerShell Desktop and System.Windows.Forms. Because this
+    function invokes exit, it also terminates a caller that dot-sourced or
+    imported the module into its current session.
+
+    .EXAMPLE
+    New-BreakMsgBox -Message 'Cannot determine the Active Directory domain.'
+
+    Displays the critical error and terminates the current PowerShell session.
+    #>
     function New-BreakMsgBox 
     {
         param(
@@ -50,6 +84,31 @@ $UIModuleVersion = "0.1.20241219"
         exit
     }
 
+    <#
+    .SYNOPSIS
+    Displays a warning message box.
+
+    .DESCRIPTION
+    Opens a modal Windows Forms message box with a warning icon and the title
+    "Error!". The function returns after the user dismisses the message.
+
+    .PARAMETER Message
+    Specifies the warning text displayed in the message box.
+
+    .INPUTS
+    None. This function does not accept pipeline input.
+
+    .OUTPUTS
+    None. The message-box result is discarded.
+
+    .NOTES
+    Requires Windows PowerShell Desktop and System.Windows.Forms.
+
+    .EXAMPLE
+    New-WarningMsgBox -Message 'The configured search base is invalid; the default will be used.'
+
+    Displays the warning and continues after it is dismissed.
+    #>
     function New-WarningMsgBox 
     {
         param(
@@ -58,6 +117,92 @@ $UIModuleVersion = "0.1.20241219"
        [void][System.Windows.Forms.MessageBox]::Show($Message,"Error!","OK",[System.Windows.Forms.MessageBoxIcon]::Warning)
     }
 
+    <#
+    .SYNOPSIS
+    Opens the Tier 1 Just-in-Time configuration interface.
+
+    .DESCRIPTION
+    Builds a Windows Forms wizard for reviewing and updating the Tier 1
+    Just-in-Time configuration. The function initializes configuration defaults,
+    merges compatible values from an existing JIT.config file, validates selected
+    settings, and invokes the existing configuration workflow when the user
+    chooses Configure.
+
+    .PARAMETER AdminPreFix
+    Specifies the prefix used to identify Tier 1 local-administrator groups.
+
+    .PARAMETER Domain
+    Specifies the Active Directory DNS domain associated with the configuration.
+
+    .PARAMETER OU
+    Specifies the distinguished name of the organizational unit that stores
+    privileged groups.
+
+    .PARAMETER MaxMinutes
+    Specifies the maximum permitted elevation duration, in minutes.
+
+    .PARAMETER Tier0ServerGroupName
+    Specifies the Tier 0 computer group whose members are excluded from this
+    privileged-access solution.
+
+    .PARAMETER DefaultElevatedTime
+    Specifies the default elevation duration, in minutes.
+
+    .PARAMETER InstallationDirectory
+    Specifies the directory containing JIT.config and related configuration
+    files.
+
+    .PARAMETER GroupManagementTaskRerun
+    Specifies the group-management task recurrence interval, in minutes. The
+    declared default is 10.
+
+    .PARAMETER InstallGroupManagedServiceAccount
+    Indicates whether the configuration process should install the required
+    group managed service account. The declared default is true.
+
+    .PARAMETER GroupManagedServiceAccountName
+    Specifies the name of the group managed service account used for group
+    management.
+
+    .PARAMETER DebugOutput
+    Indicates whether additional diagnostic output should be enabled. The
+    declared default is false.
+
+    .PARAMETER CreateScheduledTaskADGroupManagement
+    Indicates whether to create the local Active Directory group-management
+    scheduled task under the managed service account. The declared default is
+    true.
+
+    .PARAMETER ServerEnumerationTime
+    Specifies the server-enumeration interval, in minutes. The declared default
+    is 10.
+
+    .PARAMETER EnableDelegationMode
+    Indicates whether delegation mode should be enabled. The declared default is
+    false.
+
+    .PARAMETER DelegationFilePath
+    Specifies the path to the delegation configuration file.
+
+    .INPUTS
+    None. This function does not accept pipeline input.
+
+    .OUTPUTS
+    None. The function presents a modal configuration interface and stores its
+    working configuration in script scope.
+
+    .NOTES
+    Requires Windows PowerShell Desktop, Windows Forms, the ActiveDirectory
+    module, and the configuration commands used by the Tier 1 JIT solution.
+    Although SupportsShouldProcess is declared, the function does not call
+    ShouldProcess.
+
+    .EXAMPLE
+    config-JitUI -InstallationDirectory 'C:\Program Files\T1JIT' -AdminPreFix 'T1Adm-' -EnableDelegationMode $true -DelegationFilePath 'C:\Program Files\T1JIT\delegation.config'
+
+    Opens the configurator with the installation path, administrator-group
+    prefix, and delegation settings supplied by the caller.
+    #>
     function config-JitUI
     {
 
@@ -675,6 +820,38 @@ $UIModuleVersion = "0.1.20241219"
     #endregion
     }
 
+    <#
+    .SYNOPSIS
+    Submits an elevation request from the user interface.
+
+    .DESCRIPTION
+    Calls New-AdminRequest for the specified server and duration, marking the
+    request as originating from the user interface, and returns the command's
+    result unchanged.
+
+    .PARAMETER ServerName
+    Specifies the name of the server for which administrative elevation is
+    requested.
+
+    .PARAMETER ElevatedMinutes
+    Specifies the requested elevation duration, in whole minutes.
+
+    .INPUTS
+    None. This function does not accept pipeline input.
+
+    .OUTPUTS
+    System.Object. Returns the result produced by New-AdminRequest.
+
+    .NOTES
+    New-AdminRequest must be available in the calling session. Duration limits
+    are enforced by that command or by the surrounding user-interface workflow.
+
+    .EXAMPLE
+    $request = UIRequest-Elevation -ServerName 'WEB01' -ElevatedMinutes 60
+
+    Requests 60 minutes of administrative elevation for WEB01 and stores the
+    request result in $request.
+    #>
     function UIRequest-Elevation
     {
         param(
@@ -684,8 +861,6 @@ $UIModuleVersion = "0.1.20241219"
     $result = New-AdminRequest -Server $ServerName -Minutes $ElevatedMinutes -UIused $true
     return $result
     }
-
-
 
 
 

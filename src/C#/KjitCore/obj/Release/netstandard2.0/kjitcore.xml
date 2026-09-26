@@ -1,0 +1,358 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>KjitCore</name>
+    </assembly>
+    <members>
+        <member name="T:KjitCore.Models.JitConfigurationObject">
+            <summary>
+            Represents the Just-In-Time configuration used by PowerShell and native .NET components.
+            </summary>
+            <remarks>
+            The model centralizes default values, validation rules, and helper operations for distinguished names,
+            DNS names, UNC paths, LDAP filters, SAM-compatible names, and SID-based allow lists.
+            </remarks>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject.MaximumElevatedTime">
+            <summary>
+            Defines the highest allowed value for <see cref="P:KjitCore.Models.JitConfigurationObject.MaxElevatedTime"/> in minutes.
+            </summary>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject.MaximumSamAccountNameLength">
+            <summary>
+            Defines the maximum allowed length for SAM-compatible names, including <see cref="P:KjitCore.Models.JitConfigurationObject.AdminPreFix"/>.
+            </summary>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject.MaximumConcurrentServer">
+            <summary>
+            Defines the highest allowed value for <see cref="P:KjitCore.Models.JitConfigurationObject.MaxConcurrentServer"/>.
+            </summary>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject.MaximumGroupManagementTaskRerun">
+            <summary>
+            Defines the highest allowed value for <see cref="P:KjitCore.Models.JitConfigurationObject.GroupManagementTaskRerun"/> in minutes.
+            </summary>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject.DistinguishedNameRegex">
+            <summary>
+            Gets the regular expression used to validate distinguished names.
+            </summary>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject.LdapFilterRegex">
+            <summary>
+            Gets the regular expression used to validate LDAP search strings.   
+            </summary>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject.DnsNameRegex">
+            <summary>
+            Gets the regular expression used to validate DNS names.
+            </summary>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject.SidRegex">
+            <summary>
+            Gets the regular expression used to validate Security Identifiers (SIDs).
+            </summary>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject.InvalidSamAccountNameChars">
+            <summary>
+            Gets the array of characters that are invalid in SAM account names.
+            </summary>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject._maxElevatedTime">
+            <summary>
+            Gets or sets the maximum elevation duration in minutes. The default value is 1440 (24 hours).
+            </summary>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject._defaultElevatedTime">
+            <summary>
+            Gets or sets the default elevation duration in minutes. The default value is 60 (1 hour).
+            </summary>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject._groupManagementTaskRerun">
+            <summary>
+            Gets or sets the interval in minutes to elevate a new server. The default value is 5 minutes.
+            </summary>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject._maxConcurrentServer">
+            <summary>
+            Gets or sets the maximum number of servers processed concurrently. The default value is 50.
+            </summary>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject._groupManagedServiceAccountName">
+            <summary>
+            Gets or sets the SAM-compatible name of the group managed service account used by the solution.
+            </summary>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject._domainSeparator">
+            <summary>
+            Gets or sets the character used to separate domain and object name segments inside generated SAM-compatible names.
+            </summary>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject._adminPreFix">
+            <summary>
+            Gets or sets the prefix of the JIT server group.
+            </summary>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject._adminGroupOu">
+            <summary>
+            Is a list of distinguished name of  organizational unit that stores JIT administrator groups.
+            </summary>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject._delegationConfigPath">
+            <summary>
+            Is the UNC path to the delegation configuration file.
+            </summary>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject._excludeServerGroupName">
+            <summary>
+            Is the distinguished name of a server group that is excluded from delegation.
+            </summary>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject._ldapExcludeComputer">
+            <summary>
+            Is the LDAP filter used to exclude computer objects from processing.
+            </summary>
+            <remarks>
+            This filter is used to avoid including critical computers like domain controllers.
+            </remarks>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject._authorizedServer">
+            <summary>
+            Is a list of SIDs from authorized servers.
+            </summary>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject._ou">
+            <summary> Is a list of organizational units that are part of the JIT scope.
+            </summary>  
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject._excludeComputerOu">
+            <summary>
+            Is a list of organizational units that are excluded from computer processing.
+            </summary>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject._domain">
+            <summary>
+            Is a list of DNS domains that belong to the JIT configuration.
+            </summary>
+        </member>
+        <member name="F:KjitCore.Models.JitConfigurationObject._computerSearch">
+            <summary> Is the LDAP filter used to search for eligible computer objects.
+            </summary>
+        </member>
+        <member name="M:KjitCore.Models.JitConfigurationObject.#ctor">
+            <summary>
+            Initializes a new instance of the <see cref="T:KjitCore.Models.JitConfigurationObject"/> class with defaults derived from the current Active Directory domain.
+            </summary>
+        </member>
+        <member name="P:KjitCore.Models.JitConfigurationObject.ConfigScriptVersion">
+            <summary>
+            Gets or sets the version string of the configuration schema or provisioning script.
+            </summary>
+        </member>
+        <member name="P:KjitCore.Models.JitConfigurationObject.AdminPreFix">
+            <summary>
+            Gets or sets the prefix used when constructing administrative account or group names.
+            </summary>
+            <exception cref="T:System.ArgumentException">Thrown when the value is null, empty, or contains invalid characters or exceeds the maximum length.</exception>
+        </member>
+        <member name="P:KjitCore.Models.JitConfigurationObject.DomainSeparator">
+            <summary>
+            Gets or sets the character used to separate domain and object name segments inside generated SAM-compatible names.
+            </summary>
+            <exception cref="T:System.ArgumentException">Thrown when the value is not a valid SAM account name character.</exception>
+            <exception cref="T:System.ArgumentOutOfRangeException">Thrown when the value exceeds the maximum length for SAM account names.</exception>
+            <remarks>
+            The <see cref="P:KjitCore.Models.JitConfigurationObject.DomainSeparator"/> is used to construct JIT compatibel group names in the format of <c>{AdminPreFix}{Domain}{DomainSeparator}{ServerName}</c>.
+            </remarks>
+        </member>
+        <member name="P:KjitCore.Models.JitConfigurationObject.AdminGroupOU">
+            <summary>
+            Gets or sets the distinguished name of the organizational unit that stores JIT administrator groups.
+            </summary>
+            <exception cref="T:System.ArgumentException">Thrown when the value is null, empty, or not a valid distinguished name.</exception>
+        </member>
+        <member name="P:KjitCore.Models.JitConfigurationObject.DelegationConfigPath">
+            <summary>
+            Gets or sets the UNC path to the delegation configuration file.
+            </summary>
+            <exception cref="T:System.ArgumentException">Thrown when the value is null, empty, or not a valid UNC path.</exception>
+            <remarks>
+            This attribute is only used if the json configuration is used
+            </remarks>
+        </member>
+        <member name="P:KjitCore.Models.JitConfigurationObject.MaxElevatedTime">
+            <summary>
+            Gets or sets the maximum elevation duration in minutes.
+            </summary>
+            <exception cref="T:System.ArgumentOutOfRangeException">Thrown when the value is not a positive integer, exceeds <see cref="F:KjitCore.Models.JitConfigurationObject.MaximumElevatedTime"/>, or is less than or equal to <see cref="P:KjitCore.Models.JitConfigurationObject.DefaultElevatedTime"/>.</exception>
+            <remarks>
+            The <see cref="P:KjitCore.Models.JitConfigurationObject.MaxElevatedTime"/> default value is 1440 minutes (24 hours).
+            </remarks>
+        </member>
+        <member name="P:KjitCore.Models.JitConfigurationObject.DefaultElevatedTime">
+            <summary>
+            Gets or sets the default elevation duration in minutes.
+            </summary>
+            <exception cref="T:System.ArgumentOutOfRangeException">Thrown when the value is not a positive integer or is greater than or equal to <see cref="P:KjitCore.Models.JitConfigurationObject.MaxElevatedTime"/>.</exception>
+            <remarks>
+            The <see cref="P:KjitCore.Models.JitConfigurationObject.DefaultElevatedTime"/> default value is 60 minutes (1 hour).
+            </remarks>
+        </member>
+        <member name="P:KjitCore.Models.JitConfigurationObject.EventLog">
+            <summary>
+            Gets the event log name used for JIT-related entries.
+            </summary>
+        </member>
+        <member name="P:KjitCore.Models.JitConfigurationObject.EventSource">
+            <summary>
+            Gets the event source used for JIT-related event log entries.
+            </summary>
+        </member>
+        <member name="P:KjitCore.Models.JitConfigurationObject.EnableDelegation">
+            <summary>
+            Gets a value indicating whether delegation support is enabled by default.
+            </summary>
+            <remarks>
+            This property is deprecated and will be removed in future versions. Delegation support is always enabled in the current implementation.
+            </remarks>
+        </member>
+        <member name="P:KjitCore.Models.JitConfigurationObject.ElevateEventID">
+            <summary>
+            Gets the event identifier used for elevation operations.
+            </summary>
+        </member>
+        <member name="P:KjitCore.Models.JitConfigurationObject.EnableMultiDomainSupport">
+            <summary>
+            Gets or sets a value indicating whether multi-domain operation is enabled.
+            </summary>
+            <remarks>
+            When enabled, the solution can operate across multiple Active Directory domains. 
+            When disabled, it operates only within the current domain.
+            The default value is <c>true</c>.
+            </remarks>
+        </member>
+        <member name="P:KjitCore.Models.JitConfigurationObject.UseManagedByforDelegation">
+            <summary>
+            Gets or sets a value indicating whether the <c>managedBy</c> attribute may be used for delegation decisions.
+            </summary>
+            <remarks>
+            If the value is <c>true</c>, the solution may use the <c>managedBy</c> attribute of computer objects to determine delegation eligibility.
+            If the value is <c>false</c>, the solution will ignore the <c>managedBy</c> attribute and rely solely on group membership for delegation decisions.
+            The default value is <c>true</c>.
+            </remarks>
+        </member>
+        <member name="P:KjitCore.Models.JitConfigurationObject.MaxConcurrentServer">
+            <summary>
+            Gets or sets the maximum number of servers processed concurrently.
+            </summary>
+            <exception cref="T:System.ArgumentOutOfRangeException">Thrown when the value is less than 1 or greater than <see cref="F:KjitCore.Models.JitConfigurationObject.MaximumConcurrentServer"/>.</exception>
+            <remarks>
+            The <see cref="P:KjitCore.Models.JitConfigurationObject.MaxConcurrentServer"/> default value is 10.
+            </remarks>
+        </member>
+        <member name="P:KjitCore.Models.JitConfigurationObject.GroupManagementTaskRerun">
+            <summary>
+            Gets or sets the interval in minutes after which the group management task should run again.
+            </summary>
+        </member>
+        <member name="P:KjitCore.Models.JitConfigurationObject.GroupManagedServiceAccountName">
+            <summary>
+            Gets or sets the SAM-compatible name of the group managed service account used by the solution.
+            </summary>
+        </member>
+        <member name="P:KjitCore.Models.JitConfigurationObject.ExcludeServerGroupName">
+            <summary>
+            Gets or sets the distinguished name of a server group that is excluded from delegation.
+            </summary>
+        </member>
+        <member name="P:KjitCore.Models.JitConfigurationObject.LDAPexcludeComputer">
+            <summary>
+            Gets or sets the LDAP filter used to exclude computer objects from processing.
+            </summary>
+        </member>
+        <member name="P:KjitCore.Models.JitConfigurationObject.AuthorizedServer">
+            <summary>
+            Gets or sets the list of authorized server SIDs.
+            </summary>
+        </member>
+        <member name="P:KjitCore.Models.JitConfigurationObject.OU">
+            <summary>
+            Gets or sets the list of organizational units that are part of the JIT scope.
+            </summary>
+        </member>
+        <member name="P:KjitCore.Models.JitConfigurationObject.ExcludeComputerOU">
+            <summary>
+            Gets or sets the list of organizational units that are excluded from computer processing.
+            </summary>
+        </member>
+        <member name="P:KjitCore.Models.JitConfigurationObject.Domain">
+            <summary>
+            Gets or sets the list of DNS domains that belong to the JIT configuration.
+            </summary>
+        </member>
+        <member name="M:KjitCore.Models.JitConfigurationObject.AddExcludeComputerOU(System.String)">
+            <summary>
+            Adds a distinguished name to the excluded computer OU list.
+            </summary>
+            <param name="distinguishedName">The distinguished name to add.</param>
+            <exception cref="T:System.ArgumentException">Thrown when the value is invalid or already exists.</exception>
+        </member>
+        <member name="M:KjitCore.Models.JitConfigurationObject.AddOU(System.String)">
+            <summary>
+            Adds a distinguished name to the OU list.
+            </summary>
+            <param name="distinguishedName">The distinguished name to add.</param>
+            <exception cref="T:System.ArgumentException">Thrown when the value is invalid or already exists.</exception>
+        </member>
+        <member name="M:KjitCore.Models.JitConfigurationObject.RemoveExcludeComputerOU(System.String)">
+            <summary>
+            Removes a distinguished name from the excluded computer OU list.
+            </summary>
+            <param name="distinguishedName">The distinguished name to remove.</param>
+            <returns><see langword="true"/> when the value was removed; otherwise, <see langword="false"/>.</returns>
+        </member>
+        <member name="M:KjitCore.Models.JitConfigurationObject.RemoveOU(System.String)">
+            <summary>
+            Removes a distinguished name from the OU list.
+            </summary>
+            <param name="distinguishedName">The distinguished name to remove.</param>
+            <returns><see langword="true"/> when the value was removed; otherwise, <see langword="false"/>.</returns>
+        </member>
+        <member name="P:KjitCore.Models.JitConfigurationObject.ComputerSearch">
+            <summary>
+            Gets or sets the LDAP filter used to search for eligible computer objects.
+            </summary>
+        </member>
+        <member name="M:KjitCore.Models.JitConfigurationObject.ValidateSamAccountNameCharacter(System.Char)">
+            <summary>
+            Validates a single character for use in SAM account names.
+            </summary>
+            <param name="value">The character to validate.</param>
+            <returns>The validated character.</returns>
+        </member>
+        <member name="M:KjitCore.Models.JitConfigurationObject.BuildDefaultAdminGroupOu">
+            <summary>
+            Builds the default distinguished name for the JIT administrator groups organizational unit based on the current Active Directory domain.
+            </summary>
+            <returns>The default distinguished name for the JIT administrator groups organizational unit.</returns>
+        </member>
+        <member name="M:KjitCore.Models.JitConfigurationObject.BuildDefaultDelegationConfigPath">
+            <summary>
+            Builds the default UNC path for the delegation configuration file based on the current Active Directory domain.
+            </summary>
+            <returns>The default UNC path for the delegation configuration file.</returns>
+        </member>
+        <member name="M:KjitCore.Models.JitConfigurationObject.GetCurrentDomainDistinguishedName">
+            <summary>
+            Gets the distinguished name of the current Active Directory domain based on the DNS name.   
+            </summary>
+            <returns>The distinguished name of the current Active Directory domain.</returns>
+        </member>
+        <member name="M:KjitCore.Models.JitConfigurationObject.GetCurrentDomainDnsName">
+            <summary>
+            Gets the DNS name of the current Active Directory domain.
+            </summary>
+            <returns>The DNS name of the current Active Directory domain.</returns>
+        </member>
+    </members>
+</doc>

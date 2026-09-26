@@ -1,0 +1,4 @@
+#!/bin/sh
+
+hook_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+exec pwsh -NoProfile -ExecutionPolicy Bypass -File "$hook_dir/pre-push.ps1" "$@"

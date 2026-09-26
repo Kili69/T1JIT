@@ -84,7 +84,7 @@ In the initial configuration you configure the settings for JIT. the script will
 |GroupManagedServiceAccountName | Is the GMSA name, who maintain the JIT groups. This GMSA must have write / create permission to the "OU" path for groups|
 |Domain| is a list of domains who will be managed by the JIT tool| contoso.com|
 |DelegationConfigPath| Is the UNC to the delegation configuration file. This file contains the permission, who can request Administrator access to a server | \\contoso.com\SYSVOL\contoso.com\Just-In-time\Tier1delegation.config|
-|T1SearchBase| Is a list of full qualified or relative OU path, where the T1JIT solution is searching for computer object. If the path didn't contains the domain component of a DN (DC=), the solution include the path for any domain defined in the domains paramter|OU=Servers,DC=contos,OU=com|
+|T1SearchBase| Is a list of fully qualified or relative OU paths where T1JIT searches for computer objects. A relative path without `DC=` is evaluated independently in every configured forest domain; a missing path in one domain does not stop searches in the remaining domains. A fully qualified DN is evaluated only in the domain identified by its `DC=` components.|OU=Servers or OU=Servers,DC=contoso,DC=com|
 |MaxConcurrentServer| Is the amount of group member ship a user can request in parallel| 50|
 
 If you initial configuration is done, the delegation must be defined. It's recommended to create a group and add your administrators to this group. With the Add-JitDelegation CMDlet a delegation can be added to the configration

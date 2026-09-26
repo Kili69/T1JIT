@@ -1,0 +1,14 @@
+C:\Repos\T1JIT\src\C#\T1Jit.Core\bin\Release\net8.0\T1Jit.Core.deps.json
+C:\Repos\T1JIT\src\C#\T1Jit.Core\bin\Release\net8.0\T1Jit.Core.dll
+C:\Repos\T1JIT\src\C#\T1Jit.Core\bin\Release\net8.0\T1Jit.Core.pdb
+C:\Repos\T1JIT\src\C#\T1Jit.Core\bin\Release\net8.0\T1Jit.Core.xml
+C:\Repos\T1JIT\src\C#\T1Jit.Core\obj\Release\net8.0\T1Jit.Core.GeneratedMSBuildEditorConfig.editorconfig
+C:\Repos\T1JIT\src\C#\T1Jit.Core\obj\Release\net8.0\T1Jit.Core.AssemblyInfoInputs.cache
+C:\Repos\T1JIT\src\C#\T1Jit.Core\obj\Release\net8.0\T1Jit.Core.AssemblyInfo.cs
+C:\Repos\T1JIT\src\C#\T1Jit.Core\obj\Release\net8.0\T1Jit.Core.csproj.CoreCompileInputs.cache
+C:\Repos\T1JIT\src\C#\T1Jit.Core\obj\Release\net8.0\T1Jit.Core.sourcelink.json
+C:\Repos\T1JIT\src\C#\T1Jit.Core\obj\Release\net8.0\T1Jit.Core.dll
+C:\Repos\T1JIT\src\C#\T1Jit.Core\obj\Release\net8.0\refint\T1Jit.Core.dll
+C:\Repos\T1JIT\src\C#\T1Jit.Core\obj\Release\net8.0\T1Jit.Core.xml
+C:\Repos\T1JIT\src\C#\T1Jit.Core\obj\Release\net8.0\T1Jit.Core.pdb
+C:\Repos\T1JIT\src\C#\T1Jit.Core\obj\Release\net8.0\ref\T1Jit.Core.dll
