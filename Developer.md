@@ -322,8 +322,15 @@ For an approved production release, use a production tag and omit `--prerelease`
 
 ```powershell
 $tag = "v$version"
+$latestArchivePath = Join-Path $artifactDirectory "T1JIT-latest.zip"
+$latestChecksumPath = "$latestArchivePath.sha256"
 
-gh release create $tag $archivePath $checksumPath `
+Copy-Item $archivePath $latestArchivePath
+$latestHash = (Get-FileHash $latestArchivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+"$latestHash  T1JIT-latest.zip" |
+    Set-Content -LiteralPath $latestChecksumPath -Encoding ASCII
+
+gh release create $tag $archivePath $checksumPath $latestArchivePath $latestChecksumPath `
     --target $commit `
     --title "T1JIT $version" `
     --notes-file $releaseNotesPath
@@ -331,7 +338,10 @@ gh release create $tag $archivePath $checksumPath `
 
 Create production releases only from the approved production commit. The value passed
 to `--target` is the captured commit ID rather than a moving branch name, ensuring that
-the tag identifies exactly the code used for the package.
+the tag identifies exactly the code used for the package. The stable
+`T1JIT-latest.zip` asset supports the permanent user-facing download URL
+`https://github.com/Kili69/T1JIT/releases/latest/download/T1JIT-latest.zip`; retain the
+versioned archive alongside it for traceability.
 
 ### 6. Verify and clean up
 

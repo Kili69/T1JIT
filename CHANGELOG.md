@@ -11,7 +11,10 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
-No changes have been recorded since the latest published release.
+### Added
+
+- Added a prominent, stable `T1JIT-latest.zip` download link for end users and documented
+  how production releases publish both stable and version-specific package names.
 
 ## [0.2.20260926.22] - 2026-09-26
 
