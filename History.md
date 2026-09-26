@@ -6,6 +6,77 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-09-26 22:07:43 +02:00 - `dev` to `origin/dev`
+
+Commits:
+
+<!-- commit:5624d9dfe5ce4b467c6e8a0ceb4ce5af7d083701 -->
+- `5624d9d` Document C# APIs and harden KjitWeb firewall setup
+<!-- commit:c0dfa31d46a80319aae9e178185af14b8952f184 -->
+- `c0dfa31` Restructure documentation and harden release build
+
+Changed files:
+
+- `M -> CHANGELOG.md`
+- `A -> Developer.md`
+- `M -> README.md`
+- `M -> VERSION`
+- `M -> build/release_build.ps1`
+- `M -> file-versions.json`
+- `M -> release/VERSION`
+- `M -> release/file-versions.json`
+- `M -> release/kJITWeb/install-kjitweb.ps1`
+- `M -> release/kJITWeb/publish-service/KjitWeb.dll`
+- `M -> release/kJITWeb/publish-service/KjitWeb.exe`
+- `M -> release/kJITWeb/publish-service/KjitWeb.pdb`
+- `A -> release/kJITWeb/publish-service/KjitWeb.xml`
+- `M -> release/kJITWeb/publish-service/de/KjitWeb.resources.dll`
+- `M -> release/kJITWeb/publish-service/en/KjitWeb.resources.dll`
+- `M -> release/kJITWeb/set-kjitweb-allowedclient.ps1`
+- `M -> release/kJITWeb/update-kjitweb.ps1`
+- `M -> release/modules/0.1/KjitCore.dll`
+- `M -> release/modules/Just-In-time.psd1`
+- `M -> src/C#/KjitCore.DebugHost/KjitCore.DebugHost.csproj`
+- `M -> src/C#/KjitCore.DebugHost/Program.cs`
+- `M -> src/C#/KjitCore/Abstractions/IDistinguishedNameService.cs`
+- `M -> src/C#/KjitCore/Abstractions/IIdentityNormalizer.cs`
+- `M -> src/C#/KjitCore/KjitCore.cs`
+- `M -> src/C#/KjitCore/KjitCore.csproj`
+- `M -> src/C#/KjitCore/Models/JitConfigurationObject.cs`
+- `M -> src/C#/KjitCore/Services/DistinguishedNameService.cs`
+- `M -> src/C#/KjitCore/Services/IdentityNormalizer.cs`
+- `M -> src/C#/KjitCore/Services/JitConfigurationReader.cs`
+- `M -> src/C#/Kjitweb/Controllers/HomeController.cs`
+- `M -> src/C#/Kjitweb/GlobalUsings.cs`
+- `M -> src/C#/Kjitweb/KjitWeb.csproj`
+- `M -> src/C#/Kjitweb/Models/ElevatedComputerViewModel.cs`
+- `M -> src/C#/Kjitweb/Models/ServerSelectionViewModel.cs`
+- `M -> src/C#/Kjitweb/Models/SwitchUserViewModel.cs`
+- `M -> src/C#/Kjitweb/Program.cs`
+- `M -> src/C#/Kjitweb/Services/ActiveDirectoryService.cs`
+- `M -> src/C#/Kjitweb/Services/BasicAuthenticationHandler.cs`
+- `M -> src/C#/Kjitweb/Services/ConnectionAuditLogger.cs`
+- `M -> src/C#/Kjitweb/Services/DebugFileLoggerProvider.cs`
+- `M -> src/C#/Kjitweb/Services/DebugLogFileWriter.cs`
+- `M -> src/C#/Kjitweb/Services/EventLogHealthMonitor.cs`
+- `M -> src/C#/Kjitweb/Services/EventLogHealthSnapshot.cs`
+- `M -> src/C#/Kjitweb/Services/EventLogWriter.cs`
+- `M -> src/C#/Kjitweb/Services/IActiveDirectoryService.cs`
+- `M -> src/C#/Kjitweb/Services/IConnectionAuditLogger.cs`
+- `M -> src/C#/Kjitweb/Services/IEventLogHealthMonitor.cs`
+- `M -> src/C#/Kjitweb/Services/IEventLogWriter.cs`
+- `M -> src/C#/Kjitweb/Services/JitConfigPathResolver.cs`
+- `M -> src/C#/Kjitweb/Services/MutualTlsCertificateValidator.cs`
+- `M -> src/C#/Kjitweb/Services/MutualTlsOptions.cs`
+- `M -> src/C#/Kjitweb/Services/WindowsCredentialValidator.cs`
+- `M -> src/C#/Kjitweb/Services/configuration.cs`
+- `M -> src/C#/Kjitweb/SharedResource.cs`
+- `M -> src/C#/Kjitweb/install-kjitweb.ps1`
+- `M -> src/C#/Kjitweb/set-kjitweb-allowedclient.ps1`
+- `M -> src/C#/Kjitweb/update-kjitweb.ps1`
+- `M -> src/Powershell/modules/Just-In-time.psd1`
+- `M -> tests/PowerShell/Modules.Tests.ps1`
+
 ## 2026-09-26 09:58:14 +02:00 - `dev` to `origin/dev`
 
 Commits:
@@ -1518,6 +1589,7 @@ Changes:
 - Added a full-page processing lock that prevents duplicate elevation requests.
 - Extended Active Directory queries and web models for active elevation information.
 - Updated installation documentation, release scripts, modules, and published KjitWeb artifacts.
+
 
 
 
