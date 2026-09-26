@@ -11,7 +11,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
-Changes merged into `dev` since the last published release (`v0.1.20260908.12`), not yet published as a GitHub release.
+No changes have been recorded since the latest published release.
+
+## [0.2.20260926.12] - 2026-09-26
+
+Changes promoted from `dev` to `main` since the last published release
+(`v0.1.20260908.12`).
 
 ### Added
 
