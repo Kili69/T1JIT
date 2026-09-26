@@ -6,6 +6,30 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-09-26 22:23:52 +02:00 - `release/0.2.20260926.16` to `origin/release/0.2.20260926.16`
+
+Commits:
+
+<!-- commit:a54f9adb6f79c492c8e80f9471943002fdc9eebd -->
+- `a54f9ad` Fix production content workflow
+
+Changed files:
+
+- `M -> .github/workflows/version-policy.yml`
+- `M -> CHANGELOG.md`
+- `M -> VERSION`
+- `M -> file-versions.json`
+- `M -> release/VERSION`
+- `M -> release/file-versions.json`
+- `M -> release/kJITWeb/publish-service/KjitWeb.dll`
+- `M -> release/kJITWeb/publish-service/KjitWeb.exe`
+- `M -> release/kJITWeb/publish-service/KjitWeb.pdb`
+- `M -> release/kJITWeb/publish-service/de/KjitWeb.resources.dll`
+- `M -> release/kJITWeb/publish-service/en/KjitWeb.resources.dll`
+- `M -> release/modules/0.1/KjitCore.dll`
+- `M -> release/modules/Just-In-time.psd1`
+- `M -> src/Powershell/modules/Just-In-time.psd1`
+
 ## 2026-09-26 22:18:08 +02:00 - `main` to `origin/main`
 
 Commits:
@@ -4442,6 +4466,7 @@ Changes:
 - Added a full-page processing lock that prevents duplicate elevation requests.
 - Extended Active Directory queries and web models for active elevation information.
 - Updated installation documentation, release scripts, modules, and published KjitWeb artifacts.
+
 
 
 
