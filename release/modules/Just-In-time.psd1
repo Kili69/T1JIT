@@ -30,7 +30,7 @@ This module file contains the user functions to request the administrator privil
 
 
 # Version number of this module.
-ModuleVersion = '0.2.20260926.1'
+ModuleVersion = '0.2.20260926.2'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Desktop')

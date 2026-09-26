@@ -1,85 +1,15 @@
 {
-  "version": "0.2.20260926.1",
+  "version": "0.2.20260926.2",
   "files": [
     {
-      "path": ".githooks/pre-commit.ps1",
-      "version": "0.2.20260926.1",
-      "sha256": "f450191fd5582d467b49c7ad4e39acd0e24c6bbf43be29192274836d9ca8b149"
-    },
-    {
-      "path": "build/New-InstallationPackage.ps1",
-      "version": "0.2.20260926.1",
-      "sha256": "cf8686d89fab132936c147a3e6c28416b9f5d5c9318a43ecd18172e91a5b643a"
-    },
-    {
-      "path": "build/Test-PowerShellModules.ps1",
-      "version": "0.2.20260926.1",
-      "sha256": "5e926e5581d7879b17e0cda9f7edb5f895f8bac509c308f158fe38f4f926da23"
-    },
-    {
-      "path": "build/Update-Version.ps1",
-      "version": "0.2.20260926.1",
-      "sha256": "2ee9f2f65a39fd305d9a0659c605bca56193f138e79b5a0889178adb194f5630"
-    },
-    {
-      "path": "CHANGELOG.md",
-      "version": "0.2.20260926.1",
-      "sha256": "87f8ac0c7002e21014417f71fae16ba04ab5779365ee9ddaab9d52db5c72a421"
-    },
-    {
-      "path": "README.md",
-      "version": "0.2.20260926.1",
-      "sha256": "c515f709459f01d01be8e1864f4eb905be95bac3bb8a32d74ff0b4ad22ff9565"
-    },
-    {
-      "path": "release/modules/0.1/just-in-time-configuration.psm1",
-      "version": "0.2.20260926.1",
-      "sha256": "bcf5dd39aaec863255b94244298a7484c326b716154a8a99eb196afac51839a4"
-    },
-    {
-      "path": "release/modules/0.1/just-in-Time-DelegationConfig.psm1",
-      "version": "0.2.20260926.1",
-      "sha256": "393604604dda4c80393382c3e03774d21abe3faa9e3f40bece566d6005e0e1e9"
-    },
-    {
-      "path": "release/modules/0.1/KjitCore.dll",
-      "version": "0.2.20260926.1",
-      "sha256": "93e1727e89f8d60be179bb2cacbc7185a163a660a45ca5df2ada339075c01fd2"
-    },
-    {
-      "path": "release/modules/Just-In-time.psd1",
-      "version": "0.2.20260926.1",
-      "sha256": "d070dff0fcc76f38a3900517aa26c625b571989156067dcdf7b3532f139b2465"
-    },
-    {
-      "path": "src/C#/KjitCore/Models/JitConfigurationObject.cs",
-      "version": "0.2.20260926.1",
-      "sha256": "69cc58ef32652d065f1666a9c43f22af95d5edae82a2f84d4e9a7c3958ddd414"
-    },
-    {
-      "path": "src/C#/KjitCore/Services/JitConfigurationReader.cs",
-      "version": "0.2.20260926.1",
-      "sha256": "b20056134e4227e8c18e3a7b14ec8d9e46c292bd8413d5323f2bef946921d092"
-    },
-    {
-      "path": "src/Powershell/modules/0.1/just-in-time-configuration.psm1",
-      "version": "0.2.20260926.1",
-      "sha256": "bcf5dd39aaec863255b94244298a7484c326b716154a8a99eb196afac51839a4"
-    },
-    {
-      "path": "src/Powershell/modules/0.1/just-in-Time-DelegationConfig.psm1",
-      "version": "0.2.20260926.1",
-      "sha256": "393604604dda4c80393382c3e03774d21abe3faa9e3f40bece566d6005e0e1e9"
+      "path": "History.md",
+      "version": "0.2.20260926.2",
+      "sha256": "e22686f51126d5b830f1ad1921c86b0b434eb0c8e028ef54a4adc7a93ee122e8"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20260926.1",
-      "sha256": "cc8e94e8e2edbb21a9356984743dbc47241006813fcab3b8fb03c1f291cbc088"
-    },
-    {
-      "path": "tests/PowerShell/Modules.Tests.ps1",
-      "version": "0.2.20260926.1",
-      "sha256": "6a90713a25a476af58d225b7cd27967f9497eb83bbad02ccaf1687eb4a0c50cb"
+      "version": "0.2.20260926.2",
+      "sha256": "5e5c50e6b5f1e7fa44643215a7467b443f56ede7e2ee8055f0f7a3bd9075607c"
     }
   ]
 }
