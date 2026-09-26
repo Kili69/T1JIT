@@ -6,6 +6,39 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-09-26 09:58:14 +02:00 - `dev` to `origin/dev`
+
+Commits:
+
+<!-- commit:1f49deb40658670cc0d8c2bd300a409e954313bc -->
+- `1f49deb` Complete module API documentation
+
+Changed files:
+
+- `M -> CHANGELOG.md`
+- `M -> VERSION`
+- `M -> file-versions.json`
+- `M -> release/VERSION`
+- `M -> release/file-versions.json`
+- `M -> release/kJITWeb/publish-service/KjitWeb.dll`
+- `M -> release/kJITWeb/publish-service/KjitWeb.exe`
+- `M -> release/kJITWeb/publish-service/KjitWeb.pdb`
+- `M -> release/kJITWeb/publish-service/de/KjitWeb.resources.dll`
+- `M -> release/kJITWeb/publish-service/en/KjitWeb.resources.dll`
+- `M -> release/modules/0.1/KjitCore.dll`
+- `M -> release/modules/0.1/just-in-Time-DelegationConfig.psm1`
+- `M -> release/modules/0.1/just-in-Time-GUIs.psm1`
+- `M -> release/modules/0.1/just-in-time-configuration.psm1`
+- `M -> release/modules/0.1/just-in-time-request.psm1`
+- `M -> release/modules/Just-In-time.psd1`
+- `M -> src/C#/KjitCore/KjitCore.cs`
+- `M -> src/Powershell/modules/0.1/just-in-Time-DelegationConfig.psm1`
+- `M -> src/Powershell/modules/0.1/just-in-Time-GUIs.psm1`
+- `M -> src/Powershell/modules/0.1/just-in-time-configuration.psm1`
+- `M -> src/Powershell/modules/0.1/just-in-time-request.psm1`
+- `M -> src/Powershell/modules/Just-In-time.psd1`
+- `M -> tests/PowerShell/Modules.Tests.ps1`
+
 ## 2026-09-26 09:36:36 +02:00 - `dev` to `origin/dev`
 
 Commits:
@@ -1485,6 +1518,7 @@ Changes:
 - Added a full-page processing lock that prevents duplicate elevation requests.
 - Extended Active Directory queries and web models for active elevation information.
 - Updated installation documentation, release scripts, modules, and published KjitWeb artifacts.
+
 
 
 

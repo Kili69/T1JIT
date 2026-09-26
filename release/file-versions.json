@@ -1,65 +1,15 @@
 {
-  "version": "0.2.20260926.5",
+  "version": "0.2.20260926.6",
   "files": [
     {
-      "path": "CHANGELOG.md",
-      "version": "0.2.20260926.5",
-      "sha256": "13b372f1480f87e1e740fae30d1a375dcc642f1dfbb562ded01063b8059a603b"
-    },
-    {
-      "path": "release/modules/0.1/just-in-time-configuration.psm1",
-      "version": "0.2.20260926.5",
-      "sha256": "8a5826aba04625128f6c10ae940dd930c0736090873920d16c2b68a89b5ffd43"
-    },
-    {
-      "path": "release/modules/0.1/just-in-Time-DelegationConfig.psm1",
-      "version": "0.2.20260926.5",
-      "sha256": "ba8026e2ac4ddf62861512a25d60817d37529b390c8152356068517763b29660"
-    },
-    {
-      "path": "release/modules/0.1/just-in-Time-GUIs.psm1",
-      "version": "0.2.20260926.5",
-      "sha256": "8db320e86574332e2b42e0501a95f83cff7a986004c1f7e9aa24da87a129b9ee"
-    },
-    {
-      "path": "release/modules/0.1/just-in-time-request.psm1",
-      "version": "0.2.20260926.5",
-      "sha256": "98d81e2e712768085ae12b299617e76c445809d700273b92fba9aaf1cffdf035"
-    },
-    {
-      "path": "src/C#/KjitCore/KjitCore.cs",
-      "version": "0.2.20260926.5",
-      "sha256": "abeb4a466445a7b98c9c2d733394a67bde1217af8d07537d4c1c63c6e299e20c"
-    },
-    {
-      "path": "src/Powershell/modules/0.1/just-in-time-configuration.psm1",
-      "version": "0.2.20260926.5",
-      "sha256": "8a5826aba04625128f6c10ae940dd930c0736090873920d16c2b68a89b5ffd43"
-    },
-    {
-      "path": "src/Powershell/modules/0.1/just-in-Time-DelegationConfig.psm1",
-      "version": "0.2.20260926.5",
-      "sha256": "ba8026e2ac4ddf62861512a25d60817d37529b390c8152356068517763b29660"
-    },
-    {
-      "path": "src/Powershell/modules/0.1/just-in-Time-GUIs.psm1",
-      "version": "0.2.20260926.5",
-      "sha256": "8db320e86574332e2b42e0501a95f83cff7a986004c1f7e9aa24da87a129b9ee"
-    },
-    {
-      "path": "src/Powershell/modules/0.1/just-in-time-request.psm1",
-      "version": "0.2.20260926.5",
-      "sha256": "98d81e2e712768085ae12b299617e76c445809d700273b92fba9aaf1cffdf035"
-    },
-    {
-      "path": "tests/PowerShell/Modules.Tests.ps1",
-      "version": "0.2.20260926.5",
-      "sha256": "72db3c33f3e2712d6c252b53746ed5589b22e065eb369dd049c5ea883aca6698"
+      "path": "History.md",
+      "version": "0.2.20260926.6",
+      "sha256": "b0328b9f6b3138680635844465f9d8f05716aef2225560f6de05dc372ca7eae0"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20260926.5",
-      "sha256": "723940f74220c6a308a2c0014843f50b64b4422c8a264573c3c505f085091218"
+      "version": "0.2.20260926.6",
+      "sha256": "7d79275ba5c6d1ba79faefb5973975ccd6351d666a55430e984b6524c832adae"
     }
   ]
 }
