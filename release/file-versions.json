@@ -1,15 +1,15 @@
 {
-  "version": "0.2.20260926.12",
+  "version": "0.2.20260926.13",
   "files": [
     {
-      "path": "History.md",
-      "version": "0.2.20260926.12",
-      "sha256": "e4a3fedb75c6a1d014096c0ab4fd74df3b6f0b02980197572518d408246de9ef"
+      "path": "CHANGELOG.md",
+      "version": "0.2.20260926.13",
+      "sha256": "a3912e36a19954f683693f1e4fd20d866e1aeca1e677b1ea15c6a832a77fb2db"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20260926.12",
-      "sha256": "3d7416c33259fd2ecf69f41d16dcac9e4071f0a63f81fb6655715611cea76364"
+      "version": "0.2.20260926.13",
+      "sha256": "11dc4e65430c8f8cc9e0a8fda16dc8a187161e57ba0439c882431b4d83a3bbf4"
     }
   ]
 }
