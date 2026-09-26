@@ -40,6 +40,8 @@ Changes merged into `dev` since the last published release (`v0.1.20260908.12`),
 
 ### Changed
 
+- Added complete API documentation, author attribution, and file-level version history to `KjitCore.cs`.
+- Completed comment-based help, author attribution, and version history for every function in all four PowerShell module files; package tests now enforce this documentation coverage.
 - Renamed the KJIT-Web release output folder from `release/kjibweb` to `release/kJITWeb`.
 
 ## [0.1.20260908.12] - 2026-09-08

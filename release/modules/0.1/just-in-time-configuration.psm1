@@ -1,10 +1,12 @@
 #requires -PSEdition Desktop
 
 <#
-Module Info
+Module: Just-In-Time Configuration
+Author: Andreas Lucas [MSFT] (aka Kili)
 
-Author: Andreas Lucas [MSFT]
-Download: 
+Version history:
+  0.1.20250830   Initial repository version.
+  0.2.20260926.4 Documentation update.
 
 Disclaimer:
 This sample script is not supported under any Microsoft standard support program or service. 
@@ -44,11 +46,18 @@ function Add-JitDefaultOUDelegation {
     .PARAMETER DomainDNS
         DNS name of the Active Directory domain that owns the OU, used to resolve
         that domain's Domain Admins group.
+    .INPUTS
+        None. Pipeline input is not supported.
     .OUTPUTS
         None.
     .NOTES
         Domain-root search bases (the literal value "<DomainRoot>") are not valid
         organizational unit distinguished names and are skipped with a warning.
+    .EXAMPLE
+        Add-JitDefaultOUDelegation -OU "OU=Member Servers,DC=contoso,DC=com" -Configuration $config -DomainDNS "contoso.com"
+
+        Grants the contoso.com Domain Admins group default delegation on the Member
+        Servers OU using the delegation path stored in $config.
     #>
 
     param (
@@ -201,6 +210,8 @@ function Get-JitServerOU{
         $searchBases = (Get-JitServerOU).T1Searchbase
 
         Displays the configured search bases and stores them for further processing.
+    .INPUTS
+        None. Pipeline input is not supported.
     .OUTPUTS
         System.Management.Automation.PSCustomObject. The complete deserialized JIT
         configuration object.
@@ -226,6 +237,32 @@ function Get-JitServerOU{
     return $config
 }
 function Write-JitConfigurationJsonAtomically {
+    <#
+    .SYNOPSIS
+        Writes a JIT configuration object to a JSON file atomically.
+    .DESCRIPTION
+        Serializes the supplied object with a depth of ten to a uniquely named file
+        beside the destination. It then replaces an existing destination, or moves
+        the temporary file into place when the destination does not yet exist.
+        Temporary and backup files are removed in all cases.
+    .PARAMETER InputObject
+        Object to serialize as the complete JSON document.
+    .PARAMETER Path
+        Destination file path. Relative paths are converted to full paths before the
+        temporary file is created.
+    .INPUTS
+        None. Pipeline input is not supported.
+    .OUTPUTS
+        None.
+    .NOTES
+        This private helper reduces the chance that readers observe a partially
+        written configuration file. The destination directory must already exist.
+    .EXAMPLE
+        Write-JitConfigurationJsonAtomically -InputObject $config -Path "C:\ProgramData\JIT\delegation.json"
+
+        Replaces delegation.json with the JSON representation of $config.
+    #>
+
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -380,8 +417,17 @@ function Get-JITconfig{
             Searches known module, source-build, and packaged-output locations in
             precedence order and returns the first existing KjitCore.dll as an
             absolute provider path. This is a private helper for Get-JITconfig.
+        .INPUTS
+            None. Pipeline input is not supported.
         .OUTPUTS
             System.String. The absolute path to KjitCore.dll.
+        .NOTES
+            Throws an error when none of the supported deployment or build locations
+            contains KjitCore.dll.
+        .EXAMPLE
+            $assemblyPath = Resolve-KjitCoreAssemblyPath
+
+            Stores the first supported KjitCore.dll path in $assemblyPath.
         #>
 
         # Prefer assemblies deployed beside the module before development build outputs.
@@ -404,6 +450,7 @@ function Get-JITconfig{
             }
         }
 
+
         throw "KjitCore.dll not found. Build KjitCore and ensure the DLL is available."
     }
 
@@ -418,8 +465,18 @@ function Get-JITconfig{
             This is a private helper for Get-JITconfig.
         .PARAMETER InputValue
             Optional explicit configuration file path or Active Directory common name.
+        .INPUTS
+            None. Pipeline input is not supported.
         .OUTPUTS
             System.String. An absolute file path or Active Directory common name.
+        .NOTES
+            This private helper does not verify Active Directory common names. It only
+            resolves values that identify existing files.
+        .EXAMPLE
+            $source = Resolve-JitConfigurationSource -InputValue ".\JIT.config"
+
+            Resolves the explicit configuration file to an absolute path when it
+            exists.
         #>
 
         param(
@@ -463,8 +520,18 @@ function Get-JITconfig{
             Get-JITconfig.
         .PARAMETER KjitCoreAssemblyPath
             Absolute path to KjitCore.dll. Its parent directory is searched.
+        .INPUTS
+            None. Pipeline input is not supported.
         .OUTPUTS
             None.
+        .NOTES
+            Dependency loading is best effort. Failures are intentionally deferred so
+            loading KjitCore.dll can report the actionable error.
+        .EXAMPLE
+            Import-KjitCoreDependencies -KjitCoreAssemblyPath $assemblyPath
+
+            Attempts to preload supported dependency assemblies located beside the
+            KjitCore assembly.
         #>
 
         param(
@@ -532,4 +599,3 @@ function Get-JITconfig{
         throw "Failed to load the JIT configuration from '$source'. $rootCause"
     }
 }
-

@@ -51,6 +51,52 @@ Describe "Just-In-Time PowerShell module package" {
         }
     }
 
+    It "provides complete comment-based help for every function" {
+        $moduleFiles = @(Get-ChildItem -LiteralPath $versionedModulePath -Filter "*.psm1" -File)
+
+        foreach ($moduleFile in $moduleFiles) {
+            $tokens = $null
+            $parseErrors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $moduleFile.FullName,
+                [ref]$tokens,
+                [ref]$parseErrors
+            )
+            $functions = @($ast.FindAll({
+                param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst]
+            }, $true))
+
+            foreach ($function in $functions) {
+                $help = $function.GetHelpContent()
+                $help | Should -Not -BeNullOrEmpty -Because "$($function.Name) must provide comment-based help"
+
+                foreach ($section in @("Synopsis", "Description", "Examples", "Inputs", "Outputs", "Notes")) {
+                    @($help.$section).Count | Should -BeGreaterThan 0 `
+                        -Because "$($function.Name) must document .$($section.ToUpperInvariant())"
+                }
+
+                $parameters = if ($null -ne $function.Body.ParamBlock) {
+                    @($function.Body.ParamBlock.Parameters)
+                }
+                else {
+                    @()
+                }
+                $documentedParameterNames = if ($null -ne $help.PSObject.Properties["Parameters"]) {
+                    @($help.Parameters.Keys)
+                }
+                else {
+                    @()
+                }
+                foreach ($parameter in $parameters) {
+                    $parameterName = $parameter.Name.VariablePath.UserPath
+                    $parameterName | Should -BeIn $documentedParameterNames `
+                        -Because "$($function.Name) must document parameter $parameterName"
+                }
+            }
+        }
+    }
+
     It "loads domain-root and relative search bases through Get-JITConfig" {
         $testModulePath = Join-Path $TestDrive "module"
         $testVersionedModulePath = Join-Path $testModulePath "0.1"

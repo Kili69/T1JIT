@@ -1,10 +1,10 @@
 #requires -PSEdition Desktop
 
 <#
-Script Info
-
-Author: Andreas Lucas [MSFT]
-Download: 
+Module: just-in-time-request
+Author: Andreas Lucas [MSFT] (aka Kili)
+Purpose: Provides user-facing commands and supporting helpers for requesting and
+         inspecting just-in-time administrator access.
 
 Disclaimer:
 This sample script is not supported under any Microsoft standard support program or service. 
@@ -20,27 +20,18 @@ possibility of such damages
 
 This module file contains the user functions to request the administrator privileges
 
-Version 0.1.20240825
-    initial Version
-
-Version 0.1.20240907
-    The server format can be in FQDN, HostName, NetBiosName\HostName or DNSname\HostName
-Version 0.1.20241004
-    New function Get-UserElevationStatus added. 
-        This function validate the user is allowed to request administrator privileges on a server
-    New-AdminRequest changed to use the Get-UserelevationStatus
-Version 0.1.20241023
-    New function to convert a distinguishedname into the corresponding DNS Name
-version 0.1.20241219 by Andreas Luy
-    Changed group naming from NetBios to full Dns naming scheme
-    moved Get-Jitconfig to Just-in-time-configuration.psm1
-version 0.1.2025016 by Kili
-    Fix a error if the DNS name of a server is assigned to more the one computer object
-version 0.1.20260413
-    Return a error message if the requested user has no configured UPN. The UPN is required to use the delegation.config file. If the user has no UPN the function will terminate with a warning message
-version 0.1.20260908
-    Support users without a UPN by using their canonical Active Directory name for delegation checks.
-    Add verbose diagnostics to New-AdminRequest.
+Version history:
+    0.1.20240825 - Initial legacy version.
+    0.1.20240907 - Accepted FQDN, host, NetBIOS-qualified, and DNS-qualified server names.
+    0.1.20241004 - Added Get-UserElevationStatus and used it from New-AdminRequest.
+    0.1.20241023 - Added distinguished-name to DNS-name conversion.
+    0.1.20241219 - Changed group naming from NetBIOS to full DNS names and moved
+                   Get-JITconfig to Just-in-time-configuration.psm1.
+    0.1.2025016  - Handled DNS names assigned to multiple computer objects.
+    0.1.20260413 - Reported users without a UPN when delegation required one.
+    0.1.20260908 - Supported canonical names for users without a UPN and added
+                   verbose diagnostics to New-AdminRequest.
+    0.2.20260926.4 - Completed and normalized module comment-based help.
 
 #>
 
@@ -117,6 +108,9 @@ function Write-ScriptMessage {
     .OUTPUTS
         System.String when UIused is $true. No success-pipeline output is produced in
         console mode.
+    .NOTES
+        This private formatting helper does not write to the warning or error streams;
+        Severity controls only the console foreground color.
     #>
 
     param (

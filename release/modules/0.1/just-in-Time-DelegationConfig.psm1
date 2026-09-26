@@ -1,22 +1,35 @@
 #requires -PSEdition Desktop
 
 <#
-Script Info
+.SYNOPSIS
+    Manages just-in-time Active Directory delegation configuration.
+.DESCRIPTION
+    Provides commands for adding, removing, and displaying organizational-unit
+    delegations stored in the JIT delegation JSON file. Active Directory users and
+    groups are persisted by security identifier and translated to account names
+    when displayed.
+.NOTES
+    Author: Andreas Lucas [MSFT] (aka Kili)
 
-Author: Andreas Lucas [MSFT]
+    Version history:
+    0.1.20250830              Initial repository version.
+    0.2.20260926.4            Documentation update.
 
-Disclaimer:
-This sample script is not supported under any Microsoft standard support program or service. 
-The sample script is provided AS IS without warranty of any kind. Microsoft further disclaims 
-all implied warranties including, without limitation, any implied warranties of merchantability 
-or of fitness for a particular purpose. The entire risk arising out of the use or performance of 
-the sample scripts and documentation remains with you. In no event shall Microsoft, its authors, 
-or anyone else involved in the creation, production, or delivery of the scripts be liable for any 
-damages whatsoever (including, without limitation, damages for loss of business profits, business 
-interruption, loss of business information, or other pecuniary loss) arising out of the use of or 
-inability to use the sample scripts or documentation, even if Microsoft has been advised of the 
-possibility of such damages
+    Disclaimer:
+    This sample script is not supported under any Microsoft standard support program
+    or service. The sample script is provided AS IS without warranty of any kind.
+    Microsoft further disclaims all implied warranties including, without limitation,
+    any implied warranties of merchantability or of fitness for a particular purpose.
+    The entire risk arising out of the use or performance of the sample scripts and
+    documentation remains with you. In no event shall Microsoft, its authors, or
+    anyone else involved in the creation, production, or delivery of the scripts be
+    liable for any damages whatsoever (including, without limitation, damages for
+    loss of business profits, business interruption, loss of business information,
+    or other pecuniary loss) arising out of the use of or inability to use the sample
+    scripts or documentation, even if Microsoft has been advised of the possibility
+    of such damages.
 #>
+
 
 function ValidateOU {
     <#
@@ -168,6 +181,34 @@ function Get-Sid{
 }
 
 function Write-JitJsonFileAtomically {
+    <#
+    .SYNOPSIS
+        Writes an object to a JSON file using an atomic replacement.
+    .DESCRIPTION
+        Serializes the supplied object to a uniquely named temporary file beside the
+        destination. If the destination exists, it is atomically replaced; otherwise,
+        the temporary file is moved into place. Temporary and backup files are removed
+        in all cases. This private helper prevents readers from observing a partially
+        written delegation configuration.
+    .PARAMETER InputObject
+        Object to serialize as JSON. Serialization uses a maximum depth of 10.
+    .PARAMETER Path
+        Destination JSON file path. The path is resolved to an absolute path before
+        the temporary and backup file names are created.
+    .EXAMPLE
+        Write-JitJsonFileAtomically -InputObject $delegations -Path "C:\JIT\delegation.json"
+
+        Serializes the delegation collection and atomically replaces the existing
+        delegation file.
+    .INPUTS
+        None. Pipeline input is not supported.
+    .OUTPUTS
+        None. The function writes the serialized object to the specified file.
+    .NOTES
+        The destination directory must already exist. The caller must have permission
+        to create and replace files in that directory.
+    #>
+
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -372,6 +413,35 @@ function Update-JitDelegation {
 }
 
 function Add-JitDelegation {
+    <#
+    .SYNOPSIS
+        Adds an Active Directory user or group to an OU delegation.
+    .DESCRIPTION
+        Validates the organizational-unit distinguished-name syntax and confirms that
+        the specified Active Directory user or group can be resolved. The function
+        then delegates persistence to Update-JitDelegation, which validates the OU
+        against the current forest and stores the account SID in the configured JSON
+        delegation file.
+    .PARAMETER OU
+        Distinguished name of the organizational unit to which access is delegated,
+        for example "OU=Servers,DC=contoso,DC=com".
+    .PARAMETER ADobject
+        Active Directory user or group to delegate. Supported identifiers include a
+        UPN, a DOMAIN\Name value, or a common name accepted by Get-Sid.
+    .EXAMPLE
+        Add-JitDelegation -OU "OU=Servers,DC=contoso,DC=com" -ADobject "CONTOSO\Server-Admins"
+
+        Resolves the Server-Admins group and adds its SID to the delegation entry for
+        the Servers OU.
+    .INPUTS
+        None. Pipeline input is not supported.
+    .OUTPUTS
+        System.Boolean. Returns $true after the delegation configuration is written.
+    .NOTES
+        This function is exported by the Just-In-time module. It requires Active
+        Directory connectivity and a writable delegation configuration path.
+    #>
+
     param (
         [Parameter (Mandatory = $true,Position = 0)]
         [string]$OU,
