@@ -1,20 +1,15 @@
 {
-  "version": "0.2.20260926.3",
+  "version": "0.2.20260926.4",
   "files": [
     {
-      "path": ".githooks/pre-push.ps1",
-      "version": "0.2.20260926.3",
-      "sha256": "4d8f7405cc9fb5169d5f0ed3e32779a34d24ba81b101f093b595038cf1c9069d"
-    },
-    {
-      "path": "CHANGELOG.md",
-      "version": "0.2.20260926.3",
-      "sha256": "9b775b4ae2494e74bfd41eed5b42ae198583e27da2b111cfbf51366c84b7df91"
+      "path": "History.md",
+      "version": "0.2.20260926.4",
+      "sha256": "26c9c99533d0d6cba5fadd5354da5d3bc967d3c1bd10b7ec21d8f813ee996ebb"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20260926.3",
-      "sha256": "3cde9851e5e4809e9149dc744bee1b3a7b6784d07fee9b35c30c5200672b754c"
+      "version": "0.2.20260926.4",
+      "sha256": "699ca69ae4da758df7c011c1ee6475d51a86c5f5f9f68880b50caba7169393de"
     }
   ]
 }

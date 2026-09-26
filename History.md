@@ -6,6 +6,46 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-09-26 09:36:36 +02:00 - `dev` to `origin/dev`
+
+Commits:
+
+<!-- commit:a14e8b5beb3578d66b87156fe91a90e22290832e -->
+- `a14e8b5` Fix JIT configuration compatibility and gate packages
+<!-- commit:382e294d7456028cdda6b5e04150174a3c887049 -->
+- `382e294` Document GitHub push history
+<!-- commit:c682ef837cca26255bed52155c080b969d264531 -->
+- `c682ef8` Allow module version updates in history commits
+
+Changed files:
+
+- `M -> .githooks/pre-commit.ps1`
+- `M -> .githooks/pre-push.ps1`
+- `M -> CHANGELOG.md`
+- `M -> README.md`
+- `M -> VERSION`
+- `M -> build/New-InstallationPackage.ps1`
+- `A -> build/Test-PowerShellModules.ps1`
+- `M -> build/Update-Version.ps1`
+- `M -> file-versions.json`
+- `M -> release/VERSION`
+- `M -> release/file-versions.json`
+- `M -> release/kJITWeb/publish-service/KjitWeb.dll`
+- `M -> release/kJITWeb/publish-service/KjitWeb.exe`
+- `M -> release/kJITWeb/publish-service/KjitWeb.pdb`
+- `M -> release/kJITWeb/publish-service/de/KjitWeb.resources.dll`
+- `M -> release/kJITWeb/publish-service/en/KjitWeb.resources.dll`
+- `M -> release/modules/0.1/KjitCore.dll`
+- `M -> release/modules/0.1/just-in-Time-DelegationConfig.psm1`
+- `M -> release/modules/0.1/just-in-time-configuration.psm1`
+- `M -> release/modules/Just-In-time.psd1`
+- `M -> src/C#/KjitCore/Models/JitConfigurationObject.cs`
+- `M -> src/C#/KjitCore/Services/JitConfigurationReader.cs`
+- `M -> src/Powershell/modules/0.1/just-in-Time-DelegationConfig.psm1`
+- `M -> src/Powershell/modules/0.1/just-in-time-configuration.psm1`
+- `M -> src/Powershell/modules/Just-In-time.psd1`
+- `A -> tests/PowerShell/Modules.Tests.ps1`
+
 ## 2026-09-26 09:34:25 +02:00 - `dev` to `origin/dev`
 
 Commits:
@@ -1445,6 +1485,7 @@ Changes:
 - Added a full-page processing lock that prevents duplicate elevation requests.
 - Extended Active Directory queries and web models for active elevation information.
 - Updated installation documentation, release scripts, modules, and published KjitWeb artifacts.
+
 
 
 
