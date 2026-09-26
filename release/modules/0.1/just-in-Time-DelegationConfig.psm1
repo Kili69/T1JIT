@@ -270,9 +270,18 @@ function Update-JitDelegation {
         $config = Get-JitConfig -configurationFile $configFileName
     }
 
+    if ($null -eq $config) {
+        throw "The JIT configuration could not be loaded."
+    }
+
+    $delegationConfigPath = [string]$config.DelegationConfigPath
+    if ([string]::IsNullOrWhiteSpace($delegationConfigPath)) {
+        throw "The loaded JIT configuration does not define DelegationConfigPath."
+    }
+
     # Load existing delegation entries; a missing file represents an empty database.
-    if ((Test-Path $config.DelegationConfigPath)){
-        $CurrentDelegation += Get-Content "$($config.DelegationConfigPath)" | ConvertFrom-Json 
+    if (Test-Path -LiteralPath $delegationConfigPath -PathType Leaf) {
+        $CurrentDelegation += Get-Content -LiteralPath $delegationConfigPath -Raw -ErrorAction Stop | ConvertFrom-Json
     } 
 
     # Dispatch the requested read or mutation operation.

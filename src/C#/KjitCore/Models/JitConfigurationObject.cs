@@ -405,16 +405,17 @@ public sealed class JitConfigurationObject
     }
 
     /// <summary>
-    /// Gets or sets the distinguished name of a server group that is excluded from delegation.
+    /// Gets or sets the Active Directory identity of a server group that is excluded from delegation.
+    /// The value may be a simple group name or a distinguished name.
     /// </summary>
     public string ExcludeServerGroupName
     {
         get => _excludeServerGroupName;
-        set => _excludeServerGroupName = ValidateOptionalDistinguishedName(value);
+        set => _excludeServerGroupName = string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
     }
 
     /// <summary>
-    /// Gets or sets the distinguished name of a server group that is excluded from delegation.
+    /// Gets or sets the Active Directory identity of a server group that is excluded from delegation.
     /// </summary>
     /// <remarks>
     /// This property is deprecated and will be removed in future versions. Use <see cref="ExcludeServerGroupName"/> instead.   
@@ -582,16 +583,6 @@ public sealed class JitConfigurationObject
         }
 
         return normalized;
-    }
-
-    private static string ValidateOptionalDistinguishedName(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return string.Empty;
-        }
-
-        return ValidateDistinguishedName(value);
     }
 
     private static IReadOnlyList<string> ValidateDistinctDistinguishedNames(IReadOnlyList<string>? values)

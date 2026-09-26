@@ -31,7 +31,7 @@ try {
     }
 
     & (Join-Path $repoRoot "build/Update-Version.ps1") -Staged
-    git -C $repoRoot add -- VERSION file-versions.json
+    git -C $repoRoot add -- VERSION file-versions.json src/Powershell/modules/Just-In-time.psd1
     if ($LASTEXITCODE -ne 0) {
         throw "Unable to stage VERSION and file-versions.json."
     }

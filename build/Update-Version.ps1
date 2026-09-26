@@ -81,6 +81,8 @@ $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $versionPath = Join-Path $repoRoot "VERSION"
 $manifestPath = Join-Path $repoRoot "file-versions.json"
+$moduleManifestRelativePath = "src/Powershell/modules/Just-In-time.psd1"
+$moduleManifestPath = Join-Path $repoRoot $moduleManifestRelativePath
 $versionPattern = '^(?<major>\d+)\.(?<minor>\d+)\.(?<date>\d{8})\.(?<counter>[1-9]\d*)$'
 $metadataFiles = @("VERSION", "file-versions.json")
 $requiredScriptDisclaimerLines = @(
@@ -214,6 +216,11 @@ if ($Check) {
         throw "VERSION and file-versions.json contain different versions."
     }
 
+    $moduleManifest = Import-PowerShellDataFile -LiteralPath $moduleManifestPath
+    if ([string]$moduleManifest.ModuleVersion -ne $version) {
+        throw "PowerShell module version '$($moduleManifest.ModuleVersion)' does not match repository version '$version'."
+    }
+
     $invalidFiles = @()
     foreach ($file in @(Get-ChangedFiles)) {
         $entries = @($manifest.files | Where-Object { $_.path -eq $file })
@@ -247,7 +254,22 @@ if (Test-Path $versionPath) {
 }
 
 $version = "$Major.$Minor.$date.$counter"
+$moduleManifestContent = Get-Content -LiteralPath $moduleManifestPath -Raw
+$updatedModuleManifestContent = $moduleManifestContent -replace "(?m)^ModuleVersion\s*=\s*'[^']+'", "ModuleVersion = '$version'"
+if ($updatedModuleManifestContent -eq $moduleManifestContent -and
+    $moduleManifestContent -notmatch "(?m)^ModuleVersion\s*=\s*'$([regex]::Escape($version))'") {
+    throw "ModuleVersion was not found in '$moduleManifestRelativePath'."
+}
+[System.IO.File]::WriteAllText(
+    $moduleManifestPath,
+    $updatedModuleManifestContent,
+    [System.Text.UTF8Encoding]::new($false)
+)
+
 $changedFiles = @(Get-ChangedFiles)
+if ($moduleManifestRelativePath -notin $changedFiles) {
+    $changedFiles += $moduleManifestRelativePath
+}
 if ($changedFiles.Count -eq 0) {
     throw "No changed files found."
 }

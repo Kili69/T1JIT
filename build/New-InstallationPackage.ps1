@@ -16,11 +16,12 @@ possibility of such damages
 .SYNOPSIS
     Creates a complete T1JIT installation package as a single ZIP archive.
 .DESCRIPTION
-    Stages every installation file from release in a temporary folder, verifies that the
-    required installation files are present, and always compresses the staged content into a
-    ZIP archive with a SHA-256 checksum file. Only the ZIP and checksum are placed in
-    DestinationPath; the staged, uncompressed copy is removed afterwards. Use BuildRelease to
-    rebuild the release output before packaging it.
+    Optionally rebuilds the release output, runs the mandatory Pester unit tests against the
+    PowerShell modules that will be packaged, stages every installation file from release,
+    verifies that the required installation files are present, and compresses the staged
+    content into a ZIP archive with a SHA-256 checksum file. Only the ZIP and checksum are
+    placed in DestinationPath; the staged, uncompressed copy is removed afterwards. Use
+    BuildRelease to rebuild the release output before testing and packaging it.
 .PARAMETER DestinationPath
     Output folder that will contain the ZIP archive and checksum file. The default is
     Installationspackage in the repository root. The folder is cleared before the new archive
@@ -116,6 +117,11 @@ if ($BuildRelease) {
 if (-not (Test-Path -LiteralPath $releasePath -PathType Container)) {
     throw "Release folder not found: $releasePath"
 }
+
+Write-Host "Running mandatory PowerShell module tests..." -ForegroundColor Cyan
+& (Join-Path $PSScriptRoot "Test-PowerShellModules.ps1") `
+    -ModuleRoot (Join-Path $releasePath "modules") `
+    -VersionPath (Join-Path $releasePath "VERSION")
 
 try {
     if (Test-Path -LiteralPath $StagingPath) {

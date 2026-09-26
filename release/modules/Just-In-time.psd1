@@ -1,4 +1,4 @@
-﻿<#
+<#
 #
 # Module manifest for module 'Just-In-time'
 #
@@ -30,7 +30,7 @@ This module file contains the user functions to request the administrator privil
 
 
 # Version number of this module.
-ModuleVersion = '0.1.20260907.42'
+ModuleVersion = '0.2.20260926.1'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Desktop')
@@ -159,4 +159,3 @@ PrivateData = @{
 # DefaultCommandPrefix = ''
 
 }
-

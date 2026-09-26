@@ -524,7 +524,12 @@ function Get-JITconfig{
 
     # Let KjitCore interpret absolute paths as files and other values as AD common names.
     $source = Resolve-JitConfigurationSource -InputValue $configurationFile
-    return [KjitCore.KjitCore]::LoadJitConfiguration($source)
+    try {
+        return [KjitCore.KjitCore]::LoadJitConfiguration($source)
+    }
+    catch {
+        $rootCause = $_.Exception.GetBaseException().Message
+        throw "Failed to load the JIT configuration from '$source'. $rootCause"
+    }
 }
-
 

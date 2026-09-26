@@ -340,7 +340,7 @@ internal static class JitConfigurationReader
 
         if (TryReadStringList(root, out var searchBaseOus, "T1Searchbase"))
         {
-            configuration.TargetOU = searchBaseOus;
+            configuration.TargetOU = NormalizeDistinguishedNames(searchBaseOus, configuration);
         }
 
         if (TryReadStringList(root, out var excludeComputerOus, "ExcludeComputerOU"))
@@ -478,7 +478,7 @@ internal static class JitConfigurationReader
 
         if (TryReadStringList(root, out var searchBaseOus, "T1Searchbase"))
         {
-            configuration.TargetOU = searchBaseOus;
+            configuration.TargetOU = NormalizeDistinguishedNames(searchBaseOus, configuration);
         }
 
         if (TryReadStringList(root, out var excludeComputerOus, "ExcludeComputerOU"))
@@ -601,7 +601,7 @@ internal static class JitConfigurationReader
 
         if (TryReadStringList(attributes, out var searchBaseOus, "T1Searchbase", "JitCnfg-T1Searchbase"))
         {
-            configuration.TargetOU = searchBaseOus;
+            configuration.TargetOU = NormalizeDistinguishedNames(searchBaseOus, configuration);
         }
 
         if (TryReadStringList(attributes, out var excludeComputerOus, "ExcludeComputerOU"))
@@ -628,7 +628,11 @@ internal static class JitConfigurationReader
         foreach (var value in values)
         {
             var normalized = value.Trim();
-            if (normalized.IndexOf("DC=", StringComparison.OrdinalIgnoreCase) < 0 && !string.IsNullOrWhiteSpace(domainSuffix))
+            if (normalized.Equals("<DomainRoot>", StringComparison.OrdinalIgnoreCase))
+            {
+                normalized = domainSuffix;
+            }
+            else if (normalized.IndexOf("DC=", StringComparison.OrdinalIgnoreCase) < 0 && !string.IsNullOrWhiteSpace(domainSuffix))
             {
                 normalized = normalized + "," + domainSuffix;
             }
