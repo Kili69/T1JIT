@@ -1,28 +1,68 @@
+// Author: Andreas Lucas (aka Kili)
+// Documentation update: 0.2.20260926.6
+// History: Existing implementation and inline operational notes are preserved.
+
 using KjitWeb.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.Negotiate;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Localization;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.Server.HttpSys;
 using Microsoft.Extensions.Hosting.WindowsServices;
 using System.Diagnostics;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using System.Security.Principal;
 
 try
 {
     // Create the web host and load configuration from appsettings, environment and arguments.
     var builder = WebApplication.CreateBuilder(args);
+    var mutualTlsOptions = builder.Configuration
+        .GetSection(MutualTlsOptions.SectionName)
+        .Get<MutualTlsOptions>() ?? new MutualTlsOptions();
+    var requiredMutualTlsEkuOids = mutualTlsOptions.RequiredEkuOids
+        .Where(oid => !string.IsNullOrWhiteSpace(oid))
+        .Select(oid => oid.Trim())
+        .Distinct(StringComparer.Ordinal)
+        .ToArray();
 
-    // Negotiate/NTLM handshakes are connection-oriented and can fail with HTTP/2 multiplexing.
-    // Force HTTP/1.1 to prevent interleaved anonymous/authenticated requests on one connection.
-    builder.WebHost.ConfigureKestrel(options =>
+    if (mutualTlsOptions.Enabled)
     {
-        options.ConfigureEndpointDefaults(listenOptions =>
+        if (requiredMutualTlsEkuOids.Length == 0)
         {
-            listenOptions.Protocols = HttpProtocols.Http1;
-        });
+            throw new InvalidOperationException(
+                "MutualTls:RequiredEkuOids must contain at least one EKU OID when mutual TLS is enabled.");
+        }
+
+        var invalidEkuOid = requiredMutualTlsEkuOids.FirstOrDefault(
+            oid => !Regex.IsMatch(oid, @"^\d+(\.\d+)+$", RegexOptions.CultureInvariant));
+        if (invalidEkuOid is not null)
+        {
+            throw new InvalidOperationException(
+                $"MutualTls:RequiredEkuOids contains an invalid OID: '{invalidEkuOid}'.");
+        }
+    }
+
+    // KjitWeb is hosted on HTTP.sys (not Kestrel) so Windows Authentication (Negotiate/Kerberos/
+    // NTLM) is performed in kernel mode by the OS, exactly like IIS does. The managed Negotiate
+    // authentication handler used with Kestrel requires the process itself to hold usable
+    // Kerberos/NTLM keys for the computer's own identity, which only LocalSystem or a domain
+    // account with an SPN can do; NetworkService cannot, causing all logins to fail (see
+    // CHANGELOG). HTTP.sys instead authenticates the connection before the request reaches the
+    // app and hands us an already-authenticated Windows identity, so NetworkService works fine.
+    builder.WebHost.UseHttpSys(options =>
+    {
+        options.Authentication.Schemes = AuthenticationSchemes.Negotiate | AuthenticationSchemes.NTLM;
+        // Anonymous connections must be allowed at the HTTP.sys level: KjitWeb also supports a
+        // cookie-based "switched user" identity and a Basic-Auth fallback for remote clients,
+        // both handled by the ASP.NET Core authentication/authorization pipeline further down,
+        // not by HTTP.sys itself. Rejecting anonymous connections here would prevent those
+        // requests from ever reaching the app.
+        options.Authentication.AllowAnonymous = true;
+        options.ClientCertificateMethod = mutualTlsOptions.Enabled
+            ? ClientCertificateMethod.AllowCertificate
+            : ClientCertificateMethod.NoCertificate;
     });
 
     // Enable proper lifetime handling when the app is hosted as a Windows Service.
@@ -37,7 +77,7 @@ try
         {
             options.DefaultScheme = "AppAuthentication";
             options.DefaultAuthenticateScheme = "AppAuthentication";
-            options.DefaultChallengeScheme = NegotiateDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = HttpSysDefaults.AuthenticationScheme;
         })
         .AddPolicyScheme("AppAuthentication", "Application authentication", options =>
         {
@@ -46,7 +86,7 @@ try
                 var hasSwitchUserCookie = context.Request.Cookies.ContainsKey("KjitWeb.SwitchUser");
                 return hasSwitchUserCookie
                     ? CookieAuthenticationDefaults.AuthenticationScheme
-                    : NegotiateDefaults.AuthenticationScheme;
+                    : HttpSysDefaults.AuthenticationScheme;
             };
         })
         .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
@@ -62,15 +102,10 @@ try
             // Do NOT redirect 401 responses to login page for non-cookie challenges.
             // The OnRedirectToLogin event fires only when the Cookie scheme itself challenges.
         })
-    // Use Kerberos as primary authentication (prefer Kerberos over NTLM).
-    // Kerberos provides mutual authentication, encryption, and better security than NTLM.
-        .AddNegotiate(options =>
-        {
-            // Persist Kerberos credentials for ticket reuse and performance.
-            options.PersistKerberosCredentials = true;
-            // Disable NTLM persistence; only use NTLM as fallback if Kerberos unavailable.
-            options.PersistNtlmCredentials = false;
-        })
+        // Kerberos/NTLM negotiation itself happens in the kernel via HTTP.sys (configured
+        // above with UseHttpSys); the HttpSysDefaults.AuthenticationScheme referenced here just
+        // lets ASP.NET Core surface the already-negotiated Windows identity to the app. No
+        // explicit .AddScheme(...) registration is required or possible for this scheme.
         .AddScheme<AuthenticationSchemeOptions, BasicAuthenticationHandler>(
             "BasicAuthentication", options => { });
 
@@ -90,6 +125,11 @@ try
     builder.Services.AddSingleton<DebugLogFileWriter>();
     builder.Services.AddSingleton<IConnectionAuditLogger, ConnectionAuditLogger>();
     builder.Services.AddSingleton<WindowsCredentialValidator>();
+    // The event log health monitor is registered once as a singleton so that the background scan
+    // loop (IHostedService) and the HTTP-facing IEventLogHealthMonitor share the same instance/state.
+    builder.Services.AddSingleton<EventLogHealthMonitor>();
+    builder.Services.AddSingleton<IEventLogHealthMonitor>(sp => sp.GetRequiredService<EventLogHealthMonitor>());
+    builder.Services.AddHostedService(sp => sp.GetRequiredService<EventLogHealthMonitor>());
     builder.Logging.Services.AddSingleton<ILoggerProvider, DebugFileLoggerProvider>();
 
     // Configure localization with supported cultures and a default culture.
@@ -135,6 +175,57 @@ try
         .Value;
 
     // Localization must run early so controllers/views resolve the correct culture.
+    if (mutualTlsOptions.Enabled)
+    {
+        app.Use(async (context, next) =>
+        {
+            var logger = context.RequestServices
+                .GetRequiredService<ILoggerFactory>()
+                .CreateLogger("MutualTls");
+            var remoteAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown-address";
+
+            // HTTP.sys negotiates the client certificate but, unlike Kestrel, does not offer a
+            // hook to validate it during the TLS handshake, so the chain/EKU checks that used to
+            // run in Kestrel's ClientCertificateValidation callback are performed here instead.
+            var clientCertificate = context.Request.IsHttps
+                ? await context.Connection.GetClientCertificateAsync()
+                : null;
+            if (clientCertificate is null)
+            {
+                logger.LogWarning(
+                    "Rejected request from {RemoteAddress} because mutual TLS is enabled but no HTTPS client certificate is available.",
+                    remoteAddress);
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return;
+            }
+
+            using var chain = new System.Security.Cryptography.X509Certificates.X509Chain
+            {
+                ChainPolicy =
+                {
+                    RevocationMode = mutualTlsOptions.CheckCertificateRevocation
+                        ? System.Security.Cryptography.X509Certificates.X509RevocationMode.Online
+                        : System.Security.Cryptography.X509Certificates.X509RevocationMode.NoCheck,
+                    RevocationFlag = System.Security.Cryptography.X509Certificates.X509RevocationFlag.ExcludeRoot,
+                }
+            };
+            var policyErrors = chain.Build(clientCertificate)
+                ? System.Net.Security.SslPolicyErrors.None
+                : System.Net.Security.SslPolicyErrors.RemoteCertificateChainErrors;
+
+            if (!MutualTlsCertificateValidator.Validate(clientCertificate, policyErrors, requiredMutualTlsEkuOids))
+            {
+                logger.LogWarning(
+                    "Rejected request from {RemoteAddress} because the HTTPS client certificate failed mutual TLS validation.",
+                    remoteAddress);
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return;
+            }
+
+            await next();
+        });
+    }
+
     app.UseRequestLocalization(requestLocalizationOptions);
     // Use HSTS and HTTPS redirection in production for better security, but allow HTTP in development and service modes for flexibility.
     if (!app.Environment.IsDevelopment())
@@ -178,27 +269,6 @@ try
             throw;
         }
     });
-    // Gracefully handle rare Negotiate handshake interleaving errors from remote clients.
-    app.Use(async (context, next) =>
-    {
-        try
-        {
-            await next();
-        }
-        catch (InvalidOperationException ex) when (IsNegotiateHandshakeInterleaving(ex))
-        {
-            var logger = context.RequestServices
-                .GetRequiredService<ILoggerFactory>()
-                .CreateLogger("NegotiateHandshake");
-            logger.LogWarning(ex, "Negotiate handshake interleaving detected for {Path}. Returning 401.", context.Request.Path);
-
-            if (!context.Response.HasStarted)
-            {
-                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                context.Response.Headers.WWWAuthenticate = NegotiateDefaults.AuthenticationScheme;
-            }
-        }
-    });
     // Authentication must come before authorization, and both must come before endpoint routing.
     app.UseAuthentication();
     app.Use(async (context, next) =>
@@ -216,6 +286,12 @@ try
     });
     app.UseAuthorization();
 
+    app.MapGet("/images/kjitlogo.png", (IWebHostEnvironment environment) =>
+            Results.File(
+                Path.Combine(environment.ContentRootPath, "kjitlogo.png"),
+                "image/png"))
+        .AllowAnonymous();
+
     app.MapControllerRoute(
         name: "default",
         pattern: "{controller=Home}/{action=Index}/{id?}");
@@ -229,24 +305,24 @@ catch (Exception ex)
     throw;
 }
 
-// This method attempts to write startup exceptions to the Windows Application event log under a custom source. If that fails (e.g. due to permissions), it falls back to a standard source. Any exceptions during logging are swallowed to avoid masking the original startup exception.
-// This ensures that critical startup issues (like misconfiguration or connectivity problems) are recorded in the event log for administrators to diagnose, even if the service fails to start properly.
-// Note: Writing to the event log may require elevated permissions, so this method is designed to fail gracefully without throwing additional exceptions if logging is not possible.
-// The event ID 5000 is chosen to be distinct and easily identifiable as a KjitWeb startup error in the logs.
-// The log message includes the full exception details to aid in troubleshooting.
-// The fallback to the ".NET Runtime" source is a common practice when custom source creation is not permitted, as it is a standard source that should exist on all Windows systems.
-// This method is static and self-contained to ensure it can be called from the catch block without relying on any services or state that may not be available during startup failure scenarios.
-// By logging startup errors to the event log, administrators can quickly identify and address issues that prevent the service from running, improving reliability and maintainability.
+// Records a fatal startup exception in the local Windows Application event log with event ID 5000.
+// Event-log failures are suppressed so they cannot replace the original startup failure. Exception
+// details can contain sensitive configuration or path data and must remain in the administrative log.
 static void TryWriteStartupErrorToApplicationLog(Exception ex)
 {
     TryWriteToApplicationEventLog($"KjitWeb startup failed. {ex}", EventLogEntryType.Error, 5000);
 }
 
+// Records a non-sensitive informational startup message in the local Windows Application event log
+// with event ID 5001. Event-log failures are intentionally suppressed.
 static void TryWriteStartupInformationToApplicationLog(string message)
 {
     TryWriteToApplicationEventLog(message, EventLogEntryType.Information, 5001);
 }
 
+// Writes an event through the KjitWeb source and falls back to the standard .NET Runtime source.
+// Creating the source can require administrative rights and modifies machine-wide registration.
+// All failures are suppressed; callers must not include credentials or other secrets in the message.
 static void TryWriteToApplicationEventLog(string message, EventLogEntryType entryType, int eventId)
 {
     const string sourceName = "KjitWeb";
@@ -277,11 +353,4 @@ static void TryWriteToApplicationEventLog(string message, EventLogEntryType entr
     {
         // Do not mask original startup exception.
     }
-}
-
-static bool IsNegotiateHandshakeInterleaving(Exception ex)
-{
-    return ex.Message.Contains(
-        "An anonymous request was received in between authentication handshake requests.",
-        StringComparison.OrdinalIgnoreCase);
 }

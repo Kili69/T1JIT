@@ -1,0 +1,14 @@
+C:\Repos\T1JIT\src\C#\kjitcore\bin\Release\net8.0\kjitcore.deps.json
+C:\Repos\T1JIT\src\C#\kjitcore\bin\Release\net8.0\kjitcore.dll
+C:\Repos\T1JIT\src\C#\kjitcore\bin\Release\net8.0\kjitcore.pdb
+C:\Repos\T1JIT\src\C#\kjitcore\bin\Release\net8.0\kjitcore.xml
+C:\Repos\T1JIT\src\C#\kjitcore\obj\Release\net8.0\kjitcore.GeneratedMSBuildEditorConfig.editorconfig
+C:\Repos\T1JIT\src\C#\kjitcore\obj\Release\net8.0\kjitcore.AssemblyInfoInputs.cache
+C:\Repos\T1JIT\src\C#\kjitcore\obj\Release\net8.0\kjitcore.AssemblyInfo.cs
+C:\Repos\T1JIT\src\C#\kjitcore\obj\Release\net8.0\kjitcore.csproj.CoreCompileInputs.cache
+C:\Repos\T1JIT\src\C#\kjitcore\obj\Release\net8.0\kjitcore.sourcelink.json
+C:\Repos\T1JIT\src\C#\kjitcore\obj\Release\net8.0\kjitcore.dll
+C:\Repos\T1JIT\src\C#\kjitcore\obj\Release\net8.0\refint\kjitcore.dll
+C:\Repos\T1JIT\src\C#\kjitcore\obj\Release\net8.0\kjitcore.xml
+C:\Repos\T1JIT\src\C#\kjitcore\obj\Release\net8.0\kjitcore.pdb
+C:\Repos\T1JIT\src\C#\kjitcore\obj\Release\net8.0\ref\kjitcore.dll

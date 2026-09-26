@@ -9,35 +9,58 @@ KjitWeb verwendet **Kerberos als primäre Authentifizierungsmethode**. Dies biet
 - ✅ Single Sign-On (SSO) Unterstützung
 - ✅ Ticket-basiertes System
 
+KjitWeb wird über **HTTP.sys** gehostet (nicht Kestrel), genau wie IIS. Windows-Authentifizierung
+(Negotiate/Kerberos/NTLM) läuft dadurch im Kernel-Modus des Betriebssystems und nicht im
+KjitWeb-Prozess selbst. Deshalb kann der Windows-Dienst als **NetworkService** laufen (statt als
+LocalSystem oder als dedizierter Domänen-Dienstkonto): NetworkService präsentiert im Netzwerk die
+**Computerkonto-Identität** des Servers, genau wie ein IIS-Anwendungspool. Das bedeutet auch, dass
+die benötigten SPNs auf dem **Computerkonto** liegen, nicht auf einem separaten Dienstkonto.
+
+> Wurde KjitWeb vor der HTTP.sys-Migration installiert und läuft aktuell mit einem eigenen
+> Domänen-Dienstkonto samt eigener SPNs, sind diese SPNs nach einem Update auf NetworkService
+> nicht mehr nötig und können vom Konto entfernt werden (`setspn -D ... domain_account`).
+
 ## Anforderungen
 
 ### 1. Service Principal Names (SPNs) registrieren
 
-Für Kerberos zu funktionieren, müssen Service Principal Names auf dem KjitWeb-Server registriert sein.
+Für Kerberos zu funktionieren, müssen Service Principal Names auf dem **Computerkonto** des
+KjitWeb-Servers registriert sein (nicht auf einem Benutzer- oder Dienstkonto). Standardmäßig
+besitzt jedes domänenbeigetretene Computerkonto bereits `HOST/servername` sowie
+`HOST/servername.domain.tld`; für den HTTP-Dienst müssen zusätzlich `HTTP`-SPNs ergänzt werden.
 
-**Registrierung durchführen** (als Administrator auf dem Server):
+> **Automatische Registrierung**: `install-kjitweb.ps1`, `update-kjitweb.ps1` und
+> `set-kjitweb-allowedclient.ps1` prüfen bei jeder Installation/Aktualisierung automatisch, ob
+> `HTTP/<hostname>` und `HTTP/<fqdn>` auf dem Computerkonto vorhanden sind, und registrieren sie
+> bei Bedarf selbst — sofern `AllowedClient` nicht auf `localhost` steht (rein lokaler Zugriff
+> läuft über NTLM und benötigt keine SPNs). Fehlt dem ausführenden Konto die Berechtigung, das
+> Computerkonto zu ändern (i. d. R. Domänen-Administrator-Rechte oder delegiertes "Validated
+> write to service principal name"), wird eine deutliche Warnung mit dem passenden manuellen
+> `setspn -A`-Befehl ausgegeben; die Installation/Aktualisierung wird dadurch **nicht**
+> abgebrochen. Die manuellen Schritte unten bleiben als Fallback gültig, falls die automatische
+> Registrierung fehlschlägt.
+
+**Manuelle Registrierung durchführen** (als Domänen-Administrator, `$$` markiert das Computerkonto):
 
 ```powershell
 # Für HTTP (falls ohne SSL)
-setspn -A HTTP/servername.bloedgelaber.de domain_account
+setspn -A HTTP/servername.bloedgelaber.de servername$
 
 # Für HTTPS (empfohlen)
-setspn -A HTTPS/servername.bloedgelaber.de domain_account
-
-# Für Localhost (Testing)
-setspn -A HTTP/localhost domain_account
-setspn -A HTTPS/localhost domain_account
+setspn -A HTTPS/servername.bloedgelaber.de servername$
 ```
 
 **Beispiel**:
 ```powershell
-setspn -A HTTPS/jit-web.bloedgelaber.de BLOEDGELABER\kjitservice
+setspn -A HTTPS/jit-web.bloedgelaber.de JIT-WEB$
 ```
+
+Für reinen `http://localhost:<port>`-Zugriff (z. B. lokale Tests auf dem Server selbst) sind
+**keine** zusätzlichen SPNs nötig; Windows verwendet dafür NTLM über die Loopback-Adresse.
 
 ### 2. Active Directory Anforderungen
 
 - Der Server muss auf der Domain bloedgelaber.de registered sein
-- Der Service Account muss ein gültiges Active Directory-Konto sein
 - KDC (Kerberos Distribution Center) muss erreichbar sein (Port 88, 464)
 
 ### 3. Netzwerk-Anforderungen
@@ -45,6 +68,20 @@ setspn -A HTTPS/jit-web.bloedgelaber.de BLOEDGELABER\kjitservice
 - DNS muss korrekt konfiguriert sein
 - Bidirektionale DNS-Auflösung (Forward + Reverse)
 - Zeitsynchronisation zwischen Client und Server (max. 5 Minuten Abweichung)
+
+### 4. HTTP.sys URL-Reservierung
+
+Da HTTP.sys (anders als Kestrel) entweder Administratorrechte oder eine explizite
+URL-Namensraum-Reservierung benötigt, damit ein nicht-administrativer Dienstaccount wie
+NetworkService einen HTTP-Port binden darf, legen `install-kjitweb.ps1` und `update-kjitweb.ps1`
+diese Reservierung automatisch an:
+
+```powershell
+netsh http add urlacl url=http://*:5240/ user="NT AUTHORITY\NETWORK SERVICE"
+```
+
+Diese Reservierung ist mit `netsh http show urlacl` überprüfbar und wird bei jeder Installation
+bzw. jedem Update erneuert.
 
 ## Konfiguration
 
@@ -63,13 +100,16 @@ setspn -A HTTPS/jit-web.bloedgelaber.de BLOEDGELABER\kjitservice
 ### In Program.cs
 
 ```csharp
-builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
-    .AddNegotiate(options =>
-    {
-        options.PersistKerberosCredentials = true;
-        options.PersistNtlmCredentials = false;  // Nur Kerberos
-    });
+builder.Services.AddAuthentication(HttpSysDefaults.AuthenticationScheme);
+builder.WebHost.UseHttpSys(options =>
+{
+    options.Authentication.Schemes = AuthenticationSchemes.Negotiate | AuthenticationSchemes.NTLM;
+    options.Authentication.AllowAnonymous = true;
+});
 ```
+
+Die eigentliche Kerberos/NTLM-Aushandlung übernimmt HTTP.sys im Kernel; die App erhält nur noch
+die bereits authentifizierte Windows-Identität.
 
 ## Authentifizierungsfluss
 
@@ -90,8 +130,8 @@ Client Request
 **SPNs überprüfen**:
 
 ```powershell
-# Aktuelle SPNs des Accounts anzeigen
-setspn -L BLOEDGELABER\kjitservice
+# Aktuelle SPNs des Computerkontos anzeigen
+setspn -L JIT-WEB$
 
 # Sollte anzeigen:
 # HTTPS/jit-web.bloedgelaber.de
@@ -102,7 +142,7 @@ setspn -L BLOEDGELABER\kjitservice
 
 ```powershell
 # Mit AD-Tools
-Get-ADUser kjitservice -Properties ServicePrincipalNames
+Get-ADComputer JIT-WEB -Properties ServicePrincipalNames
 ```
 
 ## Troubleshooting
@@ -117,9 +157,9 @@ Get-ADUser kjitservice -Properties ServicePrincipalNames
 
 **Lösungen**:
 ```powershell
-# SPNs neu registrieren
-setspn -D HTTPS/servername domain_account
-setspn -A HTTPS/servername domain_account
+# SPNs neu registrieren (auf dem Computerkonto)
+setspn -D HTTPS/servername servername$
+setspn -A HTTPS/servername servername$
 
 # Zeitsync überprüfen
 w32tm /resync /force
@@ -151,11 +191,10 @@ eventvwr.msc
 ## Performance-Optimierungen
 
 ### Ticket-Caching
-Kerberos-Tickets werden am Client automatisch gecacht. Persistente Credentials ermöglichen Wiederverwendung:
-
-```csharp
-options.PersistKerberosCredentials = true;  // ← Aktiviert Ticket-Wiederverwendung
-```
+Kerberos-Tickets werden am Client automatisch gecacht. Auf Serverseite übernimmt HTTP.sys das
+Zwischenspeichern und die Wiederverwendung von Sicherheitskontexten selbst; es ist keine
+zusätzliche Konfiguration in `Program.cs` nötig (anders als früher mit
+`PersistKerberosCredentials` beim verwalteten Negotiate-Handler unter Kestrel).
 
 ### Mutual Authentication
 Server und Client authentifizieren sich gegenseitig - verhindert Man-in-the-Middle:

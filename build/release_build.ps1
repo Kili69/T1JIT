@@ -23,28 +23,49 @@ possibility of such damages
     The resulting structure is ready for distribution.
 .NOTES
     Script Version 0.1.20260427
+    Script Version 0.1.20260507
+        changed the Get-Config command from Get-JITConfig to Get-JitConfiguration to match the new function name in the module.
+        The new function now support the configuration from the AD or JSON file
 #>
+
+[CmdletBinding()]
+param(
+    [switch]$SkipVersionCheck
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 #region variable definitions
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
+$versionScriptPath = Join-Path $PSScriptRoot "Update-Version.ps1"
+$versionPath = Join-Path $repoRoot "VERSION"
+$fileVersionsPath = Join-Path $repoRoot "file-versions.json"
 $kjitWebRoot = Join-Path $repoRoot "src/C#/Kjitweb"
 $csprojPath = Join-Path $kjitWebRoot "KjitWeb.csproj"
-$publishOutputDir = Join-Path $kjitWebRoot "publish-service"
+$releaseBuildRoot = Join-Path $kjitWebRoot "obj/ReleasePackage"
+$dotnetArtifactsDir = Join-Path $releaseBuildRoot "artifacts"
+$publishOutputDir = Join-Path $releaseBuildRoot "publish-service"
+
+$kjitCoreRoot = Join-Path $repoRoot "src/C#/KjitCore"
+$kjitCoreProjPath = Join-Path $kjitCoreRoot "KjitCore.csproj"
+$kjitCoreOutputDir = Join-Path $releaseBuildRoot "KjitCore"
+$kjitCoreDllSource = Join-Path $kjitCoreOutputDir "KjitCore.dll"
 
 $psSourceRoot = Join-Path $repoRoot "src/PowerShell"
 $psModulesSourceDir = Join-Path $psSourceRoot "modules"
 $psScriptsSourceDir = Join-Path $psSourceRoot "Scripts"
 
-# Requested target folder name: release/kjibweb
+# Requested target folder name: release/kJITWeb
 $releaseRoot = Join-Path $repoRoot "release"
-$releaseKjibwebDir = Join-Path $releaseRoot "kjibweb"
-$releasePublishDir = Join-Path $releaseKjibwebDir "publish-service"
+$releaseKJITWebDir = Join-Path $releaseRoot "kJITWeb"
+$releasePublishDir = Join-Path $releaseKJITWebDir "publish-service"
 $releaseModulesDir = Join-Path $releaseRoot "modules"
+$releaseModulesVersionDir = Join-Path $releaseModulesDir "0.1"
 
 $installScriptSource = Join-Path $kjitWebRoot "install-kjitweb.ps1"
+$updateScriptSource = Join-Path $kjitWebRoot "update-kjitweb.ps1"
+$allowedClientScriptSource = Join-Path $kjitWebRoot "set-kjitweb-allowedclient.ps1"
 $logoSource = Join-Path $kjitWebRoot "kjitlogo.png"
 $appSettingsSource = Join-Path $kjitWebRoot "appsettings.json"
 $appSettingsProdSource = Join-Path $kjitWebRoot "appsettings.Production.json"
@@ -92,7 +113,23 @@ function Copy-SanitizedJsonConfig {
 
 # Main script execution starts here
 
-Remove-Item $releaseRoot -Recurse -Force -ErrorAction SilentlyContinue # Clean up any existing release folder to ensure a fresh start.
+if (-not $SkipVersionCheck) {
+    & $versionScriptPath -Check
+}
+$releaseVersion = (Get-Content $versionPath -Raw).Trim()
+
+Remove-Item $releaseBuildRoot -Recurse -Force -ErrorAction SilentlyContinue
+
+if (Test-Path -LiteralPath $releaseRoot) {
+    Get-ChildItem -LiteralPath $releaseRoot -Force |
+        Where-Object { $_.FullName -ne $releaseKJITWebDir } |
+        Remove-Item -Recurse -Force
+
+    if (Test-Path -LiteralPath $releaseKJITWebDir) {
+        Get-ChildItem -LiteralPath $releaseKJITWebDir -Force |
+            Remove-Item -Recurse -Force
+    }
+}
 
 Write-Host "Copying PowerShell scripts and modules to release..."
 if (-not (Test-Path $psScriptsSourceDir)) {
@@ -104,20 +141,36 @@ if (-not (Test-Path $psModulesSourceDir)) {
 
 New-Item -Path $releaseRoot -ItemType Directory -Force | Out-Null
 New-Item -Path $releaseModulesDir -ItemType Directory -Force | Out-Null
+Copy-Item $versionPath $releaseRoot -Force
+Copy-Item $fileVersionsPath $releaseRoot -Force
 Copy-Item (Join-Path $psScriptsSourceDir "*.ps1") $releaseRoot -Force
 Copy-Item (Join-Path $psModulesSourceDir "*") $releaseModulesDir -Recurse -Force
 
+Write-Host "Building KjitCore (net48)..."
+dotnet build $kjitCoreProjPath -c Release -f net48 --artifacts-path $dotnetArtifactsDir -o $kjitCoreOutputDir
+if ($LASTEXITCODE -ne 0) {
+    throw "KjitCore build failed (dotnet build exit code: $LASTEXITCODE)."
+}
+
+if (-not (Test-Path $kjitCoreDllSource)) {
+    throw "KjitCore.dll not found after build: $kjitCoreDllSource"
+}
+
+Write-Host "Copying KjitCore.dll to release modules..."
+New-Item -Path $releaseModulesVersionDir -ItemType Directory -Force | Out-Null
+Copy-Item $kjitCoreDllSource (Join-Path $releaseModulesVersionDir "KjitCore.dll") -Force
+
 Write-Host "Building KjitWeb service..."
-dotnet publish $csprojPath -c Release -r win-x64 --self-contained false -o $publishOutputDir
+dotnet publish $csprojPath -c Release -r win-x64 --self-contained true --artifacts-path $dotnetArtifactsDir -o $publishOutputDir "-p:InformationalVersion=$releaseVersion"
 if ($LASTEXITCODE -ne 0) {
     throw "KjitWeb build failed (dotnet publish exit code: $LASTEXITCODE)."
 }
+Remove-Item (Join-Path $publishOutputDir "appsettings.Development.json") -Force -ErrorAction SilentlyContinue
+Remove-Item (Join-Path $publishOutputDir "publish") -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item (Join-Path $publishOutputDir "publish-service") -Recurse -Force -ErrorAction SilentlyContinue
 
-Write-Host "Preparing release folder: $releaseKjibwebDir"
-if (Test-Path $releaseKjibwebDir) {
-    Remove-Item $releaseKjibwebDir -Recurse -Force
-}
-New-Item -Path $releaseKjibwebDir -ItemType Directory -Force | Out-Null
+Write-Host "Preparing release folder: $releaseKJITWebDir"
+New-Item -Path $releaseKJITWebDir -ItemType Directory -Force | Out-Null
 
 Write-Host "Copying published service files..."
 Copy-Item $publishOutputDir $releasePublishDir -Recurse -Force
@@ -125,19 +178,27 @@ Copy-Item $publishOutputDir $releasePublishDir -Recurse -Force
 if (-not (Test-Path $installScriptSource)) {
     throw "Install script not found: $installScriptSource"
 }
+if (-not (Test-Path $updateScriptSource)) {
+    throw "Update script not found: $updateScriptSource"
+}
+if (-not (Test-Path $allowedClientScriptSource)) {
+    throw "AllowedClient reconfiguration script not found: $allowedClientScriptSource"
+}
 if (-not (Test-Path $logoSource)) {
     throw "Logo file not found: $logoSource"
 }
 
 Write-Host "Copying installation assets..."
-Copy-Item $installScriptSource (Join-Path $releaseKjibwebDir "install-kjitweb.ps1") -Force
-Copy-Item $logoSource (Join-Path $releaseKjibwebDir "kjitlogo.png") -Force
+Copy-Item $installScriptSource (Join-Path $releaseKJITWebDir "install-kjitweb.ps1") -Force
+Copy-Item $updateScriptSource (Join-Path $releaseKJITWebDir "update-kjitweb.ps1") -Force
+Copy-Item $allowedClientScriptSource (Join-Path $releaseKJITWebDir "set-kjitweb-allowedclient.ps1") -Force
+Copy-Item $logoSource (Join-Path $releaseKJITWebDir "kjitlogo.png") -Force
 
 # Keep appsettings next to install script (used by install-kjitweb.ps1 for DebugLog path fallback).
 if (Test-Path $appSettingsSource) {
-    Copy-SanitizedJsonConfig $appSettingsSource (Join-Path $releaseKjibwebDir "appsettings.json")
-    copy-SanitizedJsonConfig $appSettingsProdSource (Join-Path $releaseKjibwebDir "appsettings.Production.json")
-    Remove-Item (Join-Path $releaseKjibwebDir "appsettings.Development.json") -ErrorAction SilentlyContinue
+    Copy-SanitizedJsonConfig $appSettingsSource (Join-Path $releaseKJITWebDir "appsettings.json")
+    copy-SanitizedJsonConfig $appSettingsProdSource (Join-Path $releaseKJITWebDir "appsettings.Production.json")
+    Remove-Item (Join-Path $releaseKJITWebDir "appsettings.Development.json") -ErrorAction SilentlyContinue
 }   
 
-Write-Host "Release package created: $releaseKjibwebDir" -ForegroundColor Green
+Write-Host "Release package created: $releaseKJITWebDir" -ForegroundColor Green

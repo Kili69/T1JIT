@@ -6,3 +6,12 @@
 # Temporary runtime/log output under src
 src/C#/temp/
 src/C#/Kjitweb/temp/
+
+# Generated .NET build output
+**/bin/
+**/obj/
+
+# Generated installation package
+Installationspackage/
+/T1JIT-*.zip
+/T1JIT-*.zip.sha256

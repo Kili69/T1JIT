@@ -14,7 +14,9 @@ KjitWeb supports two authentication methods:
 **Requirements**:
 - Client must be on the domain (bloedgelaber.de)
 - Browser must support Negotiate authentication
-- Server and client must have proper SPNs configured
+- Server must have proper SPNs configured **on its computer account** (KjitWeb is hosted on
+  HTTP.sys and runs as NetworkService, so it authenticates using the computer's own network
+  identity — see [Kerberos-Setup.md](./Kerberos-Setup.md) for details)
 
 ## 2. Basic Authentication (Fallback)
 
@@ -80,6 +82,9 @@ curl -u "bloedgelaber\username:password" https://servername:7240/
 ## Configuration
 
 The application uses:
-- **Kestrel HTTP/1.1**: Forces HTTP/1.1 to prevent multiplexing issues with Negotiate
-- **Persistent credentials**: Both Kerberos and NTLM credentials are persisted
+- **HTTP.sys hosting**: Windows Authentication (Negotiate/Kerberos/NTLM) is performed in kernel
+  mode by HTTP.sys, the same mechanism IIS uses, rather than in-process by Kestrel
+- **NetworkService**: The KjitWeb Windows service runs as `NetworkService`; HTTP.sys makes this
+  possible for Windows Authentication, which the managed Kestrel Negotiate handler could not
+  support under a non-LocalSystem, non-domain account
 - **Dynamic domain detection**: Automatically uses bloedgelaber.de domain from environment
