@@ -6,20 +6,18 @@
 - [Project Description](#project-description)
 - [Problem Statement](#problem-statement)
 - [How does T1JIT works](#how-does-t1jit-works)
-    - [AD group enumeration and provisioning](#ad-group-enumeration-and-provisioning)
     - [Temporary privilege assignment](#temporary-privilege-assignment)
+- [Using the Web Interface](#using-the-web-interface)
 - [Using T1JIT with PowerShell](#using-t1jit-with-powershell)
 - [Quick-start Installation](#quick-start-installation)
     - [Install Just-In-Time](#install-just-in-time)
-    - [Configure Just-In-Time](#configure-just-in-time)
     - [Configure elevation privileges](#configure-elevation-privileges)
     - [Useage of JIT](#useage-of-jit)
-- [Using the Web Interface](#using-the-web-interface)
+- [Installing and configuring KJIT-Web](#installing-and-configuring-kjit-web)
     - [Installation of the KJIT-Web service](#installation-of-the-kjit-web-service)
         - [Restricting which clients can reach KjitWeb (AllowedClient)](#restricting-which-clients-can-reach-kjitweb-allowedclient)
         - [Publish KjitWeb as a Microsoft Entra Enterprise Application](#publish-kjitweb-as-a-microsoft-entra-enterprise-application)
     - [Updating the KJIT-Web service](#updating-the-kjit-web-service)
-    - [Using the KJIT-Web service](#using-the-kjit-web-service)
     - [Configuration of the KJIT-Web service](#configuration-of-the-kjit-web-service)
 - [Setup addtional JIT servers](#setup-addtional-jit-servers)
 - [Security Considerations](#security-considerations)
@@ -31,16 +29,14 @@
     - [Get-JITServerOU](#get-jitserverou)
     - [Remove-JITDelegation](#remove-jitdelegation)
     - [Remove-JITServerOU](#remove-jitserverou)
-    - [Add-jitdelegation](#add-jitdelegation)
+    - [Add-JitDelegation](#add-jitdelegation)
     - [Add-JITServerOU](#add-jitserverou)
-- [Restrict KjitWeb access to trusted workstations](#restrict-kjitweb-access-to-trusted-workstations)
-    - [Restrict access using IPsec](#restrict-access-using-ipsec)
-    - [Restrict access using mutual authentication](#restrict-access-using-mutual-authentication)
-- [Developer information](#developer-information)
-    - [Solution Structure](#solution-structure)
-    - [Versioning](#versioning)
-    - [Creating a release](#creating-a-release)
-- [Contributing](#contributing)
+- [Monitoring with Windows Event Log](#monitoring-with-windows-event-log)
+- [Advanced setup](#advanced-setup)
+    - [Full configuration wizard](#full-configuration-wizard)
+    - [Unattended installation](#unattended-installation)
+    - [Parameterized KjitWeb installation](#parameterized-kjitweb-installation)
+    - [Installation prompts](#installation-prompts)
 - [License](#-license)
 - [Changelog](#changelog)
 - [Event Reference](#event-reference)
@@ -58,39 +54,18 @@ This soultion works without a privileged identitiy on the target computers.
 
 ## How does T1JIT works
 
+T1JIT uses the Active Directory **Privileged Access Management** optional feature only
+for TTL-based group memberships. It does not implement the complete Microsoft PAM
+architecture; specifically, it does not require a separate bastion forest or Microsoft
+Identity Manager. The PAM feature allows T1JIT to add a user to an administrator group
+for a defined lifetime so that Active Directory removes the membership automatically when
+the TTL expires.
+
 T1JiT works with Active Directory groups and group polices. A user can connect to the KJIT-Web Service and select a target server and the elevation time. With the "request access" access button a request message is written to the Just-In-Time event log.
 The event log is consumed from a group managed service account, who reads the event log and validate the user is allowed to request the access. If the user is allowed, the user object if time-bound added to the group who is member of the local administrator on the target server.
 While the group where the user is added contains the target server in the name,only one group policy with a variable is required to assign the local administrator rights on the target server.
 The user is automatically removed from the local administrator group after the time is expired.
 The groups will be automatically created by the JIT-Solution, if a computer oject exists in the configured target OU.
-
-### AD group enumeration and provisioning
-
-```mermaid
-flowchart TD
-    Start[Start group management] --> Domains{Multi-domain support enabled?}
-    Domains -->|Yes| Forest[Enumerate all domains in the forest]
-    Domains -->|No| Current[Use the current domain]
-    Forest --> SearchBases[Read configured T1 search bases]
-    Current --> SearchBases
-    SearchBases --> Resolve[Resolve each search base for the domain]
-    Resolve --> ValidBase{Search base belongs to the domain?}
-    ValidBase -->|No| BaseWarning[Write warning and continue]
-    ValidBase -->|Yes| Computers[Enumerate matching AD computer objects]
-    Computers --> NextServer{Next server available?}
-    NextServer -->|No| NextBase[Continue with next search base or domain]
-    NextServer -->|Yes| GroupName[Build the server-specific admin group name]
-    GroupName --> GroupExists{AD group exists?}
-    GroupExists -->|No| CreateGroup[Create domain-local security group]
-    GroupExists -->|Yes| Members[Read group members with TTL information]
-    Members --> Permanent{Permanent member found?}
-    Permanent -->|Yes| Remove[Remove permanent membership]
-    Permanent -->|No| NextServer
-    Remove --> NextServer
-    CreateGroup --> NextServer
-    BaseWarning --> NextBase
-    NextBase --> Done[Group enumeration completed]
-```
 
 ### Temporary privilege assignment
 
@@ -116,6 +91,15 @@ flowchart TD
     LocalAdmin --> Expire[TTL expires and AD removes the membership automatically]
 ```
 
+## Using the Web Interface
+
+> [!IMPORTANT]
+> KjitWeb can request privileged access and must only be reachable from trusted, managed computers or through a trusted access proxy. Do not expose the KjitWeb service or port `5240` directly to the Internet. Restrict the Windows Firewall rule and all network security controls to the required management clients or proxy connectors, and use HTTPS for every connection that can carry credentials.
+>
+> In Microsoft Azure environments, publish KjitWeb through Microsoft Entra Application Proxy as an Enterprise Application. Require Microsoft Entra pre-authentication and apply Conditional Access policies such as MFA and a compliant or managed device. Block direct client access to the internal KjitWeb URL; otherwise, users could bypass Conditional Access and MFA.
+
+The KJIT-Web service provides a web interface for users to request administrator privileges on the target servers. Open `http://<server>.<domain>:5240` in a web browser, select the target server and elevation duration, and submit the request. The interface also displays active requests and their remaining elevation time.
+
 ## Using T1JIT with PowerShell
 
 Administrators can request temporary local administrator privileges directly from PowerShell. The T1JIT PowerShell module must be installed on the computer, and the user or one of their groups must have a JIT delegation for the organizational unit that contains the target server. No permission to modify Active Directory groups is required.
@@ -137,8 +121,10 @@ After the request has been processed, start a new sign-in session on the target 
 
 ## Quick-start Installation
 
-Download all files from the relase directory and run the install-JIT.ps1. If the PIM feature in Active Directory is not enabled, Enterprise-Administrator privileges are required.
-If you installing this JIT-Solution not as a Domain Administrator the following pre-requisites are required:
+If the Privileged Access Management feature in Active Directory is not enabled,
+Enterprise Administrator privileges are required to enable it.
+If you install this JIT-Solution **not** as a Domain Administrator, the following
+prerequisites must already be fulfilled:
 - Validate Active Directory root-key from group managed service account exists
 - Folder \\<domain>\\SYSVOL\<domain>\JUST-IN-TIME
 - OU for the Just-In-Time groups e.g. OU=JIT-Administrator Groups,OU=Tier 1,OU=Admin,DC=<domain>
@@ -146,43 +132,47 @@ If you installing this JIT-Solution not as a Domain Administrator the following 
     - Allow to retrieve password on the JIT server
     - Create group object in the JIT-Administrator Groups OU
 
-required installation permission:
+Required installation permissions:
 - Member of the local administrator groups
 - Create file permission on \\<domain>\\SYSVOL\<domain>\JUST-IN-TIME
 
 ### Install Just-In-Time
 
-1. Run the install-JIT.ps1 script. This single script installs the JIT-Solution files and then automatically runs config-JIT.ps1 to configure it — there is no separate step required. If it detects an existing installation (an existing `JIT.config` or a previously installed `Config-JIT.ps1`), it updates that installation instead: files are refreshed, the installation-directory prompt is skipped, and you are only asked for configuration settings introduced by a newer version. Add `-AdvancedSetup` to run the full setup wizard again. Re-run config-JIT.ps1 directly only if you want to change the configuration later without reinstalling.
-2. Configure the group policy to assign the local administrator rights on the target servers. The group policy should contain a preference to add the <AdminPrefix>%AD-DNSdomainname%<DomainSeparator>%<ComputerName>% to the local administrator group.
-3. (optional) Install the KJIT-Web service with the install-kjitweb.ps1 script, or answer `Y` when install-JIT.ps1 asks to install it. This script will install the KJIT-Web service on the current computer. If a KjitWeb service is already installed on the computer, install-JIT.ps1 automatically calls update-kjitweb.ps1 instead, refreshing the service in place without asking for AllowedClient, CompanyName, Port, or DebugLogPath again.
-
-### Configure Just-In-Time
-
-The configuration of the JIT-Solution is done with the config-JIT.ps1 script, which install-JIT.ps1 already runs automatically as part of the installation. Run it directly only if you want to change the configuration later without reinstalling. This script will ask for the required configuration parameters and write them to the config file. The configuration parameters are:
-- Admin Prefix: The prefix for the group name who is member of the local administrator group on the target server. The group name will be in the format <AdminPrefix>%AD-DNSdomainname%<DomainSeparator>%<ComputerName>%. The default value is "Admin_".
-- GMSAccount: The name of the group managed service account who will read the event log and add the users to the local administrator group on the target server. The format should be <domain>\<gmsaccountname>$.
-- OU for local Administrator groups: The OU where the groups who are member of the local administrator group on the target server are located. Take care onyl the GMSA and domain administrators should have permissions to create groups in this OU. The groups will be automatically created by the JIT-Solution, if a computer oject exists in the configured target OU.
-- Maximum elevation time: The maximum time for the elevation. The user will be automatically removed from the local administrator group after the time is expired. The default value is 60 minutes.
-- searchbase: The searchbase for the computer objects of the target servers. The JIT-Solution will only work for computer objects who are located in this OU or its child OUs.
+1. Download the latest installation package and extract it into a temporary directory.
+2. Open an elevated Windows PowerShell session. Perform the following steps as a Domain
+   Administrator or as a local administrator on the JIT server. When using an account that
+   is **not** a Domain Administrator, all prerequisites and delegated permissions listed
+   above must already be in place.
+3. Run the `install-JIT.ps1` script from the extracted installation package. This single
+   script installs the JIT-Solution files and then automatically runs `config-JIT.ps1` to
+   configure it. It also includes the KjitWeb installation; accept the default `Y` when
+   prompted and the installer invokes the KjitWeb setup automatically. No separate
+   installation or configuration script needs to be started. If it detects an existing
+   installation, it updates the JIT-Solution and KjitWeb in place while preserving the
+   existing configuration.
+4. Configure the Group Policy that assigns local administrator rights on the target
+   servers. The policy should contain a preference that adds
+   `<AdminPrefix>%AD-DNSdomainname%<DomainSeparator>%<ComputerName>%` to the local
+   Administrators group.
 
 ### Configure elevation privileges
 
 During a fresh installation (not an update), config-JIT.ps1 automatically delegates the
 owning domain's Domain Admins group on every configured search base, so JIT elevation
-works immediately without running Add-JitDelegation by hand. `Add-JitServerOU` grants
+works immediately without running `Add-JitDelegation` by hand. `Add-JitServerOU` grants
 the same default delegation whenever a new search base is added later, and
 `Remove-JITServerOU` removes any matching delegation, including this default one, when
 a search base is removed.
 
-To allow a user to request administrators privileges on servers in a OU use the ADD-JITdelegation command. This command will add user or group to be evlevated on the target servers. The command should be run with the following parameters:
+To allow a user to request administrators privileges on servers in a OU use the `Add-JitDelegation` command. This command will add user or group to be evlevated on the target servers. The command should be run with the following parameters:
 - Identity: The identity of the user or group who should be allowed to request administrators privileges on the target servers. The format should be <domain>\<username> or <domain>\<groupname>.
 - OU: The OU where the computer objects of the target servers are located. The JIT
 Solution will only work for computer objects who are located in this OU or its child OUs. A user will inherit the privileges to request administrators privileges on the target servers, if the user is member of a group who is allowed to request administrators privileges on the target servers.
 create sub OU's below the target OU and delegate users / groups to this sub OU's to have a better structure and overview of the delegations.
 e.g.
-add-jitdelegation -Identity "domain\serveradmins" -OU "OU=Server,DC=domain,DC=local"
+Add-JitDelegation -Identity "domain\serveradmins" -OU "OU=Server,DC=domain,DC=local"
     Any user who is member of the "domain\serveradmins" group will be able to request administrators privileges on the target servers who are located in the "OU=Server,DC=domain,DC=local" OU or its child OUs.
-add-jitdelegation -Identity "domain\SQLAdmins" -OU "OU=SQLServer,OU=Server,DC=domain,DC=local"
+Add-JitDelegation -Identity "domain\SQLAdmins" -OU "OU=SQLServer,OU=Server,DC=domain,DC=local"
     Any user who is member of the "domain\SQLAdmins" group will be able to request administrators privileges on the target servers who are located in the "OU=SQLServer,OU=Server,DC=domain,DC=local" OU or its child OUs.
     Addtional members of the "domain\serveradmins" group will also be able to request administrators privileges on the target servers who are located in the "OU=SQLServer,OU=Server,DC=domain,DC=local" OU or its child OUs, because the "domain\serveradmins" group is member of the "domain\SQLAdmins" group.
 
@@ -199,25 +189,22 @@ e.g.
     New-AdminRequest -Server myserver.domain.local -Duration 120 -User anotheruser
         This will request administrator privileges for the "myserver" server for 120 minutes on behalf of the user "anotheruser@
 
-## Using the Web Interface
-
-> [!IMPORTANT]
-> KjitWeb can request privileged access and must only be reachable from trusted, managed computers or through a trusted access proxy. Do not expose the KjitWeb service or port `5240` directly to the Internet. Restrict the Windows Firewall rule and all network security controls to the required management clients or proxy connectors, and use HTTPS for every connection that can carry credentials.
->
-> In Microsoft Azure environments, publish KjitWeb through Microsoft Entra Application Proxy as an Enterprise Application. Require Microsoft Entra pre-authentication and apply Conditional Access policies such as MFA and a compliant or managed device. Block direct client access to the internal KjitWeb URL; otherwise, users could bypass Conditional Access and MFA.
-
-The KJIT-Web service provides a web interface for users to request administrator privileges on the target servers. The web interface is accessible via http://<server>.<domain>:5240. The user can select the target server and the duration for the elevation. The user can also see the status of their requests and the remaining time for the elevation.
+## Installing and configuring KJIT-Web
 
 ### Installation of the KJIT-Web service
 
-The KJIT-Web service can be installed with the install-kjitweb.ps1 script. This script will install the KJIT-Web service on the current computer. The KJIT-Web Service must be installed on a server where the JIT-Solution is installed.
+KjitWeb is installed as part of the normal `install-JIT.ps1` workflow. After the JIT
+configuration is complete, confirm the KjitWeb prompt with the default `Y`;
+`install-JIT.ps1` then invokes `install-kjitweb.ps1` automatically. The user does not
+need to start the KjitWeb installer separately. KjitWeb is installed on the current
+computer, which must also host the JIT-Solution.
 
 #### Restricting which clients can reach KjitWeb (AllowedClient)
 
 `install-kjitweb.ps1` accepts an `-AllowedClient` parameter that controls which computer(s) are allowed to connect to the KjitWeb TCP port. It accepts a single hostname/FQDN, a single IP address, or `*`:
 
 - **`localhost` (default)** – KjitWeb binds only to the loopback addresses `127.0.0.1`/`[::1]`. The service is reachable only from the KjitWeb server itself, via `http://localhost:5240`. No Windows Firewall rule for remote access is required or created. Use this when KjitWeb is only ever browsed from the server's own console, or when access is brokered entirely through another mechanism such as Microsoft Entra Application Proxy (see below).
-- **A specific hostname or IP address**, for example `-AllowedClient "adminpc01.contoso.com"` – KjitWeb binds to all interfaces (`http://*:5240`), but ASP.NET Core's host filtering and a Windows Firewall rule restrict access to the resolved IP address(es) of that name. `localhost`/`127.0.0.1`/`[::1]` remain allowed as well for local troubleshooting. Choose this when a defined set of one or two administrator workstations or another server needs to browse KjitWeb over the network. Note that only a single hostname/IP is supported; a list, subnet, or CIDR range cannot currently be specified this way (use IPsec or mutual TLS, described in [Restrict KjitWeb access to trusted workstations](#restrict-kjitweb-access-to-trusted-workstations), if several trusted clients must be allowed). For any non-`localhost` value, the installer/updater also verifies that the Kerberos SPNs `HTTP/<hostname>` and `HTTP/<fqdn>` are registered on the server's computer account, registering them automatically if missing (see [Kerberos authentication setup](docs/Kerberos-Setup.md)).
+- **A specific hostname or IP address**, for example `-AllowedClient "adminpc01.contoso.com"` – KjitWeb binds to all interfaces (`http://*:5240`), but ASP.NET Core's host filtering and a Windows Firewall rule restrict access to the resolved IP address(es) of that name. `localhost`/`127.0.0.1`/`[::1]` remain allowed as well for local troubleshooting. Choose this when a defined administrator workstation or another server needs to browse KjitWeb over the network. Only a single hostname or IP address can currently be specified. For any non-`localhost` value, the installer/updater also verifies that the Kerberos SPNs `HTTP/<hostname>` and `HTTP/<fqdn>` are registered on the server's computer account, registering them automatically if missing (see [Kerberos authentication setup](docs/Kerberos-Setup.md)).
 - **`*`** – KjitWeb binds to all interfaces and accepts connections from any remote address. Only use this when another control, such as a firewall, IPsec, mutual TLS, or an access proxy, already restricts who can reach the KjitWeb port; do not expose it directly to untrusted networks.
 
 If you need to change `AllowedClient` after the initial installation (for example because access requirements changed, or because a client that used to reach KjitWeb via its hostname stopped working), use `set-kjitweb-allowedclient.ps1`. Since installation/update, it is available directly in the KjitWeb installation folder (`C:\Program Files\KJITWEB` by default) next to `install-kjitweb.ps1` and `update-kjitweb.ps1` — you do not need to keep or re-extract the release package to run it:
@@ -273,11 +260,7 @@ Optional parameters:
 ```
 
 > [!NOTE]
-> `update-kjitweb.ps1` must be run with administrator privileges. For the core JIT PowerShell module, re-run `install-JIT.ps1` on an existing installation: it now detects the existing `JIT.config` (or a previously installed `Config-JIT.ps1`) automatically, skips the installation-directory prompt, and only asks for configuration settings introduced by a newer version. Use `-AdvancedSetup` on `install-JIT.ps1`/`Config-JIT.ps1` to run the full setup wizard again.
-
-### Using the KJIT-Web service
-
-To use the KJIT-Web service, the user can open a web browser and navigate to http://<server>.<domain>:5240. The user can then select the target server and the duration for the elevation. The user can also see the status of their requests and the remaining time for the elevation.
+> `update-kjitweb.ps1` must be run with administrator privileges. For the core JIT PowerShell module, re-run `install-JIT.ps1` on an existing installation: it detects the existing `JIT.config` (or a previously installed `Config-JIT.ps1`) automatically, skips the installation-directory prompt, and only asks for configuration settings introduced by a newer version.
 
 ### Configuration of the KJIT-Web service
 
@@ -376,8 +359,8 @@ The Remove-JITServerOU command can be used to remove the server OU for the JIT-S
 
     Remove-JITServerOU
         This will remove the server OU for the JIT-Solution. The JIT-Solution will no longer work for any target servers, because the server OU is required for the JIT-Solution to function.
-### Add-jitdelegation
-The Add-JITDelegation command can be used to add a delegation for the JIT-Solution. This command will add the specified delegation for the JIT-Solution.
+### Add-JitDelegation
+The `Add-JitDelegation` command can be used to add a delegation for the JIT-Solution. This command will add the specified delegation for the JIT-Solution.
 
 #### Parameters
 - Identity: The identity of the user or group who should be allowed to request administrators privileges on the target servers. The format should be <domain>\<username> or <domain>\<groupname>.
@@ -385,7 +368,7 @@ The Add-JITDelegation command can be used to add a delegation for the JIT-Soluti
 
 #### Example
 
-    Add-JITDelegation -Identity "domain\serveradmins" -OU "OU=Server,DC=domain,DC=local"
+    Add-JitDelegation -Identity "domain\serveradmins" -OU "OU=Server,DC=domain,DC=local"
         This will add a delegation for the "domain\serveradmins" group for the target servers who are located in the "OU=Server,DC=domain,DC=local" OU or its child OUs. Any user who is member of the "domain\serveradmins" group will be able to request administrators privileges on the target servers who are located in the "OU=Server,DC=domain,DC=local" OU or its child OUs.
 
 ### Add-JITServerOU
@@ -399,498 +382,200 @@ The Add-JITServerOU command can be used to add a server OU for the JIT-Solution.
     Add-JITServerOU -OU "OU=Server,DC=domain,DC=local"
         This will add the "OU=Server,DC=domain,DC=local" OU for the JIT-Solution. Any computer objects located in this OU or its child OUs will be considered as target servers for the JIT-Solution.
 
-## Restrict KjitWeb access to trusted workstations
+## Monitoring with Windows Event Log
 
-KjitWeb is a privileged access application and should only be reachable from trusted, managed workstations. Two independent controls are available for restricting the source workstation: IPsec with Kerberos computer authentication, or mutual TLS authentication with an organization-issued workstation certificate. Both controls operate before KjitWeb performs its existing user authentication and JIT delegation checks.
+T1JIT records elevation requests, processing results, group provisioning, and service
+startup diagnostics in Windows Event Log. Monitor these logs on the JIT server:
 
-### Restrict access using IPsec
+- **Tier 1 Management** with source `T1Mgmt` – Contains JIT elevation requests and their
+  processing results as well as Tier 1 administrator-group provisioning events. The log
+  and source names can be changed in `JIT.config`.
+- **Application** with source `KjitWeb` – Contains KjitWeb startup diagnostics.
+- **Application** with source `T1JIT Tier1LocalAdminGroup` – Contains script-level
+  diagnostics for the scheduled group-management task.
 
-In an Active Directory domain, Windows Defender Firewall with IPsec can enforce the workstation restriction without changing the KjitWeb application. IPsec authenticates the client computer with its Kerberos computer account before Windows permits a connection to the KjitWeb TCP port.
+Important events include:
 
-The resulting access requirements are:
+| Event ID | Level | Meaning |
+|---|---|---|
+| 100 (default) | Information | A JIT elevation request was submitted. |
+| 2104 | Information | A user was successfully granted temporary administrator access. |
+| 2103 | Warning | A request was rejected because no matching delegation was found. |
+| 2000, 2001, 2005, 2007, 2105, 2109 | Error | The elevation processor could not complete a request. |
+| 1000 | Information | A server-specific administrator group was created. |
+| 1001, 1003 | Error | Creating a group or removing a permanent member failed. |
+| 1004 | Warning | A configured computer search base could not be found. |
+| 3101 | Error | The scheduled Tier 1 computer search failed. |
+| 5000 | Error | KjitWeb failed to start. |
+| 5001 | Information | KjitWeb started successfully; the message includes the debug-log path. |
 
-1. The client computer is a member of an approved Active Directory computer group and successfully authenticates to the KjitWeb server with Kerberos.
-2. The user successfully authenticates to KjitWeb and is authorized to request access to the selected server.
-
-IPsec controls the source computer, not the user. Do not add user accounts to the trusted-workstation group.
-
-#### Prerequisites
-
-- The KjitWeb server and trusted workstations are joined to the Active Directory domain or to domains with a working trust relationship.
-- The clients can reach a domain controller and obtain Kerberos tickets.
-- DNS resolution, domain time synchronization, and the required domain firewall paths are working.
-- The KjitWeb service uses a fixed TCP port. The default port is `5240`.
-- Group Policy Management and Windows Defender Firewall with Advanced Security are available.
-- A recovery method such as console access to the KjitWeb server is available during rollout.
-
-IPsec authenticates and can protect the network connection, but HTTPS is still recommended for KjitWeb. In particular, Kerberos authentication by itself does not turn HTTP into a generally encrypted application channel, and Basic Authentication must never be transported over unencrypted HTTP.
-
-#### 1. Create the trusted-workstation group
-
-Create a dedicated global security group, for example:
-
-```text
-KjitWeb-Trusted-Workstations
-```
-
-Add the **computer accounts** of the approved administrative workstations to this group, for example `ADMIN-WS01$` and `ADMIN-WS02$`. After changing computer-group membership, restart the affected workstation or purge and renew its computer Kerberos tickets before testing. A restart is the least ambiguous method during initial deployment.
-
-Manage this group as a privileged access control. Use a controlled process for additions and removals, review membership regularly, and do not nest broad groups such as `Domain Computers`.
-
-#### 2. Create a pilot Group Policy deployment
-
-Create separate GPOs for the KjitWeb server and the trusted workstations. Link them first to small pilot OUs containing only the test systems:
-
-- `KjitWeb IPsec Server`
-- `KjitWeb IPsec Trusted Clients`
-
-Configure the policies under:
-
-```text
-Computer Configuration
-    Policies
-        Windows Settings
-            Security Settings
-                Windows Defender Firewall with Advanced Security
-```
-
-Use the Domain profile. Avoid enabling the rules for Public networks unless this is an explicit requirement.
-
-#### 3. Configure the client IPsec rule
-
-In the trusted-client GPO, create a **Connection Security Rule** with the following intent:
-
-- Rule type: Custom or Server-to-server
-- Local endpoint: the trusted workstation
-- Remote endpoint: the fixed IP address or subnet containing the KjitWeb server
-- Protocol: TCP
-- Remote port: the configured KjitWeb port, normally `5240`
-- Authentication: Computer authentication using Kerberos V5
-- Requirement: request or require authentication for outbound connections
-- Profile: Domain
-
-Requiring authentication gives the strongest enforcement. Requesting authentication is useful during the pilot phase while the server policy is being deployed. Restrict the endpoints and port as narrowly as the supported Windows version and the organization's IPsec policy permit.
-
-#### 4. Configure the KjitWeb server IPsec rule
-
-In the server GPO, create the matching **Connection Security Rule**:
-
-- Local endpoint: the KjitWeb server
-- Remote endpoint: the management workstation networks
-- Protocol: TCP
-- Local port: the configured KjitWeb port, normally `5240`
-- Authentication: Computer authentication using Kerberos V5
-- Requirement: require authentication for inbound connections
-- Profile: Domain
-
-Use transport mode unless the network design specifically requires an IPsec tunnel. Ensure that the selected integrity and encryption algorithms are permitted by the organization's security baseline on both clients and server.
-
-#### 5. Require secure inbound connections
-
-In the server GPO, create an inbound Windows Firewall rule for the KjitWeb port:
-
-- Rule type: Port or Custom
-- Protocol: TCP
-- Local port: `5240`, or the port selected during installation
-- Action: **Allow the connection if it is secure**
-- Security requirement: require authentication
-- Authorized remote computers: the Active Directory group `KjitWeb-Trusted-Workstations`
-- Profile: Domain
-
-If the policy editor offers separate authorization fields, configure the group under **Remote computers authorized to access this computer**. Use the domain-qualified group name, for example `CONTOSO\KjitWeb-Trusted-Workstations`.
-
-The KjitWeb installer can create a normal inbound allow rule named similar to `KjitWeb Port 5240 Client Restriction`. Disable or remove that rule after the IPsec policy is active. Also check for other local or GPO firewall rules that allow the KjitWeb port without requiring a secure connection. A normal allow rule can bypass the intended IPsec-only restriction.
-
-Do not use `AllowedHosts` as a workstation security boundary. ASP.NET Core host filtering validates the HTTP `Host` header and does not authenticate the client computer.
-
-#### 6. Deploy without locking out administrators
-
-Use this rollout order:
-
-1. Add one test workstation to `KjitWeb-Trusted-Workstations` and refresh its computer-group membership.
-2. Deploy the client connection security rule in request mode.
-3. Deploy the server connection security rule and the secure inbound firewall rule.
-4. Confirm that the trusted test workstation can open KjitWeb.
-5. Confirm that a domain-joined workstation outside the group cannot connect to the KjitWeb TCP port.
-6. Change the client rule from request to require authentication if request mode was used for the pilot.
-7. Expand the GPO scope to the remaining approved workstations.
-8. Remove all ordinary inbound allow rules for the KjitWeb port.
-
-Keep console access available until both a positive and a negative test have succeeded. Do not start by applying a mandatory server rule to all systems, because a mismatched client rule or algorithm suite can block every remote connection.
-
-#### 7. Validate and troubleshoot
-
-Refresh Group Policy on the server and test workstation:
+Display the latest T1JIT events:
 
 ```powershell
-gpupdate.exe /force
+Get-WinEvent -LogName 'Tier 1 Management' -MaxEvents 50 |
+    Select-Object TimeCreated, Id, LevelDisplayName, ProviderName, Message
 ```
 
-Confirm that the expected GPOs were applied:
+Display warnings and errors from the last 24 hours:
 
 ```powershell
-gpresult.exe /scope computer /r
+Get-WinEvent -FilterHashtable @{
+    LogName   = 'Tier 1 Management'
+    Level     = 2, 3
+    StartTime = (Get-Date).AddHours(-24)
+} | Select-Object TimeCreated, Id, LevelDisplayName, Message
 ```
 
-Test the application port from an approved workstation and from a workstation outside the group:
+Display KjitWeb and group-management diagnostics from the Application log:
 
 ```powershell
-Test-NetConnection -ComputerName "kjitweb.contoso.com" -Port 5240
+Get-WinEvent -FilterHashtable @{
+    LogName      = 'Application'
+    ProviderName = 'KjitWeb', 'T1JIT Tier1LocalAdminGroup'
+    StartTime    = (Get-Date).AddHours(-24)
+} | Select-Object TimeCreated, Id, LevelDisplayName, ProviderName, Message
 ```
 
-The approved workstation should establish the TCP connection. The unapproved workstation should fail before an HTTP response is returned. A KjitWeb `401 Unauthorized` response means the network connection reached the application and only the user authentication failed; this is different from an IPsec or firewall rejection.
+KjitWeb also displays an orange warning symbol or a red error symbol next to its version
+number when a relevant warning or error was written to the configured event log during
+the last 24 hours. Event IDs `2003` and `2009` are excluded because they represent normal
+limit enforcement rather than operational failures.
 
-Inspect the active IPsec security associations and firewall rules when troubleshooting:
+For the complete event-ID reference and detailed troubleshooting descriptions, see
+[`EVENTS.md`](EVENTS.md).
+
+## Advanced setup
+
+The standard installation requires only `install-JIT.ps1`. Use the following advanced
+options when an existing configuration must be reviewed, an installation must run without
+prompts, or KjitWeb settings must be supplied explicitly.
+
+### Full configuration wizard
+
+An update normally retains the existing settings and asks only for configuration values
+introduced by a newer release. To review every configuration value again, open an elevated
+Windows PowerShell session in the installed JIT directory and run:
 
 ```powershell
-Get-NetIPsecMainModeSA
-Get-NetIPsecQuickModeSA
-Get-NetFirewallRule -PolicyStore ActiveStore |
-        Where-Object DisplayName -Like "*KjitWeb*"
-```
-
-Also inspect the Windows event logs under **Applications and Services Logs > Microsoft > Windows > Windows Firewall With Advanced Security** and verify Kerberos failures in the System and Security logs. Common causes are stale computer-group membership, incorrect DNS records, clock skew, unavailable domain controllers, inconsistent IPsec algorithms, NAT between endpoints, or an ordinary firewall rule that still permits the port.
-
-#### Operational maintenance
-
-- Review membership of `KjitWeb-Trusted-Workstations` regularly.
-- Remove retired or compromised computer accounts immediately and allow Active Directory replication to complete.
-- Monitor changes to the group and to the IPsec GPOs.
-- Retest both approved and unapproved workstations after firewall, network, operating-system, or security-baseline changes.
-- Keep HTTPS enabled even when IPsec is required.
-
-### Restrict access using mutual authentication
-
-KjitWeb can optionally require mutual TLS (mTLS). With mTLS, Kestrel presents the KjitWeb server certificate and also requires the workstation to present a trusted client certificate. KjitWeb validates the client certificate chain and requires every enhanced key usage (EKU) OID configured in `MutualTls:RequiredEkuOids`.
-
-mTLS is disabled by default and the KjitWeb installer does not ask whether it should be enabled. Enabling it is an explicit post-installation security decision. The KjitWeb service must be restarted after changing the configuration.
-
-When mTLS is enabled:
-
-- HTTPS connections without a client certificate are rejected during the TLS handshake.
-- Client certificates with an invalid trust chain or a missing required EKU are rejected.
-- HTTP requests are rejected with status `403`, preventing an HTTP binding from bypassing mTLS.
-- An empty `RequiredEkuOids` list prevents KjitWeb from starting, so an incomplete configuration cannot silently weaken the workstation restriction.
-
-#### 1. Prepare the certificate infrastructure
-
-Issue a TLS server certificate to the KjitWeb server. Its subject alternative name must contain the DNS name used by clients, for example `kjitweb.contoso.com`. Install the certificate and its private key in `Local Computer\Personal`. Grant `NT AUTHORITY\NETWORK SERVICE` read access to the private key because the standard installation runs KjitWeb under Network Service.
-
-Create a dedicated AD CS certificate template for the trusted workstations. The workstation certificate should have:
-
-- A non-exportable private key, preferably protected by a TPM.
-- The workstation DNS name in the subject alternative name.
-- The standard Client Authentication EKU `1.3.6.1.5.5.7.3.2`.
-- A private enterprise EKU dedicated to KjitWeb, for example `1.3.6.1.4.1.55555.1.1`. Replace this example with an OID below the organization's registered enterprise OID.
-
-Grant enroll and auto-enroll permissions for the workstation template only to a dedicated computer group such as `KjitWeb-Trusted-Workstations`. Do not grant enrollment to `Domain Computers`. The dedicated EKU is an authorization boundary only when the CA issues certificates containing it exclusively to approved workstations.
-
-Ensure that the KjitWeb server trusts the issuing CA and can reach the certificate revocation list or OCSP endpoint. Revocation checking is enabled by default.
-
-#### 2. Configure the KjitWeb HTTPS endpoint and mTLS
-
-Edit `C:\Program Files\KJITWEB\appsettings.Production.json`. Preserve the existing settings and add the following top-level sections:
-
-```json
-{
-    "Kestrel": {
-        "Endpoints": {
-            "Https": {
-                "Url": "https://*:5240",
-                "Certificate": {
-                    "Subject": "CN=kjitweb.contoso.com",
-                    "Store": "My",
-                    "Location": "LocalMachine",
-                    "AllowInvalid": false
-                }
-            }
-        }
-    },
-    "MutualTls": {
-        "Enabled": true,
-        "CheckCertificateRevocation": true,
-        "RequiredEkuOids": [
-            "1.3.6.1.5.5.7.3.2",
-            "1.3.6.1.4.1.55555.1.1"
-        ]
-    }
-}
-```
-
-Replace the server name and private EKU OID with the values used by the organization. Kestrel endpoint configuration takes precedence over the `ASPNETCORE_URLS` value created by the standard installer. Defining only the `Https` endpoint therefore removes the standard HTTP listener, while the application also rejects HTTP whenever mTLS is enabled.
-
-All entries in `RequiredEkuOids` are mandatory. Keeping both the standard Client Authentication EKU and the dedicated KjitWeb EKU ensures that a general-purpose client certificate is not sufficient.
-
-Restart the service:
-
-```powershell
-Restart-Service KjitWeb
-```
-
-If the service does not start, inspect the Application event log and verify the server-certificate subject, private-key permission, EKU OID syntax, and certificate trust chain. KjitWeb records startup configuration failures in the Application log.
-
-#### 3. Configure browser certificate selection
-
-The browser must be able to access the workstation certificate and its private key. Verify this with a pilot workstation before broad deployment. Microsoft Edge and Google Chrome can select a matching certificate automatically through the `AutoSelectCertificateForUrls` enterprise policy. Restrict that policy to the KjitWeb URL and the intended certificate issuer or subject pattern.
-
-Automatic selection is particularly important when multiple client certificates are available. Do not loosen private-key permissions beyond what is necessary for the browser process to use the workstation certificate.
-
-#### 4. Validate mTLS enforcement
-
-Perform all of the following tests:
-
-1. An approved workstation with the correct certificate can open `https://kjitweb.contoso.com:5240` and complete the existing Kerberos user authentication.
-2. A workstation without a client certificate is rejected before KjitWeb displays a page.
-3. A workstation with a trusted general-purpose client certificate but without the private KjitWeb EKU is rejected.
-4. A revoked or expired workstation certificate is rejected.
-5. `http://kjitweb.contoso.com:5240` is unavailable or returns `403` while mTLS is enabled.
-
-To disable mTLS, set `MutualTls:Enabled` to `false` and restart the service. Kestrel then stops requesting client certificates. Keep HTTPS enabled for transport protection even when mutual authentication is disabled.
-
-## Developer information
-
-### Solution Structure
-
-- `src`: contains all source code
-- `Release`: contains all files required for the installation of the JIT-Solution.
-- `docs`: documentation
-- `build`: scripts to build a new release version
-
-### Versioning
-
-Every change uses the version format `<Major>.<Minor>.<yyyyMMdd>.<counter>`, for example
-`0.1.20260823.1`. The counter starts at `1` each day and increases for every additional
-version created on that day. All files in one change share the same version.
-Each entry in `file-versions.json` records that shared version and the file's SHA-256
-hash.
-
-Enable automatic versioning for local commits once after cloning the repository:
-
-```powershell
-git config core.hooksPath .githooks
-```
-
-The pre-commit hook runs `Update-Version.ps1 -Staged`, creates the next version for
-the files staged in that commit, and stages `VERSION` and `file-versions.json`.
-
-Use the repository push script for GitHub pushes:
-
-```powershell
-./build/Push-GitHub.ps1
-```
-
-It records every outgoing commit and changed file in `History.md`, creates a versioned
-history commit, and then pushes the current branch. The pre-push hook rejects direct
-GitHub pushes when outgoing commits have not been documented.
-
-Before committing changes, update `VERSION` and `file-versions.json`:
-
-```powershell
-./build/Update-Version.ps1
-```
-
-For a branch that already contains commits, include every change since the target branch:
-
-```powershell
-./build/Update-Version.ps1 -BaseRef origin/main
-```
-
-Use `-Major` or `-Minor` only when intentionally changing those version components. The
-release build and the GitHub workflow reject invalid versions or changed files missing from
-`file-versions.json`. Generated .NET output below `bin` and `obj` is excluded.
-
-Every `.ps1` file must contain the standard `Script Info` disclaimer used in
-`build/Update-Version.ps1`. The version update and GitHub workflow reject existing or new
-PowerShell scripts when any required disclaimer line is missing.
-
-### Creating a release
-
-A release consists of a versioned Git commit, a generated installation package, a ZIP archive, a SHA-256 checksum, and a GitHub release. Development releases use the suffix `-test` and are marked as GitHub pre-releases. Production releases have no suffix and must be created from the approved production branch.
-
-The release must be built only after the documented push. `Push-GitHub.ps1` creates a final history commit, and the pre-commit hook assigns that commit a new repository version. Reading `VERSION` or building binaries before this step can therefore produce an artifact whose embedded version does not match the GitHub tag.
-
-#### 1. Prepare and validate the change
-
-Start from the branch that should be released and confirm the intended changes:
-
-```powershell
-git status --short
-git branch --show-current
-git diff --check
-```
-
-Run the tests and builds required by the changed components. At minimum, build KjitWeb when its source changed and parse modified Windows PowerShell scripts with Windows PowerShell 5.1.
-
-Enable the repository hooks once per clone:
-
-```powershell
-git config core.hooksPath .githooks
-```
-
-Stage only the intended files and create the functional commit:
-
-```powershell
-git add -- <files>
-git commit -m "Describe the release change"
-```
-
-The pre-commit hook runs `Update-Version.ps1 -Staged` and adds the updated `VERSION` and `file-versions.json` to the commit. Do not bypass the hook for a release commit.
-
-#### 2. Create the documented push
-
-The working tree must be clean before running the repository push script:
-
-```powershell
-git status --short
-./build/Push-GitHub.ps1
-```
-
-The script fetches the remote branch, records outgoing commits and changed files in `History.md`, creates the versioned history commit, and pushes the branch. Direct GitHub pushes are rejected by the pre-push hook when the outgoing commits are not documented.
-
-After the push, capture the final version and immutable commit:
-
-```powershell
-$version = (Get-Content ./VERSION -Raw).Trim()
-$commit = (git rev-parse HEAD).Trim()
-$branch = (git branch --show-current).Trim()
-
-git status --short
-git rev-parse HEAD
-git rev-parse "origin/$branch"
-```
-
-The working tree must still be clean, and the local and remote commit IDs must match.
-
-#### 3. Build the installation package
-
-Use a temporary detached Git worktree so generated `release`, `publish-service`, and `Installationspackage` content does not modify the development worktree:
-
-```powershell
-$releaseWorktree = Join-Path $env:TEMP "T1JIT-release-$version"
-$artifactDirectory = Join-Path $env:TEMP "T1JIT-artifacts-$version"
-
-Remove-Item $releaseWorktree -Recurse -Force -ErrorAction SilentlyContinue
-Remove-Item $artifactDirectory -Recurse -Force -ErrorAction SilentlyContinue
-New-Item $artifactDirectory -ItemType Directory -Force | Out-Null
-
-git worktree add --detach $releaseWorktree $commit
-Push-Location $releaseWorktree
+Push-Location "$env:ProgramFiles\Just-In-Time"
 try {
-    # Use -Prerelease for a development release (adds the "-test" suffix); omit it for production.
-    ./build/New-InstallationPackage.ps1 -BuildRelease -ArchivePath (Join-Path $artifactDirectory "T1JIT-$version-test.zip") -Version $version -Prerelease
+    .\Config-JIT.ps1 -AdvancedSetup
 }
 finally {
     Pop-Location
 }
 ```
 
-`New-InstallationPackage.ps1 -BuildRelease` performs the release build and then runs the mandatory Pester 5 tests against the PowerShell modules that will be packaged. The tests validate the manifest and module syntax and exercise `Get-JITConfig` in Windows PowerShell 5.1. A missing Pester 5 installation or any failed test aborts package creation. Install Pester when necessary with `Install-Module Pester -MinimumVersion 5.0.0 -Scope CurrentUser`. After successful tests, the script stages the complete distributable content in a temporary folder, verifies that required files such as `install-JIT.ps1`, `KjitCore.dll`, and `KjitWeb.dll` exist, and **always** compresses the staged content into a single ZIP archive together with a `.sha256` checksum file. The staged, uncompressed copy is deleted afterwards. When `-ArchivePath` is omitted, the archive and checksum are written to `Installationspackage` and named `T1JIT-<Version>-<Branch>[-test].zip`, using the current Git branch unless `-Branch` is specified. Never reuse an existing version or overwrite assets belonging to an existing tag.
+The advanced wizard includes all standard configuration questions and additionally asks:
 
-Confirm that the package version matches the release version by reading the `VERSION` entry from inside the archive:
+- **Enable delegation mode** – Controls whether requests must match entries in the
+  delegation control file. The default is `Y`. Disabling delegation allows every
+  authenticated user to request elevation for managed servers and should therefore be
+  used only in explicitly approved environments.
+- **LDAP query for Tier 1 computers** – Replaces the default computer search filter used
+  within the configured search bases. Supply a valid LDAP filter that selects only the
+  intended managed computer objects.
 
-```powershell
-$archivePath = Join-Path $artifactDirectory "T1JIT-$version-test.zip"
-$checksumPath = "$archivePath.sha256"
+### Unattended installation
 
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-$zip = [System.IO.Compression.ZipFile]::OpenRead($archivePath)
-try {
-    $packageVersion = (New-Object IO.StreamReader($zip.GetEntry("VERSION").Open())).ReadToEnd().Trim()
-}
-finally {
-    $zip.Dispose()
-}
-if ($packageVersion -ne $version) {
-    throw "Package version '$packageVersion' does not match release version '$version'."
-}
-```
-
-For a production release, use `-ArchivePath (Join-Path $artifactDirectory "T1JIT-$version.zip")` and omit `-Prerelease`.
-
-#### 4. Verify the archive and checksum
-
-Verify the archive before uploading it:
+Use `-silent` together with an existing `JIT.config` file to install or update T1JIT
+without interactive JIT configuration prompts. Add `-InstallWeb` to install KjitWeb and
+supply its values as parameters so that its installer does not prompt:
 
 ```powershell
-Get-Item $archivePath, $checksumPath
-Get-FileHash $archivePath -Algorithm SHA256
-tar.exe -tf $archivePath | Select-Object -First 20
+.\install-JIT.ps1 `
+    -silent `
+    -JitProgramFolder 'C:\Program Files\Just-In-Time' `
+    -JitConfigFile '\\contoso.com\SYSVOL\contoso.com\Just-In-Time\JIT.config' `
+    -InstallWeb `
+    -AllowedClient 'adminpc01.contoso.com' `
+    -CompanyName 'Contoso Ltd.' `
+    -Port 5240 `
+    -DebugLogPath 'C:\ProgramData\KJITWEB\debug.log'
 ```
 
-The archive must contain `VERSION`, `file-versions.json`, `install-JIT.ps1`, the PowerShell modules, and the KjitWeb installation files.
+The parameters have the following purposes:
 
-#### 5. Create the GitHub release
+- `JitProgramFolder` selects the JIT installation directory.
+- `JitConfigFile` supplies an existing configuration file. Silent configuration requires
+  this parameter or an existing machine-level `JustInTimeConfig` environment variable.
+- `InstallWeb` includes KjitWeb in a silent installation.
+- `AllowedClient`, `CompanyName`, `Port`, and `DebugLogPath` provide the KjitWeb settings
+  that would otherwise be requested interactively.
 
-Before creating the release, rename the `## [Unreleased]` section in
-[`CHANGELOG.md`](CHANGELOG.md) to `## [$version] - <date>` (or add a new dated entry for
-`$version` if it does not exist yet), describing the user-facing changes, and commit it.
-Extract that entry to use as the release notes instead of auto-generated commit lists:
+When an existing KjitWeb installation is detected, `install-JIT.ps1` runs
+`update-kjitweb.ps1` and preserves its existing client, branding, port, and debug-log
+configuration.
+
+### Parameterized KjitWeb installation
+
+KjitWeb is normally installed automatically by `install-JIT.ps1`. If the web service must
+be installed separately, run the packaged `install-kjitweb.ps1` from an elevated Windows
+PowerShell session and provide the required values explicitly:
 
 ```powershell
-$releaseNotesPath = Join-Path $artifactDirectory "release-notes-$version.md"
-$changelog = Get-Content CHANGELOG.md -Raw
-if ($changelog -notmatch "(?ms)^## \[$([regex]::Escape($version))\].*?(?=^## \[|\z)") {
-    throw "CHANGELOG.md has no entry for version '$version'. Add one before releasing."
-}
-$Matches[0].TrimEnd() | Set-Content -LiteralPath $releaseNotesPath -Encoding utf8
+.\kJITWeb\install-kjitweb.ps1 `
+    -JitConfig '\\contoso.com\SYSVOL\contoso.com\Just-In-Time\JIT.config' `
+    -AllowedClient 'adminpc01.contoso.com' `
+    -CompanyName 'Contoso Ltd.' `
+    -Port 5240 `
+    -DebugLogPath 'C:\ProgramData\KJITWEB\debug.log'
 ```
 
-Install and authenticate GitHub CLI before creating a release:
+- `JitConfig` identifies the configuration used by the PowerShell and KjitWeb components.
+- `AllowedClient` accepts `localhost`, one hostname or IP address, or `*`.
+- `CompanyName` sets the branding shown in the web interface.
+- `Port` selects the KjitWeb listening port.
+- `DebugLogPath` overrides the KjitWeb debug-log file path.
 
-```powershell
-gh auth status
-```
+### Installation prompts
 
-Create a development pre-release from a development branch such as `dev`:
+Although configuration is implemented by separate internal scripts, the user starts only
+`install-JIT.ps1`. Press Enter to accept the value shown in square brackets. A standard
+interactive installation asks for the following information:
 
-```powershell
-$tag = "v$version-test"
+1. **Installation directory** – Location for the JIT program files. The default is
+   `C:\Program Files\Just-In-Time`.
+2. **Administrator group prefix** – Prefix used to construct the server-specific
+   administrator group names. The default is `Admin_`.
+3. **Group Managed Service Account name** – Name of the gMSA that processes JIT events
+   and manages the temporary group memberships. The name must contain between 5 and
+   14 characters.
+4. **Delegation control file** – Location of the JSON file that stores JIT delegations.
+   The default is
+   `\\<domain>\SYSVOL\<domain>\Just-In-Time\Tier1delegation.config`.
+5. **Debug log directory** – Directory used for diagnostic logging. Environment variables
+   such as `%TEMP%` and UNC paths are supported.
+6. **OU for local administrator groups** – Distinguished name of the OU in which the
+   server-specific administrator groups are stored. The installer can create a missing OU
+   hierarchy when the executing account has sufficient permissions.
+7. **Maximum elevation time** – Longest permitted temporary elevation, between 15 and
+   1440 minutes. The default is 1440 minutes.
+8. **Default elevation time** – Elevation duration used when the requester does not select
+   another value. It must be between 15 minutes and the configured maximum; the default is
+   60 minutes.
+9. **Tier 0 computers group** – Existing Active Directory group whose computers are
+   excluded from Tier 1 JIT administration. The default name is `Tier 0 Computers`.
+10. **Tier 0 OU** – Relative distinguished name of the Tier 0 computer OU below the
+    current domain root. The default is `OU=Tier 0,OU=Admin`.
+11. **Group evaluation interval** – Number of minutes between evaluations of the Tier 1
+    administrator groups. Valid values are 5 through 1439; the default is 5 minutes.
+12. **JIT computer search bases** – One or more OU or CN distinguished names containing
+    managed computer objects. The installer repeatedly asks whether another search base
+    should be added. If none is added, the current domain root is used.
+13. **Configuration file path** – Location at which `JIT.config` is stored. The recommended
+    default is `\\<domain>\SYSVOL\<domain>\Just-In-Time\JIT.config`.
+14. **Install KjitWeb** – Confirm with the default `Y`. `install-JIT.ps1` then invokes the
+    KjitWeb installer automatically and passes it the newly created JIT configuration.
+15. **Allowed KjitWeb client** – Hostname, IP address, `localhost`, or `*` that may access
+    KjitWeb. The default is `localhost`.
+16. **Company name** – Display name shown in the KjitWeb interface. The default is
+    `Active Directory Just-in-Time Administration`.
+17. **KjitWeb TCP port** – Listening port for the web service. The default is `5240`; if it
+    is already in use, another available port must be entered.
 
-gh release create $tag $archivePath $checksumPath `
-    --target $commit `
-    --title "T1JIT $version Test" `
-    --notes-file $releaseNotesPath `
-    --prerelease
-```
-
-For an approved production release, use a production tag and omit `--prerelease`:
-
-```powershell
-$tag = "v$version"
-
-gh release create $tag $archivePath $checksumPath `
-    --target $commit `
-    --title "T1JIT $version" `
-    --notes-file $releaseNotesPath
-```
-
-Create production releases only from the approved production commit. The value passed to `--target` is the captured commit ID rather than a moving branch name, ensuring that the tag identifies exactly the code used for the package.
-
-#### 6. Verify and clean up
-
-Verify the published tag, release type, and assets:
-
-```powershell
-gh release view $tag --json tagName,isPrerelease,targetCommitish,name,assets
-git ls-remote --tags origin $tag
-```
-
-Download the assets into a separate directory and verify the checksum independently when preparing a production release. Retain the checksum with the release assets.
-
-After successful verification, remove the temporary build worktree and artifacts as required:
-
-```powershell
-git worktree remove $releaseWorktree --force
-Remove-Item $artifactDirectory -Recurse -Force
-git worktree prune
-```
-
-Do not remove the temporary worktree until the GitHub assets have been uploaded and verified. If a build or upload fails, correct the cause and create a new repository version instead of replacing an already published production release.
-
-## Contributing
-
-github\Kili69
-github\Bulgwei
+Development, build, versioning, release, and contribution information is maintained
+separately in [`Developer.md`](Developer.md).
 
 ## 📄 License
 
@@ -899,9 +584,8 @@ This project is licensed under the MIT License.
 ## Changelog
 
 User- and administrator-facing changes are documented in [`CHANGELOG.md`](CHANGELOG.md),
-grouped by version. Update it as part of [creating a release](#creating-a-release), before
-publishing the corresponding GitHub release. For a raw, per-push audit trail of commits and
-changed files instead, see [`History.md`](History.md).
+grouped by version. For a raw, per-push audit trail of commits and changed files instead,
+see [`History.md`](History.md).
 
 2025-08-30 The update is a complete restructuring of the files to enable the use of C# code. Integrating C# is essential for extending the JIT Solution into a cloud service. In this update, the code has been separated from the release files. Additionally, the documentation has been moved to the Doc folder to improve clarity. All files required for operation are now located in the release directory.
 

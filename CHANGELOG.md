@@ -5,7 +5,7 @@ This file describes **user- and administrator-facing changes** to T1JIT: new fea
 This is different from [`History.md`](History.md), which is an automatically generated, per-push audit log of raw commits and changed files created by `build/Push-GitHub.ps1`.
 `History.md` answers "what was pushed and when"; this file answers "what changed for me as a user of T1JIT, and why does it matter".
 
-Versions follow this repository's scheme `<Major>.<Minor>.<yyyyMMdd>.<Counter>` (see `build/Update-Version.ps1`), for example `0.2.20260925.3`. Update this file as part of [creating a release](README.md#creating-a-release), before publishing the corresponding GitHub release.
+Versions follow this repository's scheme `<Major>.<Minor>.<yyyyMMdd>.<Counter>` (see `build/Update-Version.ps1`), for example `0.2.20260925.3`. Update this file as part of [creating a release](Developer.md#creating-a-release), before publishing the corresponding GitHub release.
 
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
@@ -17,7 +17,7 @@ Changes merged into `dev` since the last published release (`v0.1.20260908.12`),
 
 - Installation package creation now always runs Pester unit tests against the packaged PowerShell modules and aborts before creating a ZIP if manifest, syntax, or `Get-JITConfig` compatibility tests fail.
 - Release packages are now a single ZIP + `.sha256` checksum (`T1JIT-<Version>-<Branch>.zip`).
-- `update-kjitweb.ps1` updates an existing KJIT-Web installation in place (rollback backup, preserves `appsettings*.json`/`app_data`). `install-JIT.ps1` now detects an existing Just-In-Time/KjitWeb installation and updates it in place instead of re-running the full setup wizard, only prompting for settings introduced since the last configuration (`-AdvancedSetup` forces the full wizard).
+- `update-kjitweb.ps1` updates an existing KJIT-Web installation in place (rollback backup, preserves `appsettings*.json`/`app_data`). `install-JIT.ps1` now detects an existing Just-In-Time/KjitWeb installation and updates it in place instead of re-running the full setup wizard, only prompting for settings introduced since the last configuration. Run the installed `Config-JIT.ps1 -AdvancedSetup` separately to review the complete configuration.
 - New installations automatically delegate the domain's Domain Admins group on every search base (also applied by `Add-JitServerOU`), so JIT elevation works without a manual `Add-JitDelegation` call.
 - Added [`EVENTS.md`](EVENTS.md), a consolidated reference of every Windows Event Log ID written by T1JIT, linked from the README's new [Event Reference](README.md#event-reference) section.
 - The KjitWeb footer now shows a warning indicator when Error/Warning entries were logged to the Tier 1 Management event log in the last 24 hours.
@@ -41,6 +41,7 @@ Changes merged into `dev` since the last published release (`v0.1.20260908.12`),
 
 ### Changed
 
+- Separated developer, build, versioning, release, and contribution information into [`Developer.md`](Developer.md), leaving the README focused on installation, configuration, and operation.
 - Added complete API documentation, author attribution, and file-level version history to `KjitCore.cs`.
 - Added complete contract and return-value documentation, author attribution, and version history to `IDistinguishedNameService.cs`.
 - Completed file headers and XML API documentation across all C# source files; builds now reject missing or malformed XML documentation.

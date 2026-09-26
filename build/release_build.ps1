@@ -120,7 +120,16 @@ $releaseVersion = (Get-Content $versionPath -Raw).Trim()
 
 Remove-Item $releaseBuildRoot -Recurse -Force -ErrorAction SilentlyContinue
 
-Remove-Item $releaseRoot -Recurse -Force -ErrorAction SilentlyContinue # Clean up any existing release folder to ensure a fresh start.
+if (Test-Path -LiteralPath $releaseRoot) {
+    Get-ChildItem -LiteralPath $releaseRoot -Force |
+        Where-Object { $_.FullName -ne $releaseKJITWebDir } |
+        Remove-Item -Recurse -Force
+
+    if (Test-Path -LiteralPath $releaseKJITWebDir) {
+        Get-ChildItem -LiteralPath $releaseKJITWebDir -Force |
+            Remove-Item -Recurse -Force
+    }
+}
 
 Write-Host "Copying PowerShell scripts and modules to release..."
 if (-not (Test-Path $psScriptsSourceDir)) {
@@ -161,9 +170,6 @@ Remove-Item (Join-Path $publishOutputDir "publish") -Recurse -Force -ErrorAction
 Remove-Item (Join-Path $publishOutputDir "publish-service") -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host "Preparing release folder: $releaseKJITWebDir"
-if (Test-Path $releaseKJITWebDir) {
-    Remove-Item $releaseKJITWebDir -Recurse -Force
-}
 New-Item -Path $releaseKJITWebDir -ItemType Directory -Force | Out-Null
 
 Write-Host "Copying published service files..."
