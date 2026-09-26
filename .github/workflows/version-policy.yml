@@ -32,19 +32,5 @@ jobs:
 
       - name: Validate version and changed files
         shell: pwsh
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          BASE_BRANCH: ${{ github.base_ref }}
-          BEFORE_SHA: ${{ github.event.before }}
         run: |
-          if ($env:EVENT_NAME -eq "pull_request") {
-              $baseRef = "origin/$env:BASE_BRANCH"
-          }
-          elseif ($env:BEFORE_SHA -and $env:BEFORE_SHA -notmatch '^0+$') {
-              $baseRef = $env:BEFORE_SHA
-          }
-          else {
-              $baseRef = "HEAD^"
-          }
-
-          ./build/Update-Version.ps1 -Check -BaseRef $baseRef
+          ./build/Update-Version.ps1 -Check -BaseRef HEAD^

@@ -105,7 +105,7 @@ $requiredScriptDisclaimerLines = @(
     Returns versionable files changed relative to BaseRef.
 .DESCRIPTION
     Combines tracked Git differences and untracked files, normalizes path separators,
-    and excludes metadata plus generated bin and obj content.
+    and excludes metadata plus generated release, bin, and obj content.
 #>
 function Get-ChangedFiles {
     if ($Staged) {
@@ -129,6 +129,7 @@ function Get-ChangedFiles {
     @($trackedFiles + $untrackedFiles) |
         ForEach-Object { $_.Replace('\', '/') } |
         Where-Object { $_ -and $_ -notin $metadataFiles } |
+        Where-Object { $_ -notlike 'release/*' } |
         Where-Object { $_ -notmatch '(^|/)(bin|obj)/' } |
         Sort-Object -Unique
 }
