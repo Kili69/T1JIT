@@ -87,7 +87,7 @@ function Copy-DirectoryContents {
 <#
 .SYNOPSIS
     Copies the KjitWeb management scripts (install-kjitweb.ps1, update-kjitweb.ps1,
-    set-kjitweb-allowedclient.ps1) next to the installed service so administrators can find and
+    set-kjitweb-allowedclient.ps1, get-kjitweb-allowedclient.ps1) next to the installed service so administrators can find and
     re-run them later without having to keep or re-extract the original release package.
 .PARAMETER SourceRoot
     The folder containing the management scripts to be copied (normally $PSScriptRoot).
@@ -104,7 +104,12 @@ function Copy-ManagementScripts {
         [Parameter(Mandatory = $true)]
         [string]$TargetFolder
     )
-    $managementScripts = @("install-kjitweb.ps1", "update-kjitweb.ps1", "set-kjitweb-allowedclient.ps1")
+    $managementScripts = @(
+        "install-kjitweb.ps1",
+        "update-kjitweb.ps1",
+        "set-kjitweb-allowedclient.ps1",
+        "get-kjitweb-allowedclient.ps1"
+    )
     foreach ($scriptName in $managementScripts) {
         $sourceScriptPath = Join-Path $SourceRoot $scriptName
         if (Test-Path -LiteralPath $sourceScriptPath -PathType Leaf) {
@@ -203,18 +208,11 @@ function Set-ConfiguredServiceUrl {
 
 <#
 .SYNOPSIS
-    Migrates a legacy "http://localhost:<port>" HTTP.sys binding to safe IP-literal prefixes.
+    Migrates older localhost-only HTTP.sys bindings to the local-system firewall model.
 .DESCRIPTION
-    Earlier KjitWeb HTTP.sys builds bound the loopback-only configuration to the hostname
-    string "http://localhost:<port>". Unlike Kestrel, HTTP.sys matches that string only
-    against the incoming Host header - the underlying socket is still bound on ALL network
-    interfaces. A remote client on the network could therefore reach the service by sending a
-    spoofed "Host: localhost" header to the machine's real IP address, completely bypassing
-    the intended "no network exposure" restriction. This function detects that legacy value
-    and rewrites it (registry ASPNETCORE_URLS, appsettings.json/appsettings.Production.json,
-    and the HTTP.sys URL ACL reservation) to IP-literal prefixes ("http://127.0.0.1:<port>",
-    "http://[::1]:<port>"), which HTTP.sys binds to that specific address only, restoring true
-    loopback-only network isolation.
+    Older installations may bind only to localhost or to the two loopback addresses. The local
+    system is now always allowed through loopback and all active interface addresses, so HTTP.sys
+    must listen on every local interface while Windows Firewall enforces the source allow list.
 .PARAMETER ServiceName
     Name of the installed Windows service.
 .PARAMETER ConfiguredServiceUrl
@@ -224,7 +222,7 @@ function Set-ConfiguredServiceUrl {
 .RETURNS
     The (possibly rewritten) ASPNETCORE_URLS value to use.
 #>
-function Convert-LegacyLoopbackServiceUrl {
+function Convert-LocalSystemServiceUrl {
     param(
         [Parameter(Mandatory = $true)]
         [string]$ServiceName,
@@ -234,17 +232,26 @@ function Convert-LegacyLoopbackServiceUrl {
         [string]$InstallPath
     )
 
-    if ($ConfiguredServiceUrl -notmatch '^\s*http://localhost:(?<port>\d+)/?\s*$') {
+    if ($ConfiguredServiceUrl -notmatch ':(?<port>\d+)') {
         return $ConfiguredServiceUrl
     }
 
     $port = $Matches.port
-    $newServiceUrl = "http://127.0.0.1:$port;http://[::1]:$port"
-    Write-Warning "Security fix: the configured HTTP.sys binding 'http://localhost:$port' only matches the Host header, but the socket was listening on ALL network interfaces - a remote client could bypass the localhost-only restriction with a spoofed Host header. Migrating to IP-literal loopback binding ($newServiceUrl)."
+    $normalizedServiceUrl = $ConfiguredServiceUrl.Trim().TrimEnd("/")
+    $localOnlyServiceUrls = @(
+        "http://localhost:$port",
+        "http://127.0.0.1:$port;http://[::1]:$port"
+    )
+    if ($normalizedServiceUrl -notin $localOnlyServiceUrls) {
+        return $ConfiguredServiceUrl
+    }
 
-    # Remove the URL ACL reservation for the vulnerable legacy prefix; the new prefixes are
-    # reserved afterwards by the caller via Set-HttpSysUrlAcl.
-    netsh http delete urlacl "url=http://localhost:$port/" 2>&1 | Out-Null
+    $newServiceUrl = "http://*:$port"
+    Write-Host "Migrating the local-system HTTP.sys binding to '$newServiceUrl' so local interface addresses remain reachable."
+
+    foreach ($prefix in @("http://localhost:$port", "http://127.0.0.1:$port", "http://[::1]:$port")) {
+        netsh http delete urlacl "url=$prefix/" 2>&1 | Out-Null
+    }
 
     Set-ConfiguredServiceUrl -ServiceName $ServiceName -ServiceUrl $newServiceUrl
 
@@ -257,8 +264,8 @@ function Convert-LegacyLoopbackServiceUrl {
             $appSettings = Get-Content -Path $appSettingsPath -Raw | ConvertFrom-Json
             $changed = $false
 
-            if ($appSettings.PSObject.Properties["AllowedHosts"] -and $appSettings.AllowedHosts -ieq "localhost") {
-                $appSettings.AllowedHosts = "localhost;127.0.0.1;[::1]"
+            if ($appSettings.PSObject.Properties["AllowedHosts"] -and $appSettings.AllowedHosts -ne "*") {
+                $appSettings.AllowedHosts = "*"
                 $changed = $true
             }
             if ($appSettings.PSObject.Properties["KjitWebInstall"] -and
@@ -270,11 +277,11 @@ function Convert-LegacyLoopbackServiceUrl {
 
             if ($changed) {
                 $appSettings | ConvertTo-Json -Depth 20 | Set-Content -Path $appSettingsPath -Encoding UTF8
-                Write-Host "Updated $appSettingsFile with the migrated loopback binding."
+                Write-Host "Updated $appSettingsFile with the local-system binding."
             }
         }
         catch {
-            Write-Warning "Could not update $appSettingsFile with the migrated loopback binding: $($_.Exception.Message)"
+            Write-Warning "Could not update $appSettingsFile with the local-system binding: $($_.Exception.Message)"
         }
     }
 
@@ -283,41 +290,163 @@ function Convert-LegacyLoopbackServiceUrl {
 
 <#
 .SYNOPSIS
-    Resolves the allowed client addresses for a given client identifier. See install-kjitweb.ps1 for
-    the full rationale.
+    Normalizes allowed-client input into individual entries.
+.PARAMETER Client
+    Hostnames, IP addresses, CIDR subnets, localhost, or a wildcard. Each supplied string may contain
+    comma- or semicolon-separated entries.
+.RETURNS
+    A unique array of normalized entries.
+#>
+function ConvertTo-AllowedClientEntries {
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
+        [string[]]$Client
+    )
+
+    $entries = @($Client |
+        ForEach-Object { $_ -split '[,;]' } |
+        ForEach-Object { $_.Trim() } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Select-Object -Unique)
+
+    if ($entries.Count -eq 0) {
+        return @("localhost")
+    }
+
+    if ($entries -contains "*" -and $entries.Count -gt 1) {
+        throw "AllowedClient '*' cannot be combined with hostnames, IP addresses, subnets, or localhost."
+    }
+
+    return @($entries)
+}
+
+<#
+.SYNOPSIS
+    Returns the loopback and active local unicast addresses of this computer.
+.RETURNS
+    A unique array of IPv4 and IPv6 addresses accepted by Windows Firewall.
+#>
+function Get-LocalSystemAddresses {
+    $addresses = @("127.0.0.1", "::1")
+
+    try {
+        $addresses += @(Get-NetIPAddress -AddressFamily IPv4, IPv6 -ErrorAction Stop |
+            Where-Object {
+                $_.AddressState -eq "Preferred" -and
+                -not [string]::IsNullOrWhiteSpace($_.IPAddress)
+            } |
+            ForEach-Object { $_.IPAddress -replace '%\d+$', '' })
+    }
+    catch {
+        throw "Could not determine the local system IP addresses: $($_.Exception.Message)"
+    }
+
+    return @($addresses |
+        Where-Object { $_ -notin @("0.0.0.0", "::") } |
+        Select-Object -Unique)
+}
+
+<#
+.SYNOPSIS
+    Validates a DNS hostname before attempting name resolution.
+.PARAMETER HostName
+    Hostname or FQDN to validate.
+#>
+function Assert-AllowedClientHostName {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$HostName
+    )
+
+    $normalizedHostName = $HostName.TrimEnd(".")
+    $labels = @($normalizedHostName -split '\.')
+    $looksLikeInvalidIpAddress = $HostName -match '^[0-9.]+$' -or $HostName.Contains(":")
+    $hasInvalidLabel = [string]::IsNullOrWhiteSpace($normalizedHostName) -or
+        $normalizedHostName.Length -gt 253 -or
+        @($labels | Where-Object {
+                $_.Length -gt 63 -or
+                $_ -notmatch '^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$'
+            }).Count -gt 0
+
+    if ($looksLikeInvalidIpAddress -or $hasInvalidLabel) {
+        throw "AllowedClient '$HostName' is not a valid IPv4 address, IPv6 address, CIDR subnet, or DNS hostname. Use a complete value such as '192.168.1.10', '192.168.1.0/24', or 'adminpc01.contoso.com'."
+    }
+}
+
+<#
+.SYNOPSIS
+    Resolves allowed-client entries to addresses accepted by Windows Firewall.
+.PARAMETER Client
+    Hostnames, IP addresses, CIDR subnets, localhost, or a wildcard.
+.RETURNS
+    An array of IP addresses and CIDR subnets.
 #>
 function Resolve-AllowedClientAddresses {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$Client
+        [AllowEmptyString()]
+        [string[]]$Client
     )
 
-    if ([string]::IsNullOrWhiteSpace($Client)) {
-        return @("127.0.0.1", "::1")
-    }
-
-    $candidate = $Client.Trim()
-    if ($candidate -ieq "localhost") {
-        return @("127.0.0.1", "::1")
-    }
-
-    if ($candidate -eq "*") {
+    $entries = @(ConvertTo-AllowedClientEntries -Client $Client)
+    if ($entries.Count -eq 1 -and $entries[0] -eq "*") {
         return @("Any")
     }
 
-    try {
-        $addresses = @([System.Net.Dns]::GetHostAddresses($candidate) |
-            ForEach-Object { $_.IPAddressToString -replace '%\d+$', '' } |
-            Select-Object -Unique)
-        if (-not $addresses -or $addresses.Count -eq 0) {
-            throw "No IP addresses resolved."
+    $addresses = @(
+        Get-LocalSystemAddresses
+        foreach ($candidate in $entries) {
+            if ($candidate -ieq "localhost") {
+                continue
+            }
+
+            if ($candidate -match '/') {
+                $cidrParts = @($candidate -split '/', 2)
+                $ipAddress = $null
+                $prefixLength = 0
+                if ($cidrParts.Count -ne 2 -or
+                    -not [System.Net.IPAddress]::TryParse($cidrParts[0], [ref]$ipAddress) -or
+                    -not [int]::TryParse($cidrParts[1], [ref]$prefixLength)) {
+                    throw "AllowedClient '$candidate' is not a valid CIDR subnet."
+                }
+
+                $maximumPrefixLength = if ($ipAddress.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork) {
+                    32
+                }
+                else {
+                    128
+                }
+                if ($prefixLength -lt 0 -or $prefixLength -gt $maximumPrefixLength) {
+                    throw "AllowedClient '$candidate' has an invalid prefix length for its address family."
+                }
+
+                "$($ipAddress.IPAddressToString -replace '%\d+$', '')/$prefixLength"
+                continue
+            }
+
+            $ipAddress = $null
+            if ([System.Net.IPAddress]::TryParse($candidate, [ref]$ipAddress)) {
+                $ipAddress.IPAddressToString -replace '%\d+$', ''
+                continue
+            }
+
+            Assert-AllowedClientHostName -HostName $candidate
+            try {
+                $resolvedAddresses = @([System.Net.Dns]::GetHostAddresses($candidate))
+                if ($resolvedAddresses.Count -eq 0) {
+                    throw "No IP addresses resolved."
+                }
+                $resolvedAddresses |
+                    ForEach-Object { $_.IPAddressToString -replace '%\d+$', '' }
+            }
+            catch {
+                throw "Could not resolve allowed client '$candidate' to IP address(es): $($_.Exception.Message)"
+            }
         }
-        return @($addresses)
-    }
-    catch {
-        Write-Warning "Could not resolve allowed client '$candidate' to IP address(es): $($_.Exception.Message). Skipping firewall rule verification."
-        return @()
-    }
+    )
+
+    return @($addresses | Select-Object -Unique)
 }
 
 <#
@@ -341,14 +470,10 @@ function Set-ClientAccessFirewallRule {
     $addresses = @($RemoteAddresses |
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
         ForEach-Object { $_.Trim() -replace '%\d+$', '' } |
+        Where-Object { $_ -notin @("127.0.0.1", "::1") } |
         Select-Object -Unique)
     if ($addresses.Count -eq 0) {
-        return
-    }
-    $isLoopbackOnly = @($addresses | Where-Object { $_ -notin @("127.0.0.1", "::1") }).Count -eq 0
-    if ($isLoopbackOnly) {
-        Write-Host "Skipping firewall rule for localhost-only mode."
-        return
+        throw "No non-loopback addresses were available for firewall rule '$RuleName'."
     }
     New-NetFirewallRule -DisplayName $RuleName -Direction Inbound -Action Allow -Protocol TCP -LocalPort $Port -RemoteAddress $addresses -Profile Any -ErrorAction Stop | Out-Null
 }
@@ -507,7 +632,7 @@ try {
         throw "KjitWeb.exe is missing after copying the update."
     }
 
-    Write-Host "Copying management scripts (install-kjitweb.ps1, update-kjitweb.ps1, set-kjitweb-allowedclient.ps1) to $installPath for future maintenance..."
+    Write-Host "Copying KjitWeb management scripts to $installPath for future maintenance..."
     Copy-ManagementScripts -SourceRoot $PSScriptRoot -TargetFolder $installPath
 
     # Older installations may still run under LocalSystem because the service account was only
@@ -531,12 +656,7 @@ try {
     # (Kestrel binds ports directly, HTTP.sys does not), so ensure one exists here as well.
     $configuredServiceUrl = Get-ConfiguredServiceUrl -ServiceName $ServiceName
     if ($configuredServiceUrl) {
-        # Security fix: installations updated between the HTTP.sys migration and this fix may
-        # still be bound to the vulnerable "http://localhost:<port>" hostname-string prefix,
-        # which HTTP.sys binds on ALL network interfaces (see Convert-LegacyLoopbackServiceUrl).
-        # Migrate them transparently on every update so existing deployments converge to the
-        # safe IP-literal binding without requiring manual reconfiguration.
-        $configuredServiceUrl = Convert-LegacyLoopbackServiceUrl -ServiceName $ServiceName -ConfiguredServiceUrl $configuredServiceUrl -InstallPath $installPath
+        $configuredServiceUrl = Convert-LocalSystemServiceUrl -ServiceName $ServiceName -ConfiguredServiceUrl $configuredServiceUrl -InstallPath $installPath
         Write-Host "Reserving HTTP.sys URL namespace for NetworkService..."
         Set-HttpSysUrlAcl -ServiceUrl $configuredServiceUrl -Account "NT AUTHORITY\NETWORK SERVICE"
 

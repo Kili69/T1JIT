@@ -136,6 +136,7 @@ try {
         "file-versions.json",
         "modules/0.1/KjitCore.dll",
         "kJITWeb/install-kjitweb.ps1",
+        "kJITWeb/get-kjitweb-allowedclient.ps1",
         "kJITWeb/publish-service/KjitWeb.dll"
     )
     foreach ($relativePath in $requiredFiles) {

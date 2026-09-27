@@ -16,6 +16,35 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 - Added a prominent, stable `T1JIT-latest.zip` download link for end users and documented
   how production releases publish both stable and version-specific package names.
 
+## [0.2.20260927.3] - 2026-09-27
+
+### Added
+
+- `set-kjitweb-allowedclient.ps1` now accepts multiple IPv4/IPv6 addresses and CIDR
+  subnets from parameters or the pipeline and returns the resulting allow lists as an
+  object. Loopback and all active local IPv4/IPv6 interface addresses are always included
+  in the effective allow list. Added `get-kjitweb-allowedclient.ps1` to list the effective
+  firewall addresses and display its script version when invoked.
+- `set-kjitweb-allowedclient.ps1` supports `-Add`, `-Remove`, and `-WhatIf` for safely
+  previewing and incrementally changing the configured allow list.
+
+### Fixed
+
+- Fixed `set-kjitweb-allowedclient.ps1` rejecting multiple `-AllowedClient` values while
+  persisting the normalized value to `appsettings*.json`.
+- KjitWeb management scripts no longer pass IPv4/IPv6 loopback addresses to
+  `New-NetFirewallRule`, which rejects IPv6 loopback addresses. Loopback remains available
+  locally and is included in the effective output.
+- `get-kjitweb-allowedclient.ps1` now understands the subnet-mask notation returned by
+  Windows Firewall (for example `/255.255.255.0`) and displays it as the equivalent CIDR
+  prefix (`/24`) instead of failing.
+- KjitWeb AllowedClient management now rejects malformed IP-like values and invalid DNS
+  hostnames before attempting DNS resolution, with examples of accepted input formats.
+- Local-system-only KjitWeb (`AllowedClient = localhost`) uses a Windows Firewall rule
+  restricted to the server's active local addresses. HTTP.sys can therefore serve every
+  local address without allowing other systems; existing localhost-only bindings are
+  migrated automatically on the next update.
+
 ## [0.2.20260926.22] - 2026-09-26
 
 Changes promoted from `dev` to `main` since the last published release
