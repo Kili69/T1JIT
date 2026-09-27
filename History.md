@@ -6,6 +6,42 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-09-27 11:28:17 +02:00 - `dev` to `origin/dev`
+
+Commits:
+
+<!-- commit:5efb76ba2e7e6d24f9a6efe931cd15ecb094740e -->
+- `5efb76b` Extend KjitWeb client access management
+
+Changed files:
+
+- `M -> CHANGELOG.md`
+- `M -> README.md`
+- `M -> VERSION`
+- `M -> build/New-InstallationPackage.ps1`
+- `M -> build/release_build.ps1`
+- `M -> file-versions.json`
+- `M -> release/VERSION`
+- `M -> release/file-versions.json`
+- `A -> release/kJITWeb/get-kjitweb-allowedclient.ps1`
+- `M -> release/kJITWeb/install-kjitweb.ps1`
+- `M -> release/kJITWeb/publish-service/KjitWeb.dll`
+- `M -> release/kJITWeb/publish-service/KjitWeb.exe`
+- `M -> release/kJITWeb/publish-service/KjitWeb.pdb`
+- `M -> release/kJITWeb/publish-service/KjitWeb.staticwebassets.endpoints.json`
+- `M -> release/kJITWeb/publish-service/de/KjitWeb.resources.dll`
+- `M -> release/kJITWeb/publish-service/en/KjitWeb.resources.dll`
+- `M -> release/kJITWeb/set-kjitweb-allowedclient.ps1`
+- `M -> release/kJITWeb/update-kjitweb.ps1`
+- `M -> release/modules/0.1/KjitCore.dll`
+- `M -> release/modules/Just-In-time.psd1`
+- `A -> src/C#/Kjitweb/get-kjitweb-allowedclient.ps1`
+- `M -> src/C#/Kjitweb/install-kjitweb.ps1`
+- `M -> src/C#/Kjitweb/set-kjitweb-allowedclient.ps1`
+- `M -> src/C#/Kjitweb/update-kjitweb.ps1`
+- `M -> src/Powershell/modules/Just-In-time.psd1`
+- `M -> tests/PowerShell/Modules.Tests.ps1`
+
 ## 2026-09-26 22:07:43 +02:00 - `dev` to `origin/dev`
 
 Commits:
@@ -1589,6 +1625,7 @@ Changes:
 - Added a full-page processing lock that prevents duplicate elevation requests.
 - Extended Active Directory queries and web models for active elevation information.
 - Updated installation documentation, release scripts, modules, and published KjitWeb artifacts.
+
 
 
 
