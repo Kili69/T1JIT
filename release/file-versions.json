@@ -1,15 +1,110 @@
 {
-  "version": "0.2.20260926.10",
+  "version": "0.2.20260927.1",
   "files": [
     {
-      "path": "History.md",
-      "version": "0.2.20260926.10",
-      "sha256": "77acddbe231b557650af31933a577a3c4e2a6ab405f1a2fc0fa3309aa690a31e"
+      "path": "build/New-InstallationPackage.ps1",
+      "version": "0.2.20260927.1",
+      "sha256": "da5111e9091f9355234a580912d99758d1e2951791fb0d914859ed2438d67f88"
+    },
+    {
+      "path": "build/release_build.ps1",
+      "version": "0.2.20260927.1",
+      "sha256": "78261c9749bfcce727abea46d41a5c55c803384c25a610447646c7c60eea3570"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "version": "0.2.20260927.1",
+      "sha256": "be43c33c85f8b2c00c7b587e183647174f4545a374c6ab4727b7bed37f675da4"
+    },
+    {
+      "path": "README.md",
+      "version": "0.2.20260927.1",
+      "sha256": "96d9ff3cf459931e9c8dd58c9527bc29023deaa637b985f2efd85e3616803625"
+    },
+    {
+      "path": "release/kJITWeb/get-kjitweb-allowedclient.ps1",
+      "version": "0.2.20260927.1",
+      "sha256": "6d0c918c3fdc2b4cf1fbf5fb01904eae2e66c2d1c9a51205e591aa982ef6cf9b"
+    },
+    {
+      "path": "release/kJITWeb/install-kjitweb.ps1",
+      "version": "0.2.20260927.1",
+      "sha256": "ef501ee128f827f569ecd680e2cb9f90e1f33a0b3f16238ca16488cf4d8665ad"
+    },
+    {
+      "path": "release/kJITWeb/publish-service/de/KjitWeb.resources.dll",
+      "version": "0.2.20260927.1",
+      "sha256": "1e8accb77514b31c05eb2210f4369899b970301103abac66a0d119c1beee778a"
+    },
+    {
+      "path": "release/kJITWeb/publish-service/en/KjitWeb.resources.dll",
+      "version": "0.2.20260927.1",
+      "sha256": "e4c1c2d594b1ee5feb1313f02e07774192f246771cdebcf240d9fb5e404be837"
+    },
+    {
+      "path": "release/kJITWeb/publish-service/KjitWeb.dll",
+      "version": "0.2.20260927.1",
+      "sha256": "2193917e19aa00110b880b2e603661349229c81ec8ca6b0bb79ac9224f2dfc1f"
+    },
+    {
+      "path": "release/kJITWeb/publish-service/KjitWeb.exe",
+      "version": "0.2.20260927.1",
+      "sha256": "4dabbd70c492fbf144666edec50a1701d58e0d9bedabea297cd150f8a96404a3"
+    },
+    {
+      "path": "release/kJITWeb/publish-service/KjitWeb.pdb",
+      "version": "0.2.20260927.1",
+      "sha256": "eba00e1584cbb819fc76b4006c61c1f854e3197330c9621f93673f3bd2cd42cc"
+    },
+    {
+      "path": "release/kJITWeb/publish-service/KjitWeb.staticwebassets.endpoints.json",
+      "version": "0.2.20260927.1",
+      "sha256": "7056073482874c4a1d4b7271462f8d71285c29be09802faffbf8416653129dc3"
+    },
+    {
+      "path": "release/kJITWeb/set-kjitweb-allowedclient.ps1",
+      "version": "0.2.20260927.1",
+      "sha256": "2bd43e12efc97707ca9fbd858b0962afbf9d2df5fc7894c69f6b2f476ca56276"
+    },
+    {
+      "path": "release/kJITWeb/update-kjitweb.ps1",
+      "version": "0.2.20260927.1",
+      "sha256": "731eff41c05be23eca20b538ffc4e016c64de43e66b5f702d065f5837d5466eb"
+    },
+    {
+      "path": "release/modules/0.1/KjitCore.dll",
+      "version": "0.2.20260927.1",
+      "sha256": "9b06d55ba0002c13c4d4bb0cfcbda0f37e1cd6bc1813624f32139617cff04d7b"
+    },
+    {
+      "path": "src/C#/Kjitweb/get-kjitweb-allowedclient.ps1",
+      "version": "0.2.20260927.1",
+      "sha256": "6d0c918c3fdc2b4cf1fbf5fb01904eae2e66c2d1c9a51205e591aa982ef6cf9b"
+    },
+    {
+      "path": "src/C#/Kjitweb/install-kjitweb.ps1",
+      "version": "0.2.20260927.1",
+      "sha256": "ef501ee128f827f569ecd680e2cb9f90e1f33a0b3f16238ca16488cf4d8665ad"
+    },
+    {
+      "path": "src/C#/Kjitweb/set-kjitweb-allowedclient.ps1",
+      "version": "0.2.20260927.1",
+      "sha256": "2bd43e12efc97707ca9fbd858b0962afbf9d2df5fc7894c69f6b2f476ca56276"
+    },
+    {
+      "path": "src/C#/Kjitweb/update-kjitweb.ps1",
+      "version": "0.2.20260927.1",
+      "sha256": "731eff41c05be23eca20b538ffc4e016c64de43e66b5f702d065f5837d5466eb"
+    },
+    {
+      "path": "tests/PowerShell/Modules.Tests.ps1",
+      "version": "0.2.20260927.1",
+      "sha256": "8330083c1e1579ef06a5d57deb3aa0f0ce27735bf57bb68de1e5bfd0caf08d2a"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20260926.10",
-      "sha256": "935c710819c67a19d777be396175e10040d881092aac8fbcad6a2dc22a4237be"
+      "version": "0.2.20260927.1",
+      "sha256": "96f21ab8adf034f7d1031b9b442d44aad2d6bb4dcb13600b8ce57f83c1901524"
     }
   ]
 }

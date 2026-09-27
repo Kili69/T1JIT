@@ -88,14 +88,250 @@ Describe "Just-In-Time PowerShell module package" {
 
             Set-ClientAccessFirewallRule `
                 -RuleName "KjitWeb test" `
-                -RemoteAddresses @("fe80::5995:5c07:83a6:41ed%5", "10.0.1.8") `
+                -RemoteAddresses @("127.0.0.1", "::1", "fe80::5995:5c07:83a6:41ed%5", "10.0.1.8") `
                 -Port 5240
 
             Should -Invoke New-NetFirewallRule -Times 1 -Exactly
             $script:capturedRemoteAddresses | Should -Contain "fe80::5995:5c07:83a6:41ed"
             $script:capturedRemoteAddresses | Should -Contain "10.0.1.8"
             $script:capturedRemoteAddresses | Should -Not -Contain "fe80::5995:5c07:83a6:41ed%5"
+            $script:capturedRemoteAddresses | Should -Not -Contain "127.0.0.1"
+            $script:capturedRemoteAddresses | Should -Not -Contain "::1"
             $firewallFunction.Extent.Text | Should -Match '-ErrorAction Stop'
+        }
+
+        It "supports multiple clients and always includes the local system in <ScriptName>" -ForEach @(
+            @{ ScriptName = "install-kjitweb.ps1" }
+            @{ ScriptName = "update-kjitweb.ps1" }
+            @{ ScriptName = "set-kjitweb-allowedclient.ps1" }
+        ) {
+            $scriptPath = Join-Path (Join-Path $releaseRoot "kJITWeb") $ScriptName
+            $tokens = $null
+            $parseErrors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $scriptPath,
+                [ref]$tokens,
+                [ref]$parseErrors
+            )
+
+            foreach ($functionName in @(
+                "ConvertTo-AllowedClientEntries",
+                "Get-LocalSystemAddresses",
+                "Assert-AllowedClientHostName",
+                "Resolve-AllowedClientAddresses"
+            )) {
+                $function = $ast.Find({
+                    param($node)
+                    $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                        $node.Name -eq $functionName
+                }, $true)
+                $function | Should -Not -BeNullOrEmpty
+                Invoke-Expression $function.Extent.Text
+            }
+
+            Mock Get-NetIPAddress {
+                @(
+                    [PSCustomObject]@{
+                        AddressState = "Preferred"
+                        IPAddress = "10.20.30.40"
+                    },
+                    [PSCustomObject]@{
+                        AddressState = "Preferred"
+                        IPAddress = "fe80::1234%12"
+                    },
+                    [PSCustomObject]@{
+                        AddressState = "Deprecated"
+                        IPAddress = "10.20.30.99"
+                    }
+                )
+            }
+
+            $addresses = @(Resolve-AllowedClientAddresses -Client @(
+                "192.168.10.0/24",
+                "192.168.11.0/26;192.168.12.15"
+            ))
+
+            $addresses | Should -Contain "192.168.10.0/24"
+            $addresses | Should -Contain "192.168.11.0/26"
+            $addresses | Should -Contain "192.168.12.15"
+            $addresses | Should -Contain "127.0.0.1"
+            $addresses | Should -Contain "::1"
+            $addresses | Should -Contain "10.20.30.40"
+            $addresses | Should -Contain "fe80::1234"
+            $addresses | Should -Not -Contain "fe80::1234%12"
+            $addresses | Should -Not -Contain "10.20.30.99"
+
+            { Resolve-AllowedClientAddresses -Client "192.168." } |
+                Should -Throw "*not a valid IPv4 address, IPv6 address, CIDR subnet, or DNS hostname*"
+            { Resolve-AllowedClientAddresses -Client "2001:db8:::1" } |
+                Should -Throw "*not a valid IPv4 address, IPv6 address, CIDR subnet, or DNS hostname*"
+            { Resolve-AllowedClientAddresses -Client "bad_.example" } |
+                Should -Throw "*not a valid IPv4 address, IPv6 address, CIDR subnet, or DNS hostname*"
+        }
+
+        It "binds HTTP.sys for local interface access in <ScriptName>" -ForEach @(
+            @{ ScriptName = "install-kjitweb.ps1" }
+            @{ ScriptName = "set-kjitweb-allowedclient.ps1" }
+        ) {
+            $scriptPath = Join-Path (Join-Path $releaseRoot "kJITWeb") $ScriptName
+            $tokens = $null
+            $parseErrors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $scriptPath,
+                [ref]$tokens,
+                [ref]$parseErrors
+            )
+            $serviceUrlFunction = $ast.Find({
+                param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                    $node.Name -eq "Get-ServiceUrlFromAllowedClient"
+            }, $true)
+
+            $serviceUrlFunction | Should -Not -BeNullOrEmpty
+            Invoke-Expression $serviceUrlFunction.Extent.Text
+
+            Get-ServiceUrlFromAllowedClient -Client "localhost" -Port 5240 |
+                Should -Be "http://*:5240"
+        }
+
+        It "rejects a wildcard combined with restricted clients in <ScriptName>" -ForEach @(
+            @{ ScriptName = "install-kjitweb.ps1" }
+            @{ ScriptName = "update-kjitweb.ps1" }
+            @{ ScriptName = "set-kjitweb-allowedclient.ps1" }
+        ) {
+            $scriptPath = Join-Path (Join-Path $releaseRoot "kJITWeb") $ScriptName
+            $tokens = $null
+            $parseErrors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $scriptPath,
+                [ref]$tokens,
+                [ref]$parseErrors
+            )
+            $conversionFunction = $ast.Find({
+                param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                    $node.Name -eq "ConvertTo-AllowedClientEntries"
+            }, $true)
+
+            $conversionFunction | Should -Not -BeNullOrEmpty
+            Invoke-Expression $conversionFunction.Extent.Text
+
+            { ConvertTo-AllowedClientEntries -Client @("*", "192.168.10.0/24") } |
+                Should -Throw "*cannot be combined*"
+        }
+
+        It "accepts AllowedClient values through the pipeline" {
+            $scriptPath = Join-Path (Join-Path $releaseRoot "kJITWeb") "set-kjitweb-allowedclient.ps1"
+            $tokens = $null
+            $parseErrors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $scriptPath,
+                [ref]$tokens,
+                [ref]$parseErrors
+            )
+            $allowedClientParameter = $ast.ParamBlock.Parameters |
+                Where-Object { $_.Name.VariablePath.UserPath -eq "AllowedClient" }
+
+            $allowedClientParameter | Should -Not -BeNullOrEmpty
+            $allowedClientParameter.Extent.Text | Should -Match 'ValueFromPipeline\s*=\s*\$true'
+            ($ast.ParamBlock.Parameters.Name.VariablePath.UserPath) | Should -Contain "Add"
+            ($ast.ParamBlock.Parameters.Name.VariablePath.UserPath) | Should -Contain "Remove"
+            $ast.ParamBlock.Attributes.Extent.Text | Should -Match 'SupportsShouldProcess\s*=\s*\$true'
+            $ast.BeginBlock | Should -Not -BeNullOrEmpty
+            $ast.ProcessBlock | Should -Not -BeNullOrEmpty
+            $ast.EndBlock | Should -Not -BeNullOrEmpty
+            $ast.EndBlock.Extent.Text | Should -Match '\$PSCmdlet\.ShouldProcess'
+            $ast.Extent.Text | Should -Match 'KjitWeb\.AllowedClientConfiguration'
+            $ast.Extent.Text | Should -Match 'Get-ConfiguredAllowedClient'
+            $ast.Extent.Text | Should -Match 'IPv6Subnets'
+            $ast.Extent.Text | Should -Match 'Write-Host\s+"set-kjitweb-allowedclient\.ps1 version \$scriptVersion"'
+            $ast.Extent.Text | Should -Match '\$configuredAllowedClientValue\s*='
+            $ast.Extent.Text | Should -Match '-AllowedClient\s+\$configuredAllowedClientValue'
+            $ast.Extent.Text | Should -Not -Match '\$AllowedClient\s*='
+        }
+
+        It "packages a query script that classifies IPv4 and IPv6 addresses" {
+            $scriptPath = Join-Path (Join-Path $releaseRoot "kJITWeb") "get-kjitweb-allowedclient.ps1"
+            Test-Path -LiteralPath $scriptPath -PathType Leaf | Should -BeTrue
+
+            $tokens = $null
+            $parseErrors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $scriptPath,
+                [ref]$tokens,
+                [ref]$parseErrors
+            )
+            $parseErrors | Should -BeNullOrEmpty
+            $addressFunction = $ast.Find({
+                param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                    $node.Name -eq "Get-AddressDetails"
+            }, $true)
+
+            $addressFunction | Should -Not -BeNullOrEmpty
+            Invoke-Expression $addressFunction.Extent.Text
+            $ast.Extent.Text | Should -Match 'Write-Host\s+"get-kjitweb-allowedclient\.ps1 version \$scriptVersion"'
+
+            $ipv4 = Get-AddressDetails -RemoteAddress "192.168.10.0/24"
+            $ipv4.AddressFamily | Should -Be "IPv4"
+            $ipv4.AddressType | Should -Be "Subnet"
+            $ipv4.PrefixLength | Should -Be 24
+            $ipv4.RemoteAddress | Should -Be "192.168.10.0/24"
+
+            $ipv4Mask = Get-AddressDetails -RemoteAddress "192.168.11.0/255.255.255.192"
+            $ipv4Mask.AddressFamily | Should -Be "IPv4"
+            $ipv4Mask.AddressType | Should -Be "Subnet"
+            $ipv4Mask.PrefixLength | Should -Be 26
+            $ipv4Mask.RemoteAddress | Should -Be "192.168.11.0/26"
+
+            $ipv6 = Get-AddressDetails -RemoteAddress "2001:db8:10::/64"
+            $ipv6.AddressFamily | Should -Be "IPv6"
+            $ipv6.AddressType | Should -Be "Subnet"
+            $ipv6.PrefixLength | Should -Be 64
+        }
+
+        It "returns the currently effective IPv4 and IPv6 firewall addresses as objects" {
+            $scriptPath = Join-Path (Join-Path $releaseRoot "kJITWeb") "get-kjitweb-allowedclient.ps1"
+            $installPath = Join-Path $TestDrive "KjitWeb"
+            New-Item -Path $installPath -ItemType Directory -Force | Out-Null
+            @{
+                KjitWebInstall = @{
+                    AllowedClient = "192.168.10.0/24;2001:db8:10::/64;localhost"
+                    ServiceUrl = "http://*:5240"
+                }
+            } | ConvertTo-Json -Depth 5 |
+                Set-Content -LiteralPath (Join-Path $installPath "appsettings.Production.json") -Encoding UTF8
+
+            function Get-NetFirewallRule {
+                [CmdletBinding()]
+                param([string]$DisplayName)
+                [PSCustomObject]@{ DisplayName = $DisplayName }
+            }
+            function Get-NetFirewallAddressFilter {
+                [CmdletBinding()]
+                param([Parameter(ValueFromPipeline = $true)]$InputObject)
+                [PSCustomObject]@{
+                    RemoteAddress = @("192.168.10.0/255.255.255.0", "2001:db8:10::/64")
+                }
+            }
+
+            Mock Get-NetFirewallRule {
+                [PSCustomObject]@{ DisplayName = $DisplayName }
+            }
+            Mock Get-NetFirewallAddressFilter {
+                [PSCustomObject]@{
+                    RemoteAddress = @("192.168.10.0/255.255.255.0", "2001:db8:10::/64")
+                }
+            }
+
+            $result = @(& $scriptPath -InstallServiceFolder $installPath)
+
+            $result.Count | Should -Be 4
+            ($result | Where-Object RemoteAddress -eq "192.168.10.0/24").AddressFamily | Should -Be "IPv4"
+            ($result | Where-Object RemoteAddress -eq "2001:db8:10::/64").AddressFamily | Should -Be "IPv6"
+            ($result | Where-Object RemoteAddress -eq "::1").IsLoopback | Should -BeTrue
+            $result[0].PSObject.TypeNames | Should -Contain "KjitWeb.AllowedClientAddress"
+            $result[0].ConfiguredAllowList | Should -Contain "localhost"
         }
     }
 

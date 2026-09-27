@@ -27,7 +27,9 @@ possibility of such damages
 .PARAMETER BinaryPath
     Optional path to the KJITweb executable. If not provided, the script assumes it is located in the installation folder (Program Files\KJITWEB\KJITweb.exe).
 .PARAMETER AllowedClient
-    Optional hostname or IP address of the allowed client for connecting to the service. Defaults to "localhost". Use "*" to allow any remote client (not recommended for production use).
+    Hostnames, IP addresses, or CIDR subnets allowed to connect to the service. The local system's
+    loopback and active interface addresses are always allowed. Defaults to "localhost". Use "*" to
+    allow any remote client (not recommended for production use).
 .PARAMETER CompanyName
     Optional company name displayed in the web interface. If omitted or empty, the installer prompts and defaults to "Active Directory Just-in-Time Administration".
 .PARAMETER Port
@@ -51,8 +53,8 @@ param(
     [string]$JitConfig,
     # Optional path to the KJITweb executable. If not provided, the script assumes it is located in the installation folder (Program Files\KJITWEB\KJITweb.exe).
     [string]$BinaryPath,
-    # Optional hostname or IP address of the allowed client for connecting to the service. Defaults to "localhost". Use "*" to allow any remote client (not recommended for production use).
-    [string]$AllowedClient,
+    # Optional hostnames, IP addresses, or CIDR subnets allowed to connect. Supports arrays and comma- or semicolon-separated lists. Defaults to "localhost".
+    [string[]]$AllowedClient,
     # Optional company name displayed in the web interface.
     [string]$CompanyName,
     # Optional TCP port. If omitted, the installer prompts for a free port and suggests 5240 when available.
@@ -134,7 +136,7 @@ function Copy-ServiceFiles {
 <#
 .SYNOPSIS
     Copies the KjitWeb management scripts (install-kjitweb.ps1, update-kjitweb.ps1,
-    set-kjitweb-allowedclient.ps1) next to the installed service so administrators can find and
+    set-kjitweb-allowedclient.ps1, get-kjitweb-allowedclient.ps1) next to the installed service so administrators can find and
     re-run them later without having to keep or re-extract the original release package.
 .PARAMETER SourceRoot
     The folder containing the management scripts to be copied (normally $PSScriptRoot).
@@ -151,7 +153,12 @@ function Copy-ManagementScripts {
         [Parameter(Mandatory = $true)]
         [string]$TargetFolder
     )
-    $managementScripts = @("install-kjitweb.ps1", "update-kjitweb.ps1", "set-kjitweb-allowedclient.ps1")
+    $managementScripts = @(
+        "install-kjitweb.ps1",
+        "update-kjitweb.ps1",
+        "set-kjitweb-allowedclient.ps1",
+        "get-kjitweb-allowedclient.ps1"
+    )
     foreach ($scriptName in $managementScripts) {
         $sourceScriptPath = Join-Path $SourceRoot $scriptName
         if (Test-Path -LiteralPath $sourceScriptPath -PathType Leaf) {
@@ -284,45 +291,163 @@ function Get-PortProcessIds {
 
 <#
 .SYNOPSIS
-    Resolves the allowed client addresses for a given client identifier.
+    Normalizes allowed-client input into individual entries.
 .PARAMETER Client
-    The client identifier (e.g., hostname, IP address, or wildcard).
+    Hostnames, IP addresses, CIDR subnets, localhost, or a wildcard. Each supplied string may contain
+    comma- or semicolon-separated entries.
 .RETURNS
-    An array of IP addresses corresponding to the allowed client.
+    A unique array of normalized entries.
+#>
+function ConvertTo-AllowedClientEntries {
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
+        [string[]]$Client
+    )
+
+    $entries = @($Client |
+        ForEach-Object { $_ -split '[,;]' } |
+        ForEach-Object { $_.Trim() } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Select-Object -Unique)
+
+    if ($entries.Count -eq 0) {
+        return @("localhost")
+    }
+
+    if ($entries -contains "*" -and $entries.Count -gt 1) {
+        throw "AllowedClient '*' cannot be combined with hostnames, IP addresses, subnets, or localhost."
+    }
+
+    return @($entries)
+}
+
+<#
+.SYNOPSIS
+    Returns the loopback and active local unicast addresses of this computer.
+.RETURNS
+    A unique array of IPv4 and IPv6 addresses accepted by Windows Firewall.
+#>
+function Get-LocalSystemAddresses {
+    $addresses = @("127.0.0.1", "::1")
+
+    try {
+        $addresses += @(Get-NetIPAddress -AddressFamily IPv4, IPv6 -ErrorAction Stop |
+            Where-Object {
+                $_.AddressState -eq "Preferred" -and
+                -not [string]::IsNullOrWhiteSpace($_.IPAddress)
+            } |
+            ForEach-Object { $_.IPAddress -replace '%\d+$', '' })
+    }
+    catch {
+        throw "Could not determine the local system IP addresses: $($_.Exception.Message)"
+    }
+
+    return @($addresses |
+        Where-Object { $_ -notin @("0.0.0.0", "::") } |
+        Select-Object -Unique)
+}
+
+<#
+.SYNOPSIS
+    Validates a DNS hostname before attempting name resolution.
+.PARAMETER HostName
+    Hostname or FQDN to validate.
+#>
+function Assert-AllowedClientHostName {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$HostName
+    )
+
+    $normalizedHostName = $HostName.TrimEnd(".")
+    $labels = @($normalizedHostName -split '\.')
+    $looksLikeInvalidIpAddress = $HostName -match '^[0-9.]+$' -or $HostName.Contains(":")
+    $hasInvalidLabel = [string]::IsNullOrWhiteSpace($normalizedHostName) -or
+        $normalizedHostName.Length -gt 253 -or
+        @($labels | Where-Object {
+                $_.Length -gt 63 -or
+                $_ -notmatch '^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$'
+            }).Count -gt 0
+
+    if ($looksLikeInvalidIpAddress -or $hasInvalidLabel) {
+        throw "AllowedClient '$HostName' is not a valid IPv4 address, IPv6 address, CIDR subnet, or DNS hostname. Use a complete value such as '192.168.1.10', '192.168.1.0/24', or 'adminpc01.contoso.com'."
+    }
+}
+
+<#
+.SYNOPSIS
+    Resolves allowed-client entries to addresses accepted by Windows Firewall.
+.PARAMETER Client
+    Hostnames, IP addresses, CIDR subnets, localhost, or a wildcard.
+.RETURNS
+    An array of IP addresses and CIDR subnets.
 #>
 function Resolve-AllowedClientAddresses {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$Client
+        [AllowEmptyString()]
+        [string[]]$Client
     )
 
-    if ([string]::IsNullOrWhiteSpace($Client)) {
-        return @("127.0.0.1", "::1")
-    }
-
-    $candidate = $Client.Trim()
-    if ($candidate -ieq "localhost") {
-        return @("127.0.0.1", "::1")
-    }
-
-    # Wildcard: allow connections from any remote address
-    if ($candidate -eq "*") {
+    $entries = @(ConvertTo-AllowedClientEntries -Client $Client)
+    if ($entries.Count -eq 1 -and $entries[0] -eq "*") {
         return @("Any")
     }
 
-    try {
-        $addresses = @([System.Net.Dns]::GetHostAddresses($candidate) |
-            ForEach-Object { $_.IPAddressToString -replace '%\d+$', '' } |
-            Select-Object -Unique)
-        if (-not $addresses -or $addresses.Count -eq 0) {
-            throw "No IP addresses resolved."
+    $addresses = @(
+        Get-LocalSystemAddresses
+        foreach ($candidate in $entries) {
+            if ($candidate -ieq "localhost") {
+                continue
+            }
+
+            if ($candidate -match '/') {
+                $cidrParts = @($candidate -split '/', 2)
+                $ipAddress = $null
+                $prefixLength = 0
+                if ($cidrParts.Count -ne 2 -or
+                    -not [System.Net.IPAddress]::TryParse($cidrParts[0], [ref]$ipAddress) -or
+                    -not [int]::TryParse($cidrParts[1], [ref]$prefixLength)) {
+                    throw "AllowedClient '$candidate' is not a valid CIDR subnet."
+                }
+
+                $maximumPrefixLength = if ($ipAddress.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork) {
+                    32
+                }
+                else {
+                    128
+                }
+                if ($prefixLength -lt 0 -or $prefixLength -gt $maximumPrefixLength) {
+                    throw "AllowedClient '$candidate' has an invalid prefix length for its address family."
+                }
+
+                "$($ipAddress.IPAddressToString -replace '%\d+$', '')/$prefixLength"
+                continue
+            }
+
+            $ipAddress = $null
+            if ([System.Net.IPAddress]::TryParse($candidate, [ref]$ipAddress)) {
+                $ipAddress.IPAddressToString -replace '%\d+$', ''
+                continue
+            }
+
+            Assert-AllowedClientHostName -HostName $candidate
+            try {
+                $resolvedAddresses = @([System.Net.Dns]::GetHostAddresses($candidate))
+                if ($resolvedAddresses.Count -eq 0) {
+                    throw "No IP addresses resolved."
+                }
+                $resolvedAddresses |
+                    ForEach-Object { $_.IPAddressToString -replace '%\d+$', '' }
+            }
+            catch {
+                throw "Could not resolve allowed client '$candidate' to IP address(es): $($_.Exception.Message)"
+            }
         }
-        return @($addresses)
-    }
-    catch {
-        Write-Error "Could not resolve allowed client '$candidate' to IP address(es): $($_.Exception.Message)"
-        exit 1
-    }
+    )
+
+    return @($addresses | Select-Object -Unique)
 }
 
 <#
@@ -334,28 +459,16 @@ function Resolve-AllowedClientAddresses {
     The service URL corresponding to the allowed client. May contain multiple ";"-separated
     ASPNETCORE_URLS prefixes.
 .DESCRIPTION
-    IMPORTANT: for the loopback-only case this MUST return IP-literal prefixes
-    ("http://127.0.0.1:$Port" / "http://[::1]:$Port"), not the hostname string
-    "http://localhost:$Port". Unlike Kestrel, HTTP.sys treats a hostname prefix such as
-    "localhost" as a plain string that is matched against the incoming Host header only -
-    the underlying socket is still bound on ALL interfaces (0.0.0.0 / [::]). That means a
-    remote client on the network could reach the service by simply sending a spoofed
-    "Host: localhost" header to the machine's real IP address, completely bypassing the
-    intended "loopback only, no network exposure" restriction. IP-literal prefixes, in
-    contrast, make HTTP.sys bind the socket only to that specific address, so a remote
-    connection attempt is refused at the TCP level, exactly like Kestrel's old behavior.
+    HTTP.sys listens on all local interfaces. Source-address restrictions, including the
+    automatically allowed local system addresses, are enforced by Windows Firewall.
 #>
 function Get-ServiceUrlFromAllowedClient {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$Client,
+        [string[]]$Client,
         [Parameter(Mandatory = $true)]
         [int]$Port
     )
-
-    if ([string]::IsNullOrWhiteSpace($Client) -or $Client.Trim() -ieq "localhost") {
-        return "http://127.0.0.1:$Port;http://[::1]:$Port"
-    }
 
     return "http://*:$Port"
 }
@@ -478,35 +591,18 @@ function Resolve-ServicePort {
 .RETURNS
     A semicolon-separated string for AllowedHosts.
 .DESCRIPTION
-    The loopback-only HTTP.sys binding uses IP-literal prefixes ("127.0.0.1"/"[::1]", see
-    Get-ServiceUrlFromAllowedClient), so a browser connecting via those addresses sends a Host
-    header of "127.0.0.1:port" / "[::1]:port", not "localhost:port". Both literal forms must be
-    allowed here as well, or ASP.NET Core's host filtering middleware would reject the request
-    even though HTTP.sys itself accepted the connection.
+    Windows Firewall, not ASP.NET Core host filtering, is the source-IP security boundary.
+    CIDR subnets and local interface addresses cannot be represented as HTTP Host headers,
+    so AllowedHosts is unrestricted while the firewall retains the exact source restrictions.
 #>
 function Get-AllowedHostsFromAllowedClient {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$Client
+        [string[]]$Client
     )
 
-    $loopbackHosts = "localhost;127.0.0.1;[::1]"
-
-    if ([string]::IsNullOrWhiteSpace($Client)) {
-        return $loopbackHosts
-    }
-
-    $candidate = $Client.Trim()
-    if ($candidate -eq "*") {
-        return "*"
-    }
-
-    if ($candidate -ieq "localhost") {
-        return $loopbackHosts
-    }
-
-    # Keep localhost/loopback access for local troubleshooting while allowing the configured client.
-    return "$loopbackHosts;$candidate"
+    # Remote source addresses are enforced by Windows Firewall, not by HTTP Host headers.
+    return "*"
 }
 
 <#
@@ -712,8 +808,9 @@ function Test-RequiredDotnetRuntime {
 .PARAMETER Port
     The local port number that the firewall rule applies to.
 .DESCRIPTION
-    This function creates or updates a Windows Firewall rule to allow inbound TCP traffic on the specified port from the specified remote addresses. If a rule with the same name already exists, it will be removed and recreated with the new settings. For localhost-only mode (where remote addresses are limited to loopback
-    addresses), the function will skip creating a firewall rule, as the service binding will already prevent remote access. This helps to avoid unnecessary firewall rules and potential confusion for users who are running in a secure, localhost-only configuration.
+    This function creates or updates a Windows Firewall rule to allow inbound TCP traffic on the specified
+    port from the specified remote addresses. If a rule with the same name already exists, it will be
+    removed and recreated with the new settings.
 #>
 function Set-ClientAccessFirewallRule {
     param(
@@ -728,17 +825,14 @@ function Set-ClientAccessFirewallRule {
     Get-NetFirewallRule -DisplayName $RuleName -ErrorAction SilentlyContinue |
         Remove-NetFirewallRule -ErrorAction SilentlyContinue | Out-Null
 
-    # For localhost-only mode, service binding already prevents remote access.
     $addresses = @($RemoteAddresses |
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
         ForEach-Object { $_.Trim() -replace '%\d+$', '' } |
+        Where-Object { $_ -notin @("127.0.0.1", "::1") } |
         Select-Object -Unique)
-    $isLoopbackOnly = ($addresses.Count -gt 0) -and (@($addresses | Where-Object { $_ -notin @("127.0.0.1", "::1") }).Count -eq 0)
-    if ($isLoopbackOnly) {
-        Write-Host "Skipping firewall rule for localhost-only mode."
-        return
+    if ($addresses.Count -eq 0) {
+        throw "No non-loopback addresses were available for firewall rule '$RuleName'."
     }
-    # For non-localhost modes, we create a firewall rule to allow inbound access on the specified port from the specified remote addresses. This is necessary to allow remote clients to connect to the KJITweb service when it is configured to allow remote access. By specifying the allowed remote addresses, we can help to secure the service by restricting access to known clients, while still allowing the necessary connectivity for JIT administration.
     New-NetFirewallRule -DisplayName $RuleName -Direction Inbound -Action Allow -Protocol TCP -LocalPort $Port -RemoteAddress $addresses -Profile Any -ErrorAction Stop | Out-Null
 }
 
@@ -935,14 +1029,13 @@ if ([string]::IsNullOrWhiteSpace($JitConfig)) {
 Write-Host "Using JITConfig: $JitConfig"
 
 $defaultAllowedClient = "localhost"
-if ([string]::IsNullOrWhiteSpace($AllowedClient)) {
+if ($null -eq $AllowedClient -or @($AllowedClient).Count -eq 0 -or
+    (@($AllowedClient).Count -eq 1 -and [string]::IsNullOrWhiteSpace($AllowedClient[0]))) {
     # We prompt the user to provide the allowed client host/IP, showing the default value as a reference. If the user presses Enter without providing a value, we will use the default value. This allows for a convenient default configuration while still allowing flexibility if the user wants to specify a different allowed client.
     $inputAllowedClient = Read-Host "Allowed client host/IP [$defaultAllowedClient]"
-    $AllowedClient = if ([string]::IsNullOrWhiteSpace($inputAllowedClient)) { $defaultAllowedClient } else { $inputAllowedClient.Trim() }
+    $AllowedClient = if ([string]::IsNullOrWhiteSpace($inputAllowedClient)) { @($defaultAllowedClient) } else { @($inputAllowedClient) }
 }
-else {
-    $AllowedClient = $AllowedClient.Trim()
-}
+$AllowedClient = (@(ConvertTo-AllowedClientEntries -Client $AllowedClient) -join ";")
 
 $CompanyName = Resolve-CompanyName -RequestedCompanyName $CompanyName
 
@@ -992,7 +1085,7 @@ Write-Host "Service URL binding: $ServiceUrl"
 Write-Host "Copying service files to $InstallRoot ..."
 Copy-ServiceFiles -SourceServiceFolder $SourceServiceFolder -TargetServiceFolder $InstallServiceFolder
 
-Write-Host "Copying management scripts (install-kjitweb.ps1, update-kjitweb.ps1, set-kjitweb-allowedclient.ps1) to $InstallServiceFolder for future maintenance..."
+Write-Host "Copying KjitWeb management scripts to $InstallServiceFolder for future maintenance..."
 Copy-ManagementScripts -SourceRoot $SourceRoot -TargetFolder $InstallServiceFolder
 
 $installedAppSettingsPath = Join-Path $InstallServiceFolder "appsettings.json"

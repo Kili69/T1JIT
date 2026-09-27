@@ -201,17 +201,75 @@ computer, which must also host the JIT-Solution.
 
 #### Restricting which clients can reach KjitWeb (AllowedClient)
 
-`install-kjitweb.ps1` accepts an `-AllowedClient` parameter that controls which computer(s) are allowed to connect to the KjitWeb TCP port. It accepts a single hostname/FQDN, a single IP address, or `*`:
+`install-kjitweb.ps1` accepts an `-AllowedClient` parameter that controls which clients
+may connect to the KjitWeb TCP port. It accepts hostnames/FQDNs, IP addresses, CIDR
+subnets, `localhost`, or `*`. Supply multiple entries as a PowerShell array or separate
+them with commas or semicolons. Loopback (`127.0.0.1` and `::1`) and every active local
+IPv4/IPv6 interface address of the KjitWeb server are always added to the effective
+access list. Loopback traffic remains local and is therefore not passed to the Windows
+Firewall `RemoteAddress` parameter.
 
-- **`localhost` (default)** – KjitWeb binds only to the loopback addresses `127.0.0.1`/`[::1]`. The service is reachable only from the KjitWeb server itself, via `http://localhost:5240`. No Windows Firewall rule for remote access is required or created. Use this when KjitWeb is only ever browsed from the server's own console, or when access is brokered entirely through another mechanism such as Microsoft Entra Application Proxy (see below).
-- **A specific hostname or IP address**, for example `-AllowedClient "adminpc01.contoso.com"` – KjitWeb binds to all interfaces (`http://*:5240`), but ASP.NET Core's host filtering and a Windows Firewall rule restrict access to the resolved IP address(es) of that name. `localhost`/`127.0.0.1`/`[::1]` remain allowed as well for local troubleshooting. Choose this when a defined administrator workstation or another server needs to browse KjitWeb over the network. Only a single hostname or IP address can currently be specified. For any non-`localhost` value, the installer/updater also verifies that the Kerberos SPNs `HTTP/<hostname>` and `HTTP/<fqdn>` are registered on the server's computer account, registering them automatically if missing (see [Kerberos authentication setup](docs/Kerberos-Setup.md)).
+- **`localhost` (default)** – Only the KjitWeb server itself is allowed. Access works through `localhost`, both loopback addresses, and the server's active local interface addresses. The service listens on all local interfaces, while Windows Firewall rejects connections whose source address does not belong to the local system. Use this when KjitWeb is only ever browsed from the server itself, or when access is brokered entirely through another mechanism such as Microsoft Entra Application Proxy (see below).
+- **One or more restricted clients**, for example
+  `-AllowedClient "192.168.10.0/24", "192.168.11.0/26", "localhost"` – KjitWeb binds to
+  all interfaces (`http://*:5240`), while the Windows Firewall rule permits only the
+  resolved host addresses, individual IP addresses, and CIDR subnets in the list, plus the
+  automatically detected local system addresses. The installer/updater also verifies that the Kerberos SPNs
+  `HTTP/<hostname>` and `HTTP/<fqdn>` are registered on the server's computer account,
+  registering them automatically if missing (see
+  [Kerberos authentication setup](docs/Kerberos-Setup.md)).
 - **`*`** – KjitWeb binds to all interfaces and accepts connections from any remote address. Only use this when another control, such as a firewall, IPsec, mutual TLS, or an access proxy, already restricts who can reach the KjitWeb port; do not expose it directly to untrusted networks.
 
 If you need to change `AllowedClient` after the initial installation (for example because access requirements changed, or because a client that used to reach KjitWeb via its hostname stopped working), use `set-kjitweb-allowedclient.ps1`. Since installation/update, it is available directly in the KjitWeb installation folder (`C:\Program Files\KJITWEB` by default) next to `install-kjitweb.ps1` and `update-kjitweb.ps1` — you do not need to keep or re-extract the release package to run it:
 
 ```powershell
 cd 'C:\Program Files\KJITWEB'
-.\set-kjitweb-allowedclient.ps1 -AllowedClient "adminpc01.contoso.com"
+.\set-kjitweb-allowedclient.ps1 -AllowedClient `
+    "192.168.10.0/24", `
+    "192.168.11.0/26", `
+    "localhost"
+```
+
+The same entries can be supplied through the pipeline:
+
+```powershell
+"192.168.10.0/24", "192.168.11.0/26", "2001:db8:10::/64", "localhost" |
+    .\set-kjitweb-allowedclient.ps1
+```
+
+Use `-Add` or `-Remove` to modify the stored list without replacing all entries:
+
+```powershell
+.\set-kjitweb-allowedclient.ps1 -Add "10.0.3.0/24", "2001:db8:20::/64"
+.\set-kjitweb-allowedclient.ps1 -Remove "192.168.11.0/26"
+```
+
+Both parameters may be combined in one call. `-WhatIf` calculates and displays the
+resulting configuration without changing appsettings, the service, URL ACL, or firewall:
+
+```powershell
+.\set-kjitweb-allowedclient.ps1 -Add "10.0.3.0/24" -WhatIf
+```
+
+The script returns a `KjitWeb.AllowedClientConfiguration` object containing the
+configured and effective allow lists, including separate `IPv4Addresses`, `IPv4Subnets`,
+`IPv6Addresses`, and `IPv6Subnets` properties. `Operation` identifies whether entries were
+replaced, added, or removed, and `Applied` is `False` for `-WhatIf`. The configured list
+contains the requested entries; the effective list additionally contains the automatically
+allowed local addresses.
+
+To list the IP addresses and subnets currently effective for the installed service, run:
+
+```powershell
+.\get-kjitweb-allowedclient.ps1
+```
+
+The command returns one object per effective address. IPv4 and IPv6 entries can be
+filtered using the `AddressFamily` property:
+
+```powershell
+.\get-kjitweb-allowedclient.ps1 |
+    Where-Object AddressFamily -eq 'IPv6'
 ```
 
 This updates `appsettings.json`/`appsettings.Production.json` (`AllowedClient`, `ServiceUrl`, `AllowedHosts`), the service's `ASPNETCORE_URLS` registry value, the HTTP.sys URL-ACL reservation, the Windows Firewall rule, and the Kerberos SPN registration on the computer account, all consistently together, then restarts the KjitWeb service — without stopping and recreating the Windows service the way re-running `install-kjitweb.ps1` would. If anything fails partway through, it automatically restores the previous configuration.
@@ -241,7 +299,10 @@ The script:
 - Stops the `KjitWeb` service.
 - Creates a temporary rollback backup of the current installation.
 - Replaces the application files from the `publish-service` folder next to the script, while preserving `appsettings*.json` and the `app_data` folder.
-- Copies `install-kjitweb.ps1`, `update-kjitweb.ps1`, and `set-kjitweb-allowedclient.ps1` into the installation folder, so they remain available for the next update or reconfiguration even after the original release package/extraction folder is gone.
+- Copies `install-kjitweb.ps1`, `update-kjitweb.ps1`,
+  `set-kjitweb-allowedclient.ps1`, and `get-kjitweb-allowedclient.ps1` into the
+  installation folder, so they remain available for the next update, reconfiguration,
+  or inspection even after the original release package/extraction folder is gone.
 - Ensures the `NetworkService` account, the HTTP.sys URL-ACL reservation, the Windows Firewall rule matching the configured `AllowedClient`, and the Kerberos SPN registration on the computer account are all still correct — restoring any of them that were missing or manually changed, even on installations that predate these safeguards. If the account running the script lacks permission to register the SPN, a warning with the manual `setspn` command is shown instead of failing the update.
 - Restarts the service and removes the temporary backup on success.
 - Automatically restores the previous installation and rethrows the error if the update fails.
@@ -523,7 +584,8 @@ PowerShell session and provide the required values explicitly:
 ```
 
 - `JitConfig` identifies the configuration used by the PowerShell and KjitWeb components.
-- `AllowedClient` accepts `localhost`, one hostname or IP address, or `*`.
+- `AllowedClient` accepts one or more hostnames, IP addresses, CIDR subnets, and
+  `localhost`, or the standalone wildcard `*`.
 - `CompanyName` sets the branding shown in the web interface.
 - `Port` selects the KjitWeb listening port.
 - `DebugLogPath` overrides the KjitWeb debug-log file path.
@@ -567,8 +629,10 @@ interactive installation asks for the following information:
     default is `\\<domain>\SYSVOL\<domain>\Just-In-Time\JIT.config`.
 14. **Install KjitWeb** – Confirm with the default `Y`. `install-JIT.ps1` then invokes the
     KjitWeb installer automatically and passes it the newly created JIT configuration.
-15. **Allowed KjitWeb client** – Hostname, IP address, `localhost`, or `*` that may access
-    KjitWeb. The default is `localhost`.
+15. **Allowed KjitWeb clients** – One or more hostnames, IP addresses, CIDR subnets, or
+    `localhost` that may access KjitWeb. Separate multiple entries with commas or
+    semicolons. The default is `localhost`; `*` allows all clients and cannot be combined
+    with restricted entries.
 16. **Company name** – Display name shown in the KjitWeb interface. The default is
     `Active Directory Just-in-Time Administration`.
 17. **KjitWeb TCP port** – Listening port for the web service. The default is `5240`; if it
