@@ -1,15 +1,55 @@
 {
-  "version": "0.2.20260926.24",
+  "version": "0.2.20260927.1",
   "files": [
     {
-      "path": "History.md",
-      "version": "0.2.20260926.24",
-      "sha256": "758b3b723805167ca39d7d627aabc949783d5e02b4a60c42033f46c7e788d94f"
+      "path": "build/New-InstallationPackage.ps1",
+      "version": "0.2.20260927.1",
+      "sha256": "da5111e9091f9355234a580912d99758d1e2951791fb0d914859ed2438d67f88"
+    },
+    {
+      "path": "build/release_build.ps1",
+      "version": "0.2.20260927.1",
+      "sha256": "78261c9749bfcce727abea46d41a5c55c803384c25a610447646c7c60eea3570"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "version": "0.2.20260927.1",
+      "sha256": "9594bf21f4e67b4c1ad17e6ff3b43496801a058757fbf6500d814ec195b2ee87"
+    },
+    {
+      "path": "README.md",
+      "version": "0.2.20260927.1",
+      "sha256": "254004c0124363e528ffb38d076fe9dbec95b8845e6540ee5704a4fbe2b5189a"
+    },
+    {
+      "path": "src/C#/Kjitweb/get-kjitweb-allowedclient.ps1",
+      "version": "0.2.20260927.1",
+      "sha256": "6d0c918c3fdc2b4cf1fbf5fb01904eae2e66c2d1c9a51205e591aa982ef6cf9b"
+    },
+    {
+      "path": "src/C#/Kjitweb/install-kjitweb.ps1",
+      "version": "0.2.20260927.1",
+      "sha256": "ef501ee128f827f569ecd680e2cb9f90e1f33a0b3f16238ca16488cf4d8665ad"
+    },
+    {
+      "path": "src/C#/Kjitweb/set-kjitweb-allowedclient.ps1",
+      "version": "0.2.20260927.1",
+      "sha256": "2bd43e12efc97707ca9fbd858b0962afbf9d2df5fc7894c69f6b2f476ca56276"
+    },
+    {
+      "path": "src/C#/Kjitweb/update-kjitweb.ps1",
+      "version": "0.2.20260927.1",
+      "sha256": "731eff41c05be23eca20b538ffc4e016c64de43e66b5f702d065f5837d5466eb"
+    },
+    {
+      "path": "tests/PowerShell/Modules.Tests.ps1",
+      "version": "0.2.20260927.1",
+      "sha256": "8330083c1e1579ef06a5d57deb3aa0f0ce27735bf57bb68de1e5bfd0caf08d2a"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20260926.24",
-      "sha256": "e8c0c681e910338da88155900950b8df421b112412122c7f4cfb17a47ed1403b"
+      "version": "0.2.20260927.1",
+      "sha256": "96f21ab8adf034f7d1031b9b442d44aad2d6bb4dcb13600b8ce57f83c1901524"
     }
   ]
 }
