@@ -1,5 +1,4 @@
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Debug\net8.0-windows\KjitWeb.csproj.AssemblyReference.cache
-C:\Repos\T1JIT\src\C#\Kjitweb\obj\Debug\net8.0-windows\rpswa.dswa.cache.json
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Debug\net8.0-windows\KjitWeb.Resources.SharedResource.de.resources
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Debug\net8.0-windows\KjitWeb.Resources.SharedResource.en.resources
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Debug\net8.0-windows\KjitWeb.csproj.GenerateResource.cache
@@ -30,7 +29,6 @@ C:\Repos\T1JIT\src\C#\Kjitweb\bin\Debug\net8.0-windows\publish\KjitWeb.deps.json
 C:\Repos\T1JIT\src\C#\Kjitweb\bin\Debug\net8.0-windows\publish\KjitWeb.runtimeconfig.json
 C:\Repos\T1JIT\src\C#\Kjitweb\bin\Debug\net8.0-windows\publish\KjitWeb.staticwebassets.endpoints.json
 C:\Repos\T1JIT\src\C#\Kjitweb\bin\Debug\net8.0-windows\KjitWeb.staticwebassets.runtime.json
-C:\Repos\T1JIT\src\C#\Kjitweb\bin\Debug\net8.0-windows\KjitWeb.staticwebassets.endpoints.json
 C:\Repos\T1JIT\src\C#\Kjitweb\bin\Debug\net8.0-windows\KjitWeb.exe
 C:\Repos\T1JIT\src\C#\Kjitweb\bin\Debug\net8.0-windows\KjitWeb.deps.json
 C:\Repos\T1JIT\src\C#\Kjitweb\bin\Debug\net8.0-windows\KjitWeb.runtimeconfig.json
@@ -50,15 +48,9 @@ C:\Repos\T1JIT\src\C#\Kjitweb\obj\Debug\net8.0-windows\de\KjitWeb.resources.cs
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Debug\net8.0-windows\de\KjitWeb.resources.dll
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Debug\net8.0-windows\en\KjitWeb.resources.cs
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Debug\net8.0-windows\en\KjitWeb.resources.dll
-C:\Repos\T1JIT\src\C#\Kjitweb\obj\Debug\net8.0-windows\rjimswa.dswa.cache.json
-C:\Repos\T1JIT\src\C#\Kjitweb\obj\Debug\net8.0-windows\rjsmrazor.dswa.cache.json
-C:\Repos\T1JIT\src\C#\Kjitweb\obj\Debug\net8.0-windows\rjsmcshtml.dswa.cache.json
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Debug\net8.0-windows\scopedcss\bundle\KjitWeb.styles.css
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Debug\net8.0-windows\staticwebassets.build.json
-C:\Repos\T1JIT\src\C#\Kjitweb\obj\Debug\net8.0-windows\staticwebassets.build.json.cache
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Debug\net8.0-windows\staticwebassets.development.json
-C:\Repos\T1JIT\src\C#\Kjitweb\obj\Debug\net8.0-windows\staticwebassets.build.endpoints.json
-C:\Repos\T1JIT\src\C#\Kjitweb\obj\Debug\net8.0-windows\swae.build.ex.cache
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Debug\net8.0-windows\KjitWeb.csproj.Up2Date
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Debug\net8.0-windows\KjitWeb.dll
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Debug\net8.0-windows\refint\KjitWeb.dll

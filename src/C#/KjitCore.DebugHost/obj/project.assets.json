@@ -195,7 +195,7 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\aa\\.nuget\\packages\\": {}
+    "C:\\Users\\anluca\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
@@ -203,17 +203,17 @@
       "projectUniqueName": "C:\\Repos\\T1JIT\\src\\C#\\KjitCore.DebugHost\\KjitCore.DebugHost.csproj",
       "projectName": "KjitCore.DebugHost",
       "projectPath": "C:\\Repos\\T1JIT\\src\\C#\\KjitCore.DebugHost\\KjitCore.DebugHost.csproj",
-      "packagesPath": "C:\\Users\\aa\\.nuget\\packages\\",
+      "packagesPath": "C:\\Users\\anluca\\.nuget\\packages\\",
       "outputPath": "C:\\Repos\\T1JIT\\src\\C#\\KjitCore.DebugHost\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\aa\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        "C:\\Users\\anluca\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net8.0"
       ],
       "sources": {
-        "https://api.nuget.org/v3/index.json": {}
+        "https://packagefeedproxy.microsoft.io/nuget/v3/index.json": {}
       },
       "frameworks": {
         "net8.0": {
@@ -234,8 +234,7 @@
         "enableAudit": "true",
         "auditLevel": "low",
         "auditMode": "direct"
-      },
-      "SdkAnalysisLevel": "10.0.200"
+      }
     },
     "frameworks": {
       "net8.0": {
@@ -251,30 +250,12 @@
         ],
         "assetTargetFallback": true,
         "warn": true,
-        "downloadDependencies": [
-          {
-            "name": "Microsoft.AspNetCore.App.Ref",
-            "version": "[8.0.27, 8.0.27]"
-          },
-          {
-            "name": "Microsoft.NETCore.App.Host.win-x64",
-            "version": "[8.0.27, 8.0.27]"
-          },
-          {
-            "name": "Microsoft.NETCore.App.Ref",
-            "version": "[8.0.27, 8.0.27]"
-          },
-          {
-            "name": "Microsoft.WindowsDesktop.App.Ref",
-            "version": "[8.0.27, 8.0.27]"
-          }
-        ],
         "frameworkReferences": {
           "Microsoft.NETCore.App": {
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.204/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.425/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

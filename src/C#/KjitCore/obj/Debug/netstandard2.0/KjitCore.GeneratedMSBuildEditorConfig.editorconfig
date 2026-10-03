@@ -3,6 +3,3 @@ build_property.RootNamespace = KjitCore
 build_property.ProjectDir = C:\Repos\T1JIT\src\C#\KjitCore\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
-build_property.CsWinRTUseWindowsUIXamlProjections = false
-build_property.EffectiveAnalysisLevelStyle = 
-build_property.EnableCodeStyleSeverity = 

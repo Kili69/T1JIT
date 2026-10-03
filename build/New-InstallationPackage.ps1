@@ -132,6 +132,7 @@ try {
 
     $requiredFiles = @(
         "install-JIT.ps1",
+        "Register-WindowsAutopilotDevice.ps1",
         "VERSION",
         "file-versions.json",
         "modules/0.1/KjitCore.dll",
