@@ -15,6 +15,7 @@ Changes merged into `dev` since the last published release (`v0.1.20260908.12`),
 
 ### Added
 
+- KjitWeb now lists only delegated servers whose matching JIT administrator group exists and displays each selectable server by its fully qualified DNS name.
 - Added a packaged [`GroupPolicy`](GroupPolicy/README.md) example that creates and links
   one complete policy per configured domain. It reads naming and server-OU settings from
   the active JIT configuration and adds each server-specific T1JIT AD group to the
@@ -47,6 +48,7 @@ Changes merged into `dev` since the last published release (`v0.1.20260908.12`),
 
 ### Fixed
 
+- Scheduled tasks now register the gMSA with the `ServiceAccount` logon type and automatically repair existing JIT tasks whose principal was stored as `(NONE)` or with an incompatible password logon.
 - KjitWeb management scripts now remove IPv6 interface scope IDs (for example `%5`) before creating Windows Firewall rules and treat firewall creation failures as fatal instead of reporting a false success.
 - Fixed `set-kjitweb-allowedclient.ps1` rejecting multiple `-AllowedClient` values while
   persisting the normalized value to `appsettings*.json`.

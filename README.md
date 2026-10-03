@@ -1,4 +1,4 @@
-# Just-In-Time Solution for Active Directory Member Servers - Version 0.2.20261003.1 (dev)
+# Just-In-Time Solution for Active Directory Member Servers - Version 0.2.20261003.2 (dev)
 
 ## Project Description
 
@@ -85,7 +85,7 @@ flowchart TD
 >
 > In Microsoft Azure environments, publish KjitWeb through Microsoft Entra Application Proxy as an Enterprise Application. Require Microsoft Entra pre-authentication and apply Conditional Access policies such as MFA and a compliant or managed device. Block direct client access to the internal KjitWeb URL; otherwise, users could bypass Conditional Access and MFA.
 
-The KJIT-Web service provides a web interface for users to request administrator privileges on the target servers. Open `http://<server>.<domain>:5240` in a web browser, select the target server and elevation duration, and submit the request. The interface also displays active requests and their remaining elevation time.
+The KJIT-Web service provides a web interface for users to request administrator privileges on the target servers. Open `http://<server>.<domain>:5240` in a web browser, select the target server and elevation duration, and submit the request. The server list contains only delegated computers for which the matching JIT administrator group exists, and displays them by their fully qualified DNS names. The interface also displays active requests and their remaining elevation time.
 
 ## Using T1JIT with PowerShell
 

@@ -11,6 +11,7 @@ BeforeAll {
     $manifestPath = Join-Path $ModuleRoot "Just-In-time.psd1"
     $versionedModulePath = Join-Path $ModuleRoot "0.1"
     $releaseRoot = Split-Path -Path $ModuleRoot -Parent
+    $repoRoot = Split-Path -Path $releaseRoot -Parent
 }
 
 Describe "Just-In-Time PowerShell module package" {
@@ -598,6 +599,31 @@ Describe "Just-In-Time PowerShell module package" {
                 -Exception ([System.InvalidOperationException]::new("The domain controller is unavailable.")) |
                 Should -BeFalse
         }
+    }
+
+    It "registers and repairs scheduled tasks with a GMSA service-account principal" {
+        $configScriptPath = Join-Path $repoRoot "src/Powershell/Scripts/Config-JIT.ps1"
+        $tokens = $null
+        $parseErrors = $null
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+            $configScriptPath,
+            [ref]$tokens,
+            [ref]$parseErrors
+        )
+        $scheduledTaskFunction = $ast.Find({
+            param($node)
+            $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                $node.Name -eq "Set-JitScheduledTask"
+        }, $true)
+
+        $parseErrors | Should -BeNullOrEmpty
+        $scheduledTaskFunction | Should -Not -BeNullOrEmpty
+        $scheduledTaskFunction.Extent.Text |
+            Should -Match 'New-ScheduledTaskPrincipal[\s\S]+-LogonType\s+ServiceAccount'
+        @([regex]::Matches(
+            $scheduledTaskFunction.Extent.Text,
+            'Register-ScheduledTask[\s\S]*?-Force'
+        )).Count | Should -Be 2
     }
 
     It "contains syntactically valid module files" {
