@@ -1,18 +1,4 @@
 <#
-Script Info
-
-Disclaimer:
-This sample script is not supported under any Microsoft standard support program or service.
-The sample script is provided AS IS without warranty of any kind. Microsoft further disclaims
-all implied warranties including, without limitation, any implied warranties of merchantability
-or of fitness for a particular purpose. The entire risk arising out of the use or performance of
-the sample scripts and documentation remains with you. In no event shall Microsoft, its authors,
-or anyone else involved in the creation, production, or delivery of the scripts be liable for any
-damages whatsoever (including, without limitation, damages for loss of business profits, business
-interruption, loss of business information, or other pecuniary loss) arising out of the use of or
-inability to use the sample scripts or documentation, even if Microsoft has been advised of the
-possibility of such damages
-
 .SYNOPSIS
     Creates or validates the repository version metadata for a commit.
 .DESCRIPTION
@@ -21,10 +7,9 @@ possibility of such damages
     file-versions.json. Every changed file receives the same version and its current
     SHA-256 hash in the manifest.
 
-    In check mode, validates the version format, manifest version, changed-file
-    versions and hashes, and the required disclaimer in every PowerShell script.
-    Generated files below bin and obj and the version metadata files themselves are
-    excluded from changed-file tracking.
+    In check mode, validates the version format, manifest version, and changed-file
+    versions and hashes. Generated files below bin and obj and the version metadata
+    files themselves are excluded from changed-file tracking.
 .PARAMETER Major
     Major component used when creating a version. The default is 0.
 .PARAMETER Minor
@@ -85,20 +70,6 @@ $moduleManifestRelativePath = "src/Powershell/modules/Just-In-time.psd1"
 $moduleManifestPath = Join-Path $repoRoot $moduleManifestRelativePath
 $versionPattern = '^(?<major>\d+)\.(?<minor>\d+)\.(?<date>\d{8})\.(?<counter>[1-9]\d*)$'
 $metadataFiles = @("VERSION", "file-versions.json")
-$requiredScriptDisclaimerLines = @(
-    "Script Info",
-    "Disclaimer:",
-    "This sample script is not supported under any Microsoft standard support program or service.",
-    "The sample script is provided AS IS without warranty of any kind. Microsoft further disclaims",
-    "all implied warranties including, without limitation, any implied warranties of merchantability",
-    "or of fitness for a particular purpose. The entire risk arising out of the use or performance of",
-    "the sample scripts and documentation remains with you. In no event shall Microsoft, its authors,",
-    "or anyone else involved in the creation, production, or delivery of the scripts be liable for any",
-    "damages whatsoever (including, without limitation, damages for loss of business profits, business",
-    "interruption, loss of business information, or other pecuniary loss) arising out of the use of or",
-    "inability to use the sample scripts or documentation, even if Microsoft has been advised of the",
-    "possibility of such damages"
-)
 
 <#
 .SYNOPSIS
@@ -170,38 +141,6 @@ function Get-FileHashValue {
 
     (Get-FileHash -LiteralPath $absolutePath -Algorithm SHA256).Hash.ToLowerInvariant()
 }
-
-<#
-.SYNOPSIS
-    Ensures every tracked or untracked PowerShell script has the required disclaimer.
-#>
-function Assert-ScriptDisclaimers {
-    $trackedScripts = @(git -C $repoRoot ls-files -- "*.ps1")
-    if ($LASTEXITCODE -ne 0) {
-        throw "Unable to determine tracked PowerShell scripts with git."
-    }
-
-    $untrackedScripts = @(git -C $repoRoot ls-files --others --exclude-standard -- "*.ps1")
-    if ($LASTEXITCODE -ne 0) {
-        throw "Unable to determine untracked PowerShell scripts with git."
-    }
-
-    $invalidScripts = @()
-    foreach ($script in @($trackedScripts + $untrackedScripts | Sort-Object -Unique)) {
-        $scriptPath = Join-Path $repoRoot $script
-        $scriptLines = @(Get-Content -LiteralPath $scriptPath | ForEach-Object { $_.Trim() })
-        $missingLines = @($requiredScriptDisclaimerLines | Where-Object { $_ -notin $scriptLines })
-        if ($missingLines.Count -gt 0) {
-            $invalidScripts += $script.Replace('\', '/')
-        }
-    }
-
-    if ($invalidScripts.Count -gt 0) {
-        throw "PowerShell scripts are missing the required Script Info disclaimer: $($invalidScripts -join ', ')"
-    }
-}
-
-Assert-ScriptDisclaimers
 
 if ($Check) {
     if (-not (Test-Path $versionPath) -or -not (Test-Path $manifestPath)) {

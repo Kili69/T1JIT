@@ -1,20 +1,7 @@
 <# 
-Script Info
-
 Author: Andreas Lucas [MSFT]
 Download: 
 
-Disclaimer:
-This sample script is not supported under any Microsoft standard support program or service. 
-The sample script is provided AS IS without warranty of any kind. Microsoft further disclaims 
-all implied warranties including, without limitation, any implied warranties of merchantability 
-or of fitness for a particular purpose. The entire risk arising out of the use or performance of 
-the sample scripts and documentation remains with you. In no event shall Microsoft, its authors, 
-or anyone else involved in the creation, production, or delivery of the scripts be liable for any 
-damages whatsoever (including, without limitation, damages for loss of business profits, business 
-interruption, loss of business information, or other pecuniary loss) arising out of the use of or 
-inability to use the sample scripts or documentation, even if Microsoft has been advised of the 
-possibility of such damages
 
 .SYNOPSIS 
     This script builds the Just-In-Time solution's and copy all required files into the relase folder.
@@ -41,6 +28,7 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $versionScriptPath = Join-Path $PSScriptRoot "Update-Version.ps1"
 $versionPath = Join-Path $repoRoot "VERSION"
 $fileVersionsPath = Join-Path $repoRoot "file-versions.json"
+$licensePath = Join-Path $repoRoot "LICENSE"
 $kjitWebRoot = Join-Path $repoRoot "src/C#/Kjitweb"
 $csprojPath = Join-Path $kjitWebRoot "KjitWeb.csproj"
 $releaseBuildRoot = Join-Path $kjitWebRoot "obj/ReleasePackage"
@@ -144,6 +132,7 @@ New-Item -Path $releaseRoot -ItemType Directory -Force | Out-Null
 New-Item -Path $releaseModulesDir -ItemType Directory -Force | Out-Null
 Copy-Item $versionPath $releaseRoot -Force
 Copy-Item $fileVersionsPath $releaseRoot -Force
+Copy-Item $licensePath $releaseRoot -Force
 Copy-Item (Join-Path $psScriptsSourceDir "*.ps1") $releaseRoot -Force
 Copy-Item (Join-Path $psModulesSourceDir "*") $releaseModulesDir -Recurse -Force
 

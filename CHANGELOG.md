@@ -61,6 +61,8 @@ Changes merged into `dev` since the last published release (`v0.1.20260908.12`),
 
 ### Changed
 
+- Relicensed the project from the MIT License to the Apache License 2.0, centralized the
+  warranty disclaimer in the README, and included the license in release packages.
 - Separated developer, build, versioning, release, and contribution information into [`Developer.md`](Developer.md), leaving the README focused on installation, configuration, and operation.
 - Added complete API documentation, author attribution, and file-level version history to `KjitCore.cs`.
 - Added complete contract and return-value documentation, author attribution, and version history to `IDistinguishedNameService.cs`.

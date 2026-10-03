@@ -12,14 +12,14 @@
 - [Quick-start Installation](#quick-start-installation)
     - [Install Just-In-Time](#install-just-in-time)
     - [Configure elevation privileges](#configure-elevation-privileges)
-    - [Useage of JIT](#useage-of-jit)
+    - [Usage of JIT](#usage-of-jit)
 - [Installing and configuring KJIT-Web](#installing-and-configuring-kjit-web)
     - [Installation of the KJIT-Web service](#installation-of-the-kjit-web-service)
         - [Restricting which clients can reach KjitWeb (AllowedClient)](#restricting-which-clients-can-reach-kjitweb-allowedclient)
         - [Publish KjitWeb as a Microsoft Entra Enterprise Application](#publish-kjitweb-as-a-microsoft-entra-enterprise-application)
     - [Updating the KJIT-Web service](#updating-the-kjit-web-service)
     - [Configuration of the KJIT-Web service](#configuration-of-the-kjit-web-service)
-- [Setup addtional JIT servers](#setup-addtional-jit-servers)
+- [Setup additional JIT servers](#setup-additional-jit-servers)
 - [Security Considerations](#security-considerations)
 - [Configuration and Customization](#configuration-and-customization)
     - [Get-JITConfig](#get-jitconfig)
@@ -37,6 +37,7 @@
     - [Unattended installation](#unattended-installation)
     - [Parameterized KjitWeb installation](#parameterized-kjitweb-installation)
     - [Installation prompts](#installation-prompts)
+- [Disclaimer](#disclaimer)
 - [License](#-license)
 - [Changelog](#changelog)
 - [Event Reference](#event-reference)
@@ -49,8 +50,8 @@ This project is based on Active Directory features and do not required agents od
 ## Problem Statement
 
 In many IT environments, users are members of the local administrators group on multiple servers. If one server is compromised, an attacker can exploit these privileges to move laterally across the network. Many existing solution requires Agents, high privileged or using privileged accounts in the background.
-All ot those solutions provides a lateral movement attack path, because there is one high privileged identitiy on the target system.
-This soultion works without a privileged identitiy on the target computers.
+All ot those solutions provides a lateral movement attack path, because there is one high privileged identity on the target system.
+This solution works without a privileged identity on the target computers.
 
 ## How does T1JIT works
 
@@ -65,7 +66,7 @@ T1JiT works with Active Directory groups and group polices. A user can connect t
 The event log is consumed from a group managed service account, who reads the event log and validate the user is allowed to request the access. If the user is allowed, the user object if time-bound added to the group who is member of the local administrator on the target server.
 While the group where the user is added contains the target server in the name,only one group policy with a variable is required to assign the local administrator rights on the target server.
 The user is automatically removed from the local administrator group after the time is expired.
-The groups will be automatically created by the JIT-Solution, if a computer oject exists in the configured target OU.
+The groups will be automatically created by the JIT-Solution, if a computer object exists in the configured target OU.
 
 ### Temporary privilege assignment
 
@@ -164,7 +165,7 @@ the same default delegation whenever a new search base is added later, and
 `Remove-JITServerOU` removes any matching delegation, including this default one, when
 a search base is removed.
 
-To allow a user to request administrators privileges on servers in a OU use the `Add-JitDelegation` command. This command will add user or group to be evlevated on the target servers. The command should be run with the following parameters:
+To allow a user to request administrators privileges on servers in a OU use the `Add-JitDelegation` command. This command will add user or group to be elevated on the target servers. The command should be run with the following parameters:
 - Identity: The identity of the user or group who should be allowed to request administrators privileges on the target servers. The format should be <domain>\<username> or <domain>\<groupname>.
 - OU: The OU where the computer objects of the target servers are located. The JIT
 Solution will only work for computer objects who are located in this OU or its child OUs. A user will inherit the privileges to request administrators privileges on the target servers, if the user is member of a group who is allowed to request administrators privileges on the target servers.
@@ -174,11 +175,11 @@ Add-JitDelegation -Identity "domain\serveradmins" -OU "OU=Server,DC=domain,DC=lo
     Any user who is member of the "domain\serveradmins" group will be able to request administrators privileges on the target servers who are located in the "OU=Server,DC=domain,DC=local" OU or its child OUs.
 Add-JitDelegation -Identity "domain\SQLAdmins" -OU "OU=SQLServer,OU=Server,DC=domain,DC=local"
     Any user who is member of the "domain\SQLAdmins" group will be able to request administrators privileges on the target servers who are located in the "OU=SQLServer,OU=Server,DC=domain,DC=local" OU or its child OUs.
-    Addtional members of the "domain\serveradmins" group will also be able to request administrators privileges on the target servers who are located in the "OU=SQLServer,OU=Server,DC=domain,DC=local" OU or its child OUs, because the "domain\serveradmins" group is member of the "domain\SQLAdmins" group.
+    Additional members of the "domain\serveradmins" group will also be able to request administrators privileges on the target servers who are located in the "OU=SQLServer,OU=Server,DC=domain,DC=local" OU or its child OUs, because the "domain\serveradmins" group is member of the "domain\SQLAdmins" group.
 
-### Useage of JIT
+### Usage of JIT
 
-A user can now request administrator privielges via Powershell withou any privilege in active directory. To request administrator privileges for a target server the user can use the New-AdminRequest command. This command should be run with the following parameters:
+A user can now request administrator privileges via Powershell without any privilege in active directory. To request administrator privileges for a target server the user can use the New-AdminRequest command. This command should be run with the following parameters:
 - Server: The name of the target server. The format should be <computername>
 - Duration: The duration for the elevation. The default value is 60 minutes. The maximum value is the value configured in the configuration of the JIT-Solution.
 e.g.
@@ -186,8 +187,8 @@ e.g.
         This will request administrator privileges for the "myserver" server for 60 minutes. The user will be automatically removed from the local administrator group after 60 minutes.
     New-AdminRequest -Server myserver.domain.local -Duration 30
         This will request administrator privileges for the "myserver" server for 30 minutes. The user will be automatically removed from the local administrator group after 30 minutes.
-    New-AdminRequest -Server myserver.domain.local -Duration 120 -User anotheruser
-        This will request administrator privileges for the "myserver" server for 120 minutes on behalf of the user "anotheruser@
+    New-AdminRequest -Server myserver.domain.local -Duration 120 -User another user
+        This will request administrator privileges for the "myserver" server for 120 minutes on behalf of the user "another user@
 
 ## Installing and configuring KJIT-Web
 
@@ -336,9 +337,9 @@ The KJIT-Web service can be configured with the appsettings.json file. The confi
     - A custom path can still be configured with `DebugLog:Path` or the `DebugLog__Path` environment variable. The configured service account must have write permission to that directory.
     - When KjitWeb starts as a Windows service, it writes Application event `5001` with source `KjitWeb`. The event message contains the fully resolved debug log path.
 
-## Setup addtional JIT servers
+## Setup additional JIT servers
 
-TO add a addtional JIT server to the environment, the JIT-Solution must be installed on the additional server. The additional server must be joined to the same domain as the first server.
+TO add a additional JIT server to the environment, the JIT-Solution must be installed on the additional server. The additional server must be joined to the same domain as the first server.
 to install the program files run the install-jit.ps1 script on the additional server. then run the config-jit.ps1 script to configure the JIT-Solution on the additional server. Use the -quiet parameter and the -configurationfile parameter to use the same configuration as the first server. e.g.
     config-jit.ps1 -quiet -configurationfile \\<domain>\SYSVOL\<domain>\JUST-IN-TIME\config.json
 
@@ -458,7 +459,7 @@ startup diagnostics in Windows Event Log. Monitor these logs on the JIT server:
 Important events include:
 
 | Event ID | Level | Meaning |
-|---|---|---|
+| --- | --- | --- |
 | 100 (default) | Information | A JIT elevation request was submitted. |
 | 2104 | Information | A user was successfully granted temporary administrator access. |
 | 2103 | Warning | A request was rejected because no matching delegation was found. |
@@ -641,9 +642,19 @@ interactive installation asks for the following information:
 Development, build, versioning, release, and contribution information is maintained
 separately in [`Developer.md`](Developer.md).
 
+## Disclaimer
+
+This project is not supported under any Microsoft standard support program or service.
+Unless required by applicable law or agreed to in writing, the software is distributed
+on an **"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND**, either express or
+implied. See the Apache License 2.0 for the specific language governing permissions and
+limitations.
+
 ## 📄 License
 
-This project is licensed under the MIT License.
+Copyright 2024 Andreas Lucas.
+
+This project is licensed under the [Apache License 2.0](LICENSE).
 
 ## Changelog
 

@@ -7,6 +7,9 @@
     <NoWarn>CA1416</NoWarn>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <WarningsAsErrors>$(WarningsAsErrors);CS1570;CS1572;CS1573;CS1587;CS1591</WarningsAsErrors>
+    <Authors>Andreas Lucas</Authors>
+    <Copyright>Copyright 2024 Andreas Lucas</Copyright>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
   </PropertyGroup>
 
 
@@ -31,4 +34,3 @@
     </Content>
   </ItemGroup>
 </Project>
-
