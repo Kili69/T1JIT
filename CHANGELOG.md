@@ -15,6 +15,19 @@ Changes merged into `dev` since the last published release (`v0.1.20260908.12`),
 
 ### Added
 
+- Added a packaged [`GroupPolicy`](GroupPolicy/README.md) example that creates and links
+  one complete policy per configured domain. It reads naming and server-OU settings from
+  the active JIT configuration and adds each server-specific T1JIT AD group to the
+  language-neutral built-in local Administrators group. The preference resolves the
+  central group-account domain from `AdminGroupOU` and writes a domain-qualified
+  `NETBIOS\GroupName` member reference. The installer copies the provisioning script to
+  the Just-In-Time program folder and displays the required Domain Administrator or
+  Group Policy Creator Owners follow-up action when installation completes. The script
+  generates its Group Policy Preferences XML internally and no longer ships a separate
+  XML template. Its optional `-Domain` parameter provisions only one configured domain;
+  without it, multi-domain environments still process every forest domain. Per-domain
+  permission failures now produce an actionable retry warning and do not prevent the
+  remaining domains from being processed.
 - Installation package creation now always runs Pester unit tests against the packaged PowerShell modules and aborts before creating a ZIP if manifest, syntax, or `Get-JITConfig` compatibility tests fail.
 - Release packages are now a single ZIP + `.sha256` checksum (`T1JIT-<Version>-<Branch>.zip`).
 - `update-kjitweb.ps1` updates an existing KJIT-Web installation in place (rollback backup, preserves `appsettings*.json`/`app_data`). `install-JIT.ps1` now detects an existing Just-In-Time/KjitWeb installation and updates it in place instead of re-running the full setup wizard, only prompting for settings introduced since the last configuration. Run the installed `Config-JIT.ps1 -AdvancedSetup` separately to review the complete configuration.

@@ -43,6 +43,7 @@ $kjitCoreDllSource = Join-Path $kjitCoreOutputDir "KjitCore.dll"
 $psSourceRoot = Join-Path $repoRoot "src/PowerShell"
 $psModulesSourceDir = Join-Path $psSourceRoot "modules"
 $psScriptsSourceDir = Join-Path $psSourceRoot "Scripts"
+$groupPolicySourceDir = Join-Path $repoRoot "GroupPolicy"
 
 # Requested target folder name: release/kJITWeb
 $releaseRoot = Join-Path $repoRoot "release"
@@ -50,6 +51,7 @@ $releaseKJITWebDir = Join-Path $releaseRoot "kJITWeb"
 $releasePublishDir = Join-Path $releaseKJITWebDir "publish-service"
 $releaseModulesDir = Join-Path $releaseRoot "modules"
 $releaseModulesVersionDir = Join-Path $releaseModulesDir "0.1"
+$releaseGroupPolicyDir = Join-Path $releaseRoot "GroupPolicy"
 
 $installScriptSource = Join-Path $kjitWebRoot "install-kjitweb.ps1"
 $updateScriptSource = Join-Path $kjitWebRoot "update-kjitweb.ps1"
@@ -127,6 +129,9 @@ if (-not (Test-Path $psScriptsSourceDir)) {
 if (-not (Test-Path $psModulesSourceDir)) {
     throw "PowerShell modules source directory not found: $psModulesSourceDir"
 }
+if (-not (Test-Path $groupPolicySourceDir)) {
+    throw "Group Policy provisioning source directory not found: $groupPolicySourceDir"
+}
 
 New-Item -Path $releaseRoot -ItemType Directory -Force | Out-Null
 New-Item -Path $releaseModulesDir -ItemType Directory -Force | Out-Null
@@ -135,6 +140,7 @@ Copy-Item $fileVersionsPath $releaseRoot -Force
 Copy-Item $licensePath $releaseRoot -Force
 Copy-Item (Join-Path $psScriptsSourceDir "*.ps1") $releaseRoot -Force
 Copy-Item (Join-Path $psModulesSourceDir "*") $releaseModulesDir -Recurse -Force
+Copy-Item $groupPolicySourceDir $releaseRoot -Recurse -Force
 
 Write-Host "Building KjitCore (net48)..."
 dotnet build $kjitCoreProjPath -c Release -f net48 --artifacts-path $dotnetArtifactsDir -o $kjitCoreOutputDir

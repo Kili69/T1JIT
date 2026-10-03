@@ -4,12 +4,13 @@
 .DESCRIPTION
     In update mode, determines files changed relative to BaseRef, creates a version in
     the format <Major>.<Minor>.<yyyyMMdd>.<counter>, and writes VERSION plus
-    file-versions.json. Every changed file receives the same version and its current
-    SHA-256 hash in the manifest.
+    file-versions.json. It also writes the version to the README heading and includes
+    the current branch name on branches other than main. Every changed file receives
+    the same version and its current SHA-256 hash in the manifest.
 
-    In check mode, validates the version format, manifest version, and changed-file
-    versions and hashes. Generated files below bin and obj and the version metadata
-    files themselves are excluded from changed-file tracking.
+    In check mode, validates the version format, README heading, manifest version, and
+    changed-file versions and hashes. Generated files below bin and obj and the version
+    metadata files themselves are excluded from changed-file tracking.
 .PARAMETER Major
     Major component used when creating a version. The default is 0.
 .PARAMETER Minor
@@ -66,10 +67,56 @@ $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $versionPath = Join-Path $repoRoot "VERSION"
 $manifestPath = Join-Path $repoRoot "file-versions.json"
+$readmeRelativePath = "README.md"
+$readmePath = Join-Path $repoRoot $readmeRelativePath
 $moduleManifestRelativePath = "src/Powershell/modules/Just-In-time.psd1"
 $moduleManifestPath = Join-Path $repoRoot $moduleManifestRelativePath
 $versionPattern = '^(?<major>\d+)\.(?<minor>\d+)\.(?<date>\d{8})\.(?<counter>[1-9]\d*)$'
 $metadataFiles = @("VERSION", "file-versions.json")
+$readmeTitle = "Just-In-Time Solution for Active Directory Member Servers"
+
+<#
+.SYNOPSIS
+    Returns the source branch used for README version labeling.
+#>
+function Get-CurrentBranchName {
+    if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_HEAD_REF)) {
+        return $env:GITHUB_HEAD_REF.Trim()
+    }
+
+    $branch = @(git -C $repoRoot branch --show-current)
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to determine the current branch with git."
+    }
+    if ($branch.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($branch[0])) {
+        return $branch[0].Trim()
+    }
+
+    if ($env:GITHUB_REF_TYPE -eq "branch" -and
+        -not [string]::IsNullOrWhiteSpace($env:GITHUB_REF_NAME)) {
+        return $env:GITHUB_REF_NAME.Trim()
+    }
+
+    throw "Unable to determine the current branch for the README heading."
+}
+
+<#
+.SYNOPSIS
+    Returns the versioned README heading for a branch.
+#>
+function Get-ReadmeHeading {
+    param(
+        [Parameter(Mandatory = $true)][string]$Version,
+        [Parameter(Mandatory = $true)][string]$Branch
+    )
+
+    $heading = "# $readmeTitle - Version $Version"
+    if ($Branch -ne "main") {
+        $heading += " ($Branch)"
+    }
+
+    $heading
+}
 
 <#
 .SYNOPSIS
@@ -143,12 +190,21 @@ function Get-FileHashValue {
 }
 
 if ($Check) {
-    if (-not (Test-Path $versionPath) -or -not (Test-Path $manifestPath)) {
-        throw "VERSION and file-versions.json must exist. Run build/Update-Version.ps1 first."
+    if (-not (Test-Path $versionPath) -or
+        -not (Test-Path $manifestPath) -or
+        -not (Test-Path $readmePath)) {
+        throw "VERSION, file-versions.json, and README.md must exist. Run build/Update-Version.ps1 first."
     }
 
     $version = (Get-Content $versionPath -Raw).Trim()
     Assert-VersionFormat -Version $version
+    $branch = Get-CurrentBranchName
+    $expectedReadmeHeading = Get-ReadmeHeading -Version $version -Branch $branch
+    $actualReadmeHeading = Get-Content -LiteralPath $readmePath -TotalCount 1
+    if ($actualReadmeHeading -ne $expectedReadmeHeading) {
+        throw "README heading '$actualReadmeHeading' does not match expected heading '$expectedReadmeHeading'."
+    }
+
     $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
 
     if ($manifest.version -ne $version) {
@@ -193,6 +249,21 @@ if (Test-Path $versionPath) {
 }
 
 $version = "$Major.$Minor.$date.$counter"
+$branch = Get-CurrentBranchName
+$expectedReadmeHeading = Get-ReadmeHeading -Version $version -Branch $branch
+$readmeContent = Get-Content -LiteralPath $readmePath -Raw
+$escapedReadmeTitle = [regex]::Escape($readmeTitle)
+$updatedReadmeContent = $readmeContent -replace "(?m)^# $escapedReadmeTitle(?: - Version .*)?$", $expectedReadmeHeading
+if ($updatedReadmeContent -eq $readmeContent -and
+    $readmeContent -notmatch "(?m)^$([regex]::Escape($expectedReadmeHeading))$") {
+    throw "Project heading was not found in '$readmeRelativePath'."
+}
+[System.IO.File]::WriteAllText(
+    $readmePath,
+    $updatedReadmeContent,
+    [System.Text.UTF8Encoding]::new($false)
+)
+
 $moduleManifestContent = Get-Content -LiteralPath $moduleManifestPath -Raw
 $updatedModuleManifestContent = $moduleManifestContent -replace "(?m)^ModuleVersion\s*=\s*'[^']+'", "ModuleVersion = '$version'"
 if ($updatedModuleManifestContent -eq $moduleManifestContent -and
@@ -208,6 +279,9 @@ if ($updatedModuleManifestContent -eq $moduleManifestContent -and
 $changedFiles = @(Get-ChangedFiles)
 if ($moduleManifestRelativePath -notin $changedFiles) {
     $changedFiles += $moduleManifestRelativePath
+}
+if ($readmeRelativePath -notin $changedFiles) {
+    $changedFiles += $readmeRelativePath
 }
 if ($changedFiles.Count -eq 0) {
     throw "No changed files found."

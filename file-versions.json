@@ -1,15 +1,120 @@
 {
-  "version": "0.2.20260927.2",
+  "version": "0.2.20261003.1",
   "files": [
     {
-      "path": "History.md",
-      "version": "0.2.20260927.2",
-      "sha256": "61cde5b0807ba21287a4b086c6b95b33dbc9276f6fd760529b0ef50d65a98f29"
+      "path": ".githooks/pre-commit.ps1",
+      "version": "0.2.20261003.1",
+      "sha256": "593d4770804d5b0e8e6f57cc00f6a8b08136517b6bc5228731a88e8b357d5904"
+    },
+    {
+      "path": "build/New-InstallationPackage.ps1",
+      "version": "0.2.20261003.1",
+      "sha256": "c4de4ed628742bbb8a878b9ff19b93c1dccb0d2b785753cbe29423e7cba5fab4"
+    },
+    {
+      "path": "build/release_build.ps1",
+      "version": "0.2.20261003.1",
+      "sha256": "9cff2c0dbdd92ac33d0bd6be3f7e245cc7b906aa01b85b6e806536fcd9630b2e"
+    },
+    {
+      "path": "build/Update-Version.ps1",
+      "version": "0.2.20261003.1",
+      "sha256": "14787012c459fbda9f43eecfb09734f1075171bcfcf893f876e33a0d09edd2e2"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "version": "0.2.20261003.1",
+      "sha256": "e88820a9e44b90babc88505a235055cf83f14c2871c90ffbb9bfc3979f12aad3"
+    },
+    {
+      "path": "Developer.md",
+      "version": "0.2.20261003.1",
+      "sha256": "89e35292feffcc48dc45821be64f076d6a60ee326f132319f4de531a9a7d519e"
+    },
+    {
+      "path": "GroupPolicy/New-T1JitLocalAdministratorsGpo.ps1",
+      "version": "0.2.20261003.1",
+      "sha256": "98919473cfad2650414ab286977301d6de5029eb44a9bc882d895d002e089269"
+    },
+    {
+      "path": "GroupPolicy/README.md",
+      "version": "0.2.20261003.1",
+      "sha256": "469fe22a4b85a4de877e12d01c1411a4126a5f73e8dde642d3ca2275cd7399c6"
+    },
+    {
+      "path": "README.md",
+      "version": "0.2.20261003.1",
+      "sha256": "a766c9f56cb74f440a48bff092da874a7b38d12957a2726f43146e7f57490510"
+    },
+    {
+      "path": "release/GroupPolicy/New-T1JitLocalAdministratorsGpo.ps1",
+      "version": "0.2.20261003.1",
+      "sha256": "98919473cfad2650414ab286977301d6de5029eb44a9bc882d895d002e089269"
+    },
+    {
+      "path": "release/GroupPolicy/README.md",
+      "version": "0.2.20261003.1",
+      "sha256": "469fe22a4b85a4de877e12d01c1411a4126a5f73e8dde642d3ca2275cd7399c6"
+    },
+    {
+      "path": "release/install-JIT.ps1",
+      "version": "0.2.20261003.1",
+      "sha256": "93a148de5a56f64da43cb657a836bbecc27c922d596447381c34cc07dbc37f5c"
+    },
+    {
+      "path": "release/kJITWeb/publish-service/de/KjitWeb.resources.dll",
+      "version": "0.2.20261003.1",
+      "sha256": "086ba13bb58488bf5af621b9c4af08f2917d1a924f5b0b3580317a1be8adb21e"
+    },
+    {
+      "path": "release/kJITWeb/publish-service/en/KjitWeb.resources.dll",
+      "version": "0.2.20261003.1",
+      "sha256": "96dbe9bfadf52cc988dccff41fbc28243d5012349d446314d8704ea0ac8151ca"
+    },
+    {
+      "path": "release/kJITWeb/publish-service/KjitWeb.dll",
+      "version": "0.2.20261003.1",
+      "sha256": "2293559d5d69e54f234cb3b7f6bb3baf1936d538aa854ad66ec6659be520476c"
+    },
+    {
+      "path": "release/kJITWeb/publish-service/KjitWeb.exe",
+      "version": "0.2.20261003.1",
+      "sha256": "20bc64a68a4da60e49e1e5a6cd0942766b183f0a93cb17ace9109ff3a12aac39"
+    },
+    {
+      "path": "release/kJITWeb/publish-service/KjitWeb.pdb",
+      "version": "0.2.20261003.1",
+      "sha256": "685c339e75ed7a9a00d8e3bb1907964fee1d3bd52c7708c5feebe629b7d36ba6"
+    },
+    {
+      "path": "release/modules/0.1/KjitCore.dll",
+      "version": "0.2.20261003.1",
+      "sha256": "cf47bd84445bbff472c44bc024171ce0575221c22cb6d8f8ee5c362675eb48c7"
+    },
+    {
+      "path": "src/C#/KjitCore/Models/JitConfigurationObject.cs",
+      "version": "0.2.20261003.1",
+      "sha256": "6690f4f5cfb1c24680b7e0ea17ebd0841632ccf8abd3bca5167304a05cf046f0"
+    },
+    {
+      "path": "src/C#/KjitCore/Services/JitConfigurationReader.cs",
+      "version": "0.2.20261003.1",
+      "sha256": "ecba4074e1df8ecbee18dd550b4a4b2900b6193c7f8279a3d53f715d69056381"
+    },
+    {
+      "path": "src/Powershell/Scripts/install-JIT.ps1",
+      "version": "0.2.20261003.1",
+      "sha256": "93a148de5a56f64da43cb657a836bbecc27c922d596447381c34cc07dbc37f5c"
+    },
+    {
+      "path": "tests/PowerShell/Modules.Tests.ps1",
+      "version": "0.2.20261003.1",
+      "sha256": "5140653dc4f0b3f5ff08856cdcd00d12c1eebcc5a73f543cd60911f5e5aceb8a"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20260927.2",
-      "sha256": "7c622cddbfbe6baf1e3fcaa7c88ef07da88042a395e0927dc766bf9c6cbc72e1"
+      "version": "0.2.20261003.1",
+      "sha256": "27395009563df1e7aa215bc95b95badaf0eeb861c56148139c1c98184bb4638e"
     }
   ]
 }

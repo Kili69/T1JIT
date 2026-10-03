@@ -47,6 +47,7 @@ Describe "Just-In-Time PowerShell module package" {
                 [CmdletBinding()]
                 param([string]$DisplayName)
             }
+
             function Remove-NetFirewallRule {
                 [CmdletBinding()]
                 param([Parameter(ValueFromPipeline = $true)]$InputObject)
@@ -320,6 +321,285 @@ Describe "Just-In-Time PowerShell module package" {
         }
     }
 
+    Describe "T1JIT Group Policy provisioning" {
+        It "packages a self-contained safe Local Administrators provisioning script" {
+            $groupPolicyRoot = Join-Path $releaseRoot "GroupPolicy"
+            $scriptPath = Join-Path $groupPolicyRoot "New-T1JitLocalAdministratorsGpo.ps1"
+
+            Test-Path -LiteralPath $scriptPath -PathType Leaf | Should -BeTrue
+
+            $installerPath = Join-Path $releaseRoot "install-JIT.ps1"
+            $installerContent = Get-Content -LiteralPath $installerPath -Raw
+            $installerContent | Should -Match 'GroupPolicy\\New-T1JitLocalAdministratorsGpo\.ps1'
+            $installerContent | Should -Match 'Copy-Item\s+-LiteralPath\s+\$groupPolicyScriptSource\s+-Destination\s+\$groupPolicyScriptTarget'
+            $installerContent | Should -Match 'IMPORTANT: Group Policy provisioning is still required'
+            $installerContent | Should -Match 'Domain Administrator'
+            $installerContent | Should -Match 'Group Policy Creator Owners'
+
+            $tokens = $null
+            $parseErrors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $scriptPath,
+                [ref]$tokens,
+                [ref]$parseErrors
+            )
+            $parseErrors | Should -BeNullOrEmpty
+            $ast.Extent.Text | Should -Match 'New-T1JitLocalAdministratorsGpo\.ps1 version \$scriptVersion'
+            $ast.Extent.Text | Should -Match '\$scriptVersion\s*=\s*"0\.1\.\d{8}\.\d+"'
+            $ast.ParamBlock.Attributes.Extent.Text | Should -Match 'SupportsShouldProcess\s*=\s*\$true'
+            $ast.Extent.Text | Should -Match '(?s)if\s*\(\$Force\)\s*\{\s*\$ConfirmPreference\s*=\s*"None"\s*\}'
+            $ast.Extent.Text | Should -Match "GPO '.+?' already exists .+? Confirm the following prompt to overwrite"
+            $ast.Extent.Text | Should -Match "Overwrite existing GPO"
+            $ast.Extent.Text | Should -Match '-ReplaceExisting:\$replaceExisting'
+            $ast.Extent.Text | Should -Match 'Write-Verbose'
+            $ast.Extent.Text | Should -Match '(?im)^\.PARAMETER Verbose\s*$'
+            $ast.Extent.Text | Should -Match '(?im)^\.PARAMETER WhatIf\s*$'
+            $ast.Extent.Text | Should -Match 'S-1-5-32-544'
+            $ast.Extent.Text | Should -Match '17D89FEC-5C44-4972-B12D-241CAEF74509'
+            $ast.Extent.Text | Should -Match 'New-GPLink'
+            $ast.Extent.Text | Should -Match 'Get-JITConfig'
+            $ast.Extent.Text | Should -Match 'Get-T1JitConfiguredDomains'
+            $ast.Extent.Text | Should -Match 'Select-T1JitTargetDomains'
+            $ast.Extent.Text | Should -Match 'Test-T1JitPermissionError'
+            $ast.Extent.Text | Should -Match "Run the script again with credentials authorized in that domain"
+            $ast.Extent.Text | Should -Match '-Domain\s+''\$domainDnsName'''
+            $ast.Extent.Text | Should -Match 'Error\s*=\s*"PermissionDenied"'
+            $ast.Extent.Text | Should -Match 'Get-T1JitDomainLinkTargets'
+            $ast.Extent.Text | Should -Match 'Get-T1JitGroupDomain'
+            $ast.Extent.Text | Should -Match 'Get-T1JitGroupMemberName'
+            $ast.Extent.Text | Should -Match 'Install-T1JitDomainGpo'
+            ($ast.ParamBlock.Parameters.Name.VariablePath.UserPath) | Should -Contain "AdminPrefix"
+            ($ast.ParamBlock.Parameters.Name.VariablePath.UserPath) | Should -Contain "DomainSeparator"
+            ($ast.ParamBlock.Parameters.Name.VariablePath.UserPath) | Should -Contain "Domain"
+            ($ast.ParamBlock.Parameters.Name.VariablePath.UserPath) | Should -Contain "LinkDomainRoot"
+            ($ast.ParamBlock.Parameters.Name.VariablePath.UserPath) | Should -Not -Contain "TargetOu"
+
+            $documentedFunctions = @($ast.FindAll({
+                param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst]
+            }, $true))
+            $documentedFunctions.Count | Should -BeGreaterThan 0
+            foreach ($documentedFunction in $documentedFunctions) {
+                $functionHelp = $documentedFunction.GetHelpContent()
+                $functionHelp | Should -Not -BeNullOrEmpty
+                foreach ($helpSection in @("Synopsis", "Description", "Examples", "Inputs", "Outputs", "Notes")) {
+                    @($functionHelp.$helpSection).Count | Should -BeGreaterThan 0 `
+                        -Because "$($documentedFunction.Name) must document .$($helpSection.ToUpperInvariant())"
+                }
+            }
+
+            $xmlFunction = $ast.Find({
+                param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                    $node.Name -eq "New-T1JitGroupsXml"
+            }, $true)
+            $xmlFunction | Should -Not -BeNullOrEmpty
+            $xmlFunction.GetHelpContent() | Should -Not -BeNullOrEmpty
+            Invoke-Expression $xmlFunction.Extent.Text
+
+            $generatedXml = New-T1JitGroupsXml `
+                -MemberName "CONTOSO\Admin_%AD-DNSDomainName%#%ComputerName%" `
+                -Changed ([datetime]"2026-09-29T00:00:00Z") `
+                -PreferenceUid ([guid]"96a31b3c-290a-42db-a0b4-162fd420d41d")
+            $generatedProperties = $generatedXml.Groups.Group.Properties
+            $generatedXml.Groups.clsid | Should -Be "{3125E937-EB16-4b4c-9934-544FC6D24D26}"
+            $generatedXml.Groups.Group.clsid | Should -Be "{6D4A79E4-529C-4481-ABD0-F5BD7EA93BA7}"
+            $generatedProperties.action | Should -Be "U"
+            $generatedProperties.groupSid | Should -Be "S-1-5-32-544"
+            $generatedProperties.deleteAllUsers | Should -Be "0"
+            $generatedProperties.deleteAllGroups | Should -Be "0"
+            $generatedProperties.Members.Member.action | Should -Be "ADD"
+            $generatedProperties.Members.Member.name |
+                Should -Be "CONTOSO\Admin_%AD-DNSDomainName%#%ComputerName%"
+
+            $groupMemberNameFunction = $ast.Find({
+                param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                    $node.Name -eq "Get-T1JitGroupMemberName"
+            }, $true)
+            $groupMemberNameFunction | Should -Not -BeNullOrEmpty
+            Invoke-Expression $groupMemberNameFunction.Extent.Text
+
+            $multiDomainMemberName = Get-T1JitGroupMemberName `
+                -Configuration ([PSCustomObject]@{ EnableMultiDomainSupport = $true }) `
+                -AdminPrefix "Admin_" `
+                -DomainSeparator "#" `
+                -GroupDomainNetBIOSName "CONTOSO"
+            $multiDomainMemberName |
+                Should -Be "CONTOSO\Admin_%AD-DNSDomainName%#%ComputerName%"
+
+            $singleDomainMemberName = Get-T1JitGroupMemberName `
+                -Configuration ([PSCustomObject]@{ EnableMultiDomainSupport = $false }) `
+                -AdminPrefix "Admin_" `
+                -DomainSeparator "#" `
+                -GroupDomainNetBIOSName "CONTOSO"
+            $singleDomainMemberName | Should -Be "CONTOSO\Admin_%ComputerName%"
+
+            $groupDomainFunction = $ast.Find({
+                param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                    $node.Name -eq "Get-T1JitGroupDomain"
+            }, $true)
+            $groupDomainFunction | Should -Not -BeNullOrEmpty
+            Invoke-Expression $groupDomainFunction.Extent.Text
+
+            function Get-ADDomain {
+                [CmdletBinding()]
+                param(
+                    [string]$Identity,
+                    [string]$Server,
+                    [string]$Current
+                )
+            }
+            Mock Get-ADDomain {
+                [PSCustomObject]@{
+                    DNSRoot = "groups.contoso.com"
+                    NetBIOSName = "GROUPS"
+                }
+            }
+
+            $resolvedGroupDomain = Get-T1JitGroupDomain -Configuration ([PSCustomObject]@{
+                AdminGroupOU = "OU=JIT Groups,DC=groups,DC=contoso,DC=com"
+            })
+            $resolvedGroupDomain.DNSRoot | Should -Be "groups.contoso.com"
+            $resolvedGroupDomain.NetBIOSName | Should -Be "GROUPS"
+            Should -Invoke Get-ADDomain -Times 1 -Exactly -ParameterFilter {
+                $Identity -eq "groups.contoso.com" -and
+                $Server -eq "groups.contoso.com"
+            }
+
+            $linkTargetFunction = $ast.Find({
+                param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                    $node.Name -eq "Get-T1JitDomainLinkTargets"
+            }, $true)
+            $linkTargetFunction | Should -Not -BeNullOrEmpty
+            Invoke-Expression $linkTargetFunction.Extent.Text
+
+            function Get-ADOrganizationalUnit {
+                [CmdletBinding()]
+                param(
+                    [string]$Identity,
+                    [string]$Server
+                )
+            }
+            Mock Get-ADOrganizationalUnit {
+                [PSCustomObject]@{ DistinguishedName = $Identity }
+            }
+
+            $configuration = [PSCustomObject]@{
+                T1Searchbase = @(
+                    "<DomainRoot>",
+                    "OU=Tier 1 Servers",
+                    "OU=Apps,DC=contoso,DC=com",
+                    "OU=Apps,DC=child,DC=contoso,DC=com"
+                )
+            }
+            $domainInfo = [PSCustomObject]@{
+                DNSRoot = "contoso.com"
+                DistinguishedName = "DC=contoso,DC=com"
+            }
+
+            $ouTargets = @(Get-T1JitDomainLinkTargets `
+                -Configuration $configuration `
+                -DomainInfo $domainInfo)
+            $ouTargets | Should -Contain "OU=Tier 1 Servers,DC=contoso,DC=com"
+            $ouTargets | Should -Contain "OU=Apps,DC=contoso,DC=com"
+            $ouTargets | Should -Not -Contain "DC=contoso,DC=com"
+            $ouTargets | Should -Not -Contain "OU=Apps,DC=child,DC=contoso,DC=com"
+
+            $rootTargets = @(Get-T1JitDomainLinkTargets `
+                -Configuration $configuration `
+                -DomainInfo $domainInfo `
+                -IncludeDomainRoot)
+            $rootTargets | Should -Contain "DC=contoso,DC=com"
+
+            $versionFunction = $ast.Find({
+                param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                    $node.Name -eq "Get-T1JitNextComputerVersion"
+            }, $true)
+            $versionFunction | Should -Not -BeNullOrEmpty
+            Invoke-Expression $versionFunction.Extent.Text
+
+            $nextVersion = Get-T1JitNextComputerVersion -Version ((7 -shl 16) -bor 12)
+            $nextVersion.User | Should -Be 7
+            $nextVersion.Computer | Should -Be 13
+            $nextVersion.Combined | Should -Be ((7 -shl 16) -bor 13)
+
+            $configuredDomainsFunction = $ast.Find({
+                param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                    $node.Name -eq "Get-T1JitConfiguredDomains"
+            }, $true)
+            $configuredDomainsFunction | Should -Not -BeNullOrEmpty
+            Invoke-Expression $configuredDomainsFunction.Extent.Text
+
+            function Get-ADForest {
+                [CmdletBinding()]
+                param([string]$Identity)
+            }
+            Mock Get-ADForest {
+                [PSCustomObject]@{
+                    Domains = @("contoso.com", "child.contoso.com")
+                }
+            }
+
+            $multiDomainConfiguration = [PSCustomObject]@{
+                EnableMultiDomainSupport = $true
+                Domain = @("contoso.com")
+            }
+            @(Get-T1JitConfiguredDomains -Configuration $multiDomainConfiguration) |
+                Should -Be @("child.contoso.com", "contoso.com")
+
+            $singleDomainConfiguration = [PSCustomObject]@{
+                EnableMultiDomainSupport = $false
+                Domain = @("contoso.com")
+            }
+            @(Get-T1JitConfiguredDomains -Configuration $singleDomainConfiguration) |
+                Should -Be @("contoso.com")
+
+            $targetDomainsFunction = $ast.Find({
+                param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                    $node.Name -eq "Select-T1JitTargetDomains"
+            }, $true)
+            $targetDomainsFunction | Should -Not -BeNullOrEmpty
+            Invoke-Expression $targetDomainsFunction.Extent.Text
+
+            @(Select-T1JitTargetDomains `
+                -ConfiguredDomains @("contoso.com", "child.contoso.com")) |
+                Should -Be @("contoso.com", "child.contoso.com")
+            @(Select-T1JitTargetDomains `
+                -ConfiguredDomains @("contoso.com", "child.contoso.com") `
+                -RequestedDomain "CHILD.CONTOSO.COM") |
+                Should -Be @("child.contoso.com")
+            {
+                Select-T1JitTargetDomains `
+                    -ConfiguredDomains @("contoso.com", "child.contoso.com") `
+                    -RequestedDomain "unknown.contoso.com"
+            } | Should -Throw "*not part of the configured JIT domains*"
+
+            $permissionErrorFunction = $ast.Find({
+                param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                    $node.Name -eq "Test-T1JitPermissionError"
+            }, $true)
+            $permissionErrorFunction | Should -Not -BeNullOrEmpty
+            Invoke-Expression $permissionErrorFunction.Extent.Text
+
+            Test-T1JitPermissionError `
+                -Exception ([System.UnauthorizedAccessException]::new("Access is denied.")) |
+                Should -BeTrue
+            Test-T1JitPermissionError `
+                -Exception ([System.InvalidOperationException]::new("Insufficient access rights to perform the operation.")) |
+                Should -BeTrue
+            Test-T1JitPermissionError `
+                -Exception ([System.InvalidOperationException]::new("The domain controller is unavailable.")) |
+                Should -BeFalse
+        }
+    }
+
     It "contains syntactically valid module files" {
         $moduleFiles = @(Get-ChildItem -LiteralPath $versionedModulePath -Filter "*.psm1" -File)
         $moduleFiles.Count | Should -BeGreaterThan 0
@@ -431,6 +711,10 @@ $config = Get-JITConfig -ConfigurationFile $ConfigurationPath
 
 if (($config.TargetOU -join ";") -ne "DC=example,DC=com;OU=Servers,DC=example,DC=com") {
     throw "Unexpected TargetOU values: $($config.TargetOU -join ';')"
+}
+
+if (($config.T1Searchbase -join ";") -ne "<DomainRoot>;OU=Servers") {
+    throw "Unexpected T1Searchbase values: $($config.T1Searchbase -join ';')"
 }
 
 if (($config.ExcludeComputerOU -join ";") -ne "OU=Tier 0,OU=Admin,DC=example,DC=com") {

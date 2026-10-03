@@ -5,7 +5,7 @@
 .DESCRIPTION
     Runs build/Update-Version.ps1 in staged mode, builds release from the current
     source tree with that version, and adds the generated metadata and release files
-    to the current commit. Any error stops the commit.
+    plus the versioned README heading to the current commit. Any error stops the commit.
 #>
 
 Set-StrictMode -Version Latest
@@ -18,9 +18,9 @@ try {
     }
 
     & (Join-Path $repoRoot "build/Update-Version.ps1") -Staged
-    git -C $repoRoot add -- VERSION file-versions.json src/Powershell/modules/Just-In-time.psd1
+    git -C $repoRoot add -- VERSION file-versions.json README.md src/Powershell/modules/Just-In-time.psd1
     if ($LASTEXITCODE -ne 0) {
-        throw "Unable to stage VERSION and file-versions.json."
+        throw "Unable to stage version metadata and README.md."
     }
 
     & (Join-Path $repoRoot "build/release_build.ps1") -SkipVersionCheck

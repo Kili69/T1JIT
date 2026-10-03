@@ -8,7 +8,9 @@ Download: https://github.com/Kili69/T1JIT
 .DESCRIPTION
     This script install the Just-IN-Time Solution. The purpose of this script is to copy scripts into
     program files folder,the modules into the modules and run the configuration script. The resulting
-    JIT configuration path is passed to the optional KjitWeb installation.
+    JIT configuration path is passed to the optional KjitWeb installation. The Group Policy
+    provisioning script is installed in the Just-In-Time program folder, and a completion notice
+    identifies the required post-installation action and permissions.
 .PARAMETER JitConfigFile
     Existing JIT.config path used for unattended configuration. When omitted during an interactive
     installation, the path saved by Config-JIT.ps1 is used automatically.
@@ -175,6 +177,12 @@ try {
     Copy-Item .\ElevateUser.ps1 $TargetDir -ErrorAction Stop -Force -Verbose
     Copy-Item .\RequestAdminAccessUI.ps1 $TargetDir -ErrorAction Stop -Force -Verbose
     Copy-Item .\Tier1LocalAdminGroup.ps1 $TargetDir -ErrorAction Stop -Force -Verbose
+    $groupPolicyScriptSource = Join-Path $PSScriptRoot "GroupPolicy\New-T1JitLocalAdministratorsGpo.ps1"
+    $groupPolicyScriptTarget = Join-Path $TargetDir "New-T1JitLocalAdministratorsGpo.ps1"
+    if (-not (Test-Path -LiteralPath $groupPolicyScriptSource -PathType Leaf)) {
+        throw "Required Group Policy provisioning script not found: $groupPolicyScriptSource"
+    }
+    Copy-Item -LiteralPath $groupPolicyScriptSource -Destination $groupPolicyScriptTarget -ErrorAction Stop -Force -Verbose
     if (!(Test-Path "$($env:ProgramFiles)\WindowsPowerShell\Modules\Just-In-Time") ){
         New-Item "$($env:ProgramFiles)\WindowsPowerShell\Modules\Just-In-Time" -ItemType Directory -ErrorAction Stop -Verbose
     }
@@ -285,6 +293,18 @@ try {
                 & $webInstallerPath @webInstallerArguments
             }
     }
+
+    Write-Host ""
+    Write-Host "======================================================================" -ForegroundColor Yellow
+    Write-Host "IMPORTANT: Group Policy provisioning is still required." -ForegroundColor Yellow
+    Write-Host "Run the following script after installation:" -ForegroundColor Yellow
+    Write-Host "  $groupPolicyScriptTarget" -ForegroundColor Cyan
+    Write-Host "The script must be run by a Domain Administrator or a member of the" -ForegroundColor Yellow
+    Write-Host "'Group Policy Creator Owners' group that also has permission to link" -ForegroundColor Yellow
+    Write-Host "Group Policies to the configured server OUs." -ForegroundColor Yellow
+    Write-Host "Preview command:" -ForegroundColor Yellow
+    Write-Host "  & '$groupPolicyScriptTarget' -WhatIf -Verbose" -ForegroundColor Cyan
+    Write-Host "======================================================================" -ForegroundColor Yellow
 } 
 catch [System.UnauthorizedAccessException] {
     throw "Access denied. Run the installation as administrator. $($_.Exception.Message)"

@@ -83,7 +83,9 @@ Every change uses the version format `<Major>.<Minor>.<yyyyMMdd>.<counter>`, for
 `0.1.20260823.1`. The counter starts at `1` each day and increases for every additional
 version created on that day. All files in one change share the same version.
 Each entry in `file-versions.json` records that shared version and the file's SHA-256
-hash.
+hash. `Update-Version.ps1` also writes the version to the main `README.md` heading.
+On `main`, the heading contains only the version; on every other branch, it also contains
+the branch name.
 
 Enable automatic versioning for local commits once after cloning the repository:
 
@@ -93,7 +95,8 @@ git config core.hooksPath .githooks
 
 The pre-commit hook runs `Update-Version.ps1 -Staged`, creates the next version for
 the files staged in that commit, rebuilds the distributable `release` directory, and
-stages `VERSION`, `file-versions.json`, and the generated release files.
+stages `VERSION`, `file-versions.json`, the updated `README.md`, and the generated release
+files.
 
 Use the repository push script for GitHub pushes:
 
