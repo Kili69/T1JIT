@@ -6,6 +6,75 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-10-03 19:26:20 +02:00 - `dev` to `origin/dev`
+
+Commits:
+
+<!-- commit:404f423d14979275b49254ed2067fe89a3675961 -->
+- `404f423` Relicense project under Apache 2.0
+
+Changed files:
+
+- `M -> .githooks/pre-commit.ps1`
+- `M -> .githooks/pre-push.ps1`
+- `A -> .mailmap`
+- `M -> CHANGELOG.md`
+- `M -> Developer.md`
+- `M -> LICENSE`
+- `M -> README.md`
+- `M -> build/New-InstallationPackage.ps1`
+- `M -> build/Push-GitHub.ps1`
+- `M -> build/Test-PowerShellModules.ps1`
+- `M -> build/Update-Version.ps1`
+- `M -> build/release_build.ps1`
+- `M -> release/Config-JIT.ps1`
+- `M -> release/Config-JITUI.ps1`
+- `M -> release/ElevateUser.ps1`
+- `A -> release/LICENSE`
+- `M -> release/Register-WindowsAutopilotDevice.ps1`
+- `M -> release/Request-AdminAccessUI.ps1`
+- `M -> release/RequestAdminAccessUI.ps1`
+- `M -> release/Show-KjitConfiguration.ps1`
+- `M -> release/Tier1LocalAdminGroup.ps1`
+- `M -> release/install-JIT.ps1`
+- `M -> release/kJITWeb/get-kjitweb-allowedclient.ps1`
+- `M -> release/kJITWeb/install-kjitweb.ps1`
+- `M -> release/kJITWeb/set-kjitweb-allowedclient.ps1`
+- `M -> release/kJITWeb/update-kjitweb.ps1`
+- `M -> release/modules/0.1/just-in-Time-DelegationConfig.psm1`
+- `M -> release/modules/0.1/just-in-Time-GUIs.psm1`
+- `M -> release/modules/0.1/just-in-time-configuration.psm1`
+- `M -> release/modules/0.1/just-in-time-request.psm1`
+- `M -> release/modules/Just-In-time.psd1`
+- `M -> src/C#/KjitCore.DebugHost/KjitCore.DebugHost.csproj`
+- `M -> src/C#/KjitCore/KjitCore.csproj`
+- `M -> src/C#/Kjitweb/KjitWeb.csproj`
+- `M -> src/C#/Kjitweb/get-kjitweb-allowedclient.ps1`
+- `M -> src/C#/Kjitweb/install-kjitweb.ps1`
+- `M -> src/C#/Kjitweb/set-kjitweb-allowedclient.ps1`
+- `M -> src/C#/Kjitweb/uninstall-service.ps1`
+- `M -> src/C#/Kjitweb/update-kjitweb.ps1`
+- `M -> src/Powershell/Scripts/Config-JIT.ps1`
+- `M -> src/Powershell/Scripts/Config-JITUI.ps1`
+- `M -> src/Powershell/Scripts/ElevateUser.ps1`
+- `M -> src/Powershell/Scripts/Register-WindowsAutopilotDevice.ps1`
+- `M -> src/Powershell/Scripts/Request-AdminAccessUI.ps1`
+- `M -> src/Powershell/Scripts/RequestAdminAccessUI.ps1`
+- `M -> src/Powershell/Scripts/Show-KjitConfiguration.ps1`
+- `M -> src/Powershell/Scripts/Tier1LocalAdminGroup.ps1`
+- `M -> src/Powershell/Scripts/install-JIT.ps1`
+- `M -> src/Powershell/TestEnvironment/Install-T1JitTestInstallation.ps1`
+- `M -> src/Powershell/TestEnvironment/New-T1JitTestEnvironment.ps1`
+- `M -> src/Powershell/TestEnvironment/Remove-T1JitInstallation.ps1`
+- `M -> src/Powershell/modules/0.1/just-in-Time-DelegationConfig.psm1`
+- `M -> src/Powershell/modules/0.1/just-in-Time-GUIs.psm1`
+- `M -> src/Powershell/modules/0.1/just-in-time-configuration.psm1`
+- `M -> src/Powershell/modules/0.1/just-in-time-request.psm1`
+- `M -> src/Powershell/modules/Just-In-time.psd1`
+- `M -> tests/PowerShell/Modules.Tests.ps1`
+- `D -> tmp_ps51_test.ps1`
+- `D -> tmp_release_test.ps1`
+
 ## 2026-09-27 11:28:17 +02:00 - `dev` to `origin/dev`
 
 Commits:
@@ -1625,6 +1694,7 @@ Changes:
 - Added a full-page processing lock that prevents duplicate elevation requests.
 - Extended Active Directory queries and web models for active elevation information.
 - Updated installation documentation, release scripts, modules, and published KjitWeb artifacts.
+
 
 
 
