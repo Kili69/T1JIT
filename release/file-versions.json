@@ -1,35 +1,25 @@
 {
-  "version": "0.2.20261004.9",
+  "version": "0.2.20261004.10",
   "files": [
     {
       "path": "CHANGELOG.md",
-      "version": "0.2.20261004.9",
-      "sha256": "dc4879fa305a5c9cb5b9a6f359263e3bafeb60f7f63fecb5adcd9e7296242735"
+      "version": "0.2.20261004.10",
+      "sha256": "727810c81c23599bce374a7fac500d19fe76e8671f85776672fc2a11d48ab1c4"
     },
     {
-      "path": "src/C#/Kjitweb/Views/Home/Index.cshtml",
-      "version": "0.2.20261004.9",
-      "sha256": "b35e1a12856fdc146df373dcbccda9dc42014ff2d55ba0db61cbfbb6a74d0a07"
-    },
-    {
-      "path": "src/C#/Kjitweb/Views/Shared/_Layout.cshtml",
-      "version": "0.2.20261004.9",
-      "sha256": "d2aac87ee9504c779d2ed1cfe4359fb03332766bece60881947a2922204433a9"
-    },
-    {
-      "path": "src/C#/Kjitweb/wwwroot/css/site.css",
-      "version": "0.2.20261004.9",
-      "sha256": "e6b8c538d1bae83248510e671648dc19ea22b7474a4a9768f3102ae5f6242a3c"
+      "path": "History.md",
+      "version": "0.2.20261004.10",
+      "sha256": "bd988563d3bed32028cf6a03d8bc0a861d844f36032e4bea847d4a956d9cd6fe"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20261004.9",
-      "sha256": "1066c22c33fb422d5ba2ec4a96552bec2dd33f791f6c61a7e5f2ea3a4fbdcc75"
+      "version": "0.2.20261004.10",
+      "sha256": "3d1d93af0362fb1cfee450b74105242ef4b3fedf6dca348db466c0f31706bc0f"
     },
     {
       "path": "README.md",
-      "version": "0.2.20261004.9",
-      "sha256": "c53bfc6232c2cdb810b6b095a7abe5f0278354672ac53f91310fe8da59301dd8"
+      "version": "0.2.20261004.10",
+      "sha256": "bd769d0aff828ff6b199fc1b3270eb7c19c8d42e8cc8f5150cb30ca5ea7d6854"
     }
   ]
 }

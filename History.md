@@ -6,6 +6,35 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-10-04 08:05:49 +02:00 - `dev` to `origin/dev`
+
+Commits:
+
+<!-- commit:5df2dc056b026d7bce57702b78b1b95cf48595b0 -->
+- `5df2dc0` Refine KjitWeb utility navigation
+
+Changed files:
+
+- `M -> CHANGELOG.md`
+- `M -> README.md`
+- `M -> VERSION`
+- `M -> file-versions.json`
+- `M -> release/VERSION`
+- `M -> release/file-versions.json`
+- `M -> release/kJITWeb/publish-service/KjitWeb.dll`
+- `M -> release/kJITWeb/publish-service/KjitWeb.exe`
+- `M -> release/kJITWeb/publish-service/KjitWeb.pdb`
+- `M -> release/kJITWeb/publish-service/KjitWeb.staticwebassets.endpoints.json`
+- `M -> release/kJITWeb/publish-service/de/KjitWeb.resources.dll`
+- `M -> release/kJITWeb/publish-service/en/KjitWeb.resources.dll`
+- `M -> release/kJITWeb/publish-service/wwwroot/css/site.css`
+- `M -> release/modules/0.1/KjitCore.dll`
+- `M -> release/modules/Just-In-time.psd1`
+- `M -> src/C#/Kjitweb/Views/Home/Index.cshtml`
+- `M -> src/C#/Kjitweb/Views/Shared/_Layout.cshtml`
+- `M -> src/C#/Kjitweb/wwwroot/css/site.css`
+- `M -> src/Powershell/modules/Just-In-time.psd1`
+
 ## 2026-10-04 07:37:14 +02:00 - `dev` to `origin/dev`
 
 Commits:
@@ -1833,6 +1862,7 @@ Changes:
 - Added a full-page processing lock that prevents duplicate elevation requests.
 - Extended Active Directory queries and web models for active elevation information.
 - Updated installation documentation, release scripts, modules, and published KjitWeb artifacts.
+
 
 
 
