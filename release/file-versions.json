@@ -1,30 +1,25 @@
 {
-  "version": "0.2.20261004.7",
+  "version": "0.2.20261004.8",
   "files": [
     {
-      "path": ".githooks/pre-push.ps1",
-      "version": "0.2.20261004.7",
-      "sha256": "474b8e815200c71a05db790cb4d4369c044ad12488e7061acff6c8881ca25b89"
-    },
-    {
       "path": "CHANGELOG.md",
-      "version": "0.2.20261004.7",
-      "sha256": "171f86bf0da3f0a4e7d91f855b4cd09ffe35b3f32fa9bc72db2d52536e74dd7f"
+      "version": "0.2.20261004.8",
+      "sha256": "b28da9345abf368b92b849e6cd09ee67a86db9db9553f214f7c1b219f86151d0"
     },
     {
-      "path": "tests/PowerShell/Modules.Tests.ps1",
-      "version": "0.2.20261004.7",
-      "sha256": "e92b01517a8aff7c70a1369472ed678b9dcc60a98acc7492434173e6b92326f0"
+      "path": "History.md",
+      "version": "0.2.20261004.8",
+      "sha256": "5e375a8515d653a19811e66b53e4b3f9b15cc14af955fc2a4469dbf2c499be89"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20261004.7",
-      "sha256": "d4aa7a2808224e10aa6f5977824a52450c6c9c47c9d14d47b5465e7a2cb6051c"
+      "version": "0.2.20261004.8",
+      "sha256": "00d0389e4f62b968dc1e2ae6d4a5ccb9ee894e28633d2573ace7843aa7b51787"
     },
     {
       "path": "README.md",
-      "version": "0.2.20261004.7",
-      "sha256": "e4e3cc373e0afbd61c1774a912a57b5c17280de95f2fa205ad7d6fdbc9e17c8a"
+      "version": "0.2.20261004.8",
+      "sha256": "eb27629e4a847af03e6c7865cbd6bec5f44dbdd26a5d776ea2663fe9f10fa644"
     }
   ]
 }

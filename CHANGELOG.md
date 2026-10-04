@@ -11,6 +11,11 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261004.8] - 2026-10-04
+### Changed
+
+- Documented 9 outgoing commit(s) in `History.md` before the GitHub push.
+
 ## [0.2.20261004.7] - 2026-10-04
 ### Fixed
 
