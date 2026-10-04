@@ -1,30 +1,18 @@
 <#
-Script Info
-
-Disclaimer:
-This sample script is not supported under any Microsoft standard support program or service.
-The sample script is provided AS IS without warranty of any kind. Microsoft further disclaims
-all implied warranties including, without limitation, any implied warranties of merchantability
-or of fitness for a particular purpose. The entire risk arising out of the use or performance of
-the sample scripts and documentation remains with you. In no event shall Microsoft, its authors,
-or anyone else involved in the creation, production, or delivery of the scripts be liable for any
-damages whatsoever (including, without limitation, damages for loss of business profits, business
-interruption, loss of business information, or other pecuniary loss) arising out of the use of or
-inability to use the sample scripts or documentation, even if Microsoft has been advised of the
-possibility of such damages
-
 .SYNOPSIS
     Creates or validates the repository version metadata for a commit.
 .DESCRIPTION
     In update mode, determines files changed relative to BaseRef, creates a version in
     the format <Major>.<Minor>.<yyyyMMdd>.<counter>, and writes VERSION plus
-    file-versions.json. Every changed file receives the same version and its current
-    SHA-256 hash in the manifest.
+    file-versions.json. It also writes the version to the README heading and includes
+    the current branch name on branches other than main. Every changed file receives
+    the same version and its current SHA-256 hash in the manifest. In staged mode,
+    CHANGELOG.md must contain a staged entry below Unreleased; that entry is stamped
+    with the generated version and date.
 
-    In check mode, validates the version format, manifest version, changed-file
-    versions and hashes, and the required disclaimer in every PowerShell script.
-    Generated files below bin and obj and the version metadata files themselves are
-    excluded from changed-file tracking.
+    In check mode, validates the version format, README heading, manifest version, and
+    changed-file versions and hashes. Generated files below bin and obj and the version
+    metadata files themselves are excluded from changed-file tracking.
 .PARAMETER Major
     Major component used when creating a version. The default is 0.
 .PARAMETER Minor
@@ -81,24 +69,120 @@ $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $versionPath = Join-Path $repoRoot "VERSION"
 $manifestPath = Join-Path $repoRoot "file-versions.json"
+$readmeRelativePath = "README.md"
+$readmePath = Join-Path $repoRoot $readmeRelativePath
+$changelogRelativePath = "CHANGELOG.md"
+$changelogPath = Join-Path $repoRoot $changelogRelativePath
 $moduleManifestRelativePath = "src/Powershell/modules/Just-In-time.psd1"
 $moduleManifestPath = Join-Path $repoRoot $moduleManifestRelativePath
 $versionPattern = '^(?<major>\d+)\.(?<minor>\d+)\.(?<date>\d{8})\.(?<counter>[1-9]\d*)$'
 $metadataFiles = @("VERSION", "file-versions.json")
-$requiredScriptDisclaimerLines = @(
-    "Script Info",
-    "Disclaimer:",
-    "This sample script is not supported under any Microsoft standard support program or service.",
-    "The sample script is provided AS IS without warranty of any kind. Microsoft further disclaims",
-    "all implied warranties including, without limitation, any implied warranties of merchantability",
-    "or of fitness for a particular purpose. The entire risk arising out of the use or performance of",
-    "the sample scripts and documentation remains with you. In no event shall Microsoft, its authors,",
-    "or anyone else involved in the creation, production, or delivery of the scripts be liable for any",
-    "damages whatsoever (including, without limitation, damages for loss of business profits, business",
-    "interruption, loss of business information, or other pecuniary loss) arising out of the use of or",
-    "inability to use the sample scripts or documentation, even if Microsoft has been advised of the",
-    "possibility of such damages"
-)
+$readmeTitle = "Just-In-Time Solution for Active Directory Member Servers"
+
+<#
+.SYNOPSIS
+    Returns the source branch used for README version labeling.
+#>
+function Get-CurrentBranchName {
+    if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_HEAD_REF)) {
+        return $env:GITHUB_HEAD_REF.Trim()
+    }
+
+    $branch = @(git -C $repoRoot branch --show-current)
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to determine the current branch with git."
+    }
+    if ($branch.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($branch[0])) {
+        return $branch[0].Trim()
+    }
+
+    if ($env:GITHUB_REF_TYPE -eq "branch" -and
+        -not [string]::IsNullOrWhiteSpace($env:GITHUB_REF_NAME)) {
+        return $env:GITHUB_REF_NAME.Trim()
+    }
+
+    throw "Unable to determine the current branch for the README heading."
+}
+
+<#
+.SYNOPSIS
+    Returns the versioned README heading for a branch.
+#>
+function Get-ReadmeHeading {
+    param(
+        [Parameter(Mandatory = $true)][string]$Version,
+        [Parameter(Mandatory = $true)][string]$Branch
+    )
+
+    $heading = "# $readmeTitle - Version $Version"
+    if ($Branch -ne "main") {
+        $heading += " ($Branch)"
+    }
+
+    $heading
+}
+
+<#
+.SYNOPSIS
+    Moves pending changelog entries into a section for the generated version.
+#>
+function Update-ChangelogVersion {
+    param([Parameter(Mandatory = $true)][string]$Version)
+
+    $content = Get-Content -LiteralPath $changelogPath -Raw
+    $pattern = [regex]::new(
+        '^(?<heading>## \[Unreleased\]\r?\n)(?<pending>.*?)(?=^## \[)',
+        [Text.RegularExpressions.RegexOptions]::Multiline -bor
+            [Text.RegularExpressions.RegexOptions]::Singleline
+    )
+    $match = $pattern.Match($content)
+    if (-not $match.Success) {
+        throw "CHANGELOG.md must contain an Unreleased section before the latest version."
+    }
+    if ([string]::IsNullOrWhiteSpace($match.Groups["pending"].Value)) {
+        throw "CHANGELOG.md has no pending entry below Unreleased. Document this commit before committing."
+    }
+
+    $versionDate = [datetime]::ParseExact(
+        $Version.Split('.')[2],
+        "yyyyMMdd",
+        [Globalization.CultureInfo]::InvariantCulture
+    ).ToString("yyyy-MM-dd", [Globalization.CultureInfo]::InvariantCulture)
+    $newline = if ($content.Contains("`r`n")) { "`r`n" } else { "`n" }
+    $replacement = $match.Groups["heading"].Value +
+        $newline +
+        "## [$Version] - $versionDate" +
+        $match.Groups["pending"].Value
+    $updatedContent = $content.Substring(0, $match.Index) +
+        $replacement +
+        $content.Substring($match.Index + $match.Length)
+
+    [System.IO.File]::WriteAllText(
+        $changelogPath,
+        $updatedContent,
+        [System.Text.UTF8Encoding]::new($false)
+    )
+}
+
+<#
+.SYNOPSIS
+    Verifies that the latest concrete changelog section matches the repository version.
+#>
+function Assert-ChangelogVersion {
+    param([Parameter(Mandatory = $true)][string]$Version)
+
+    $content = Get-Content -LiteralPath $changelogPath -Raw
+    $match = [regex]::Match(
+        $content,
+        '(?m)^## \[(?<version>\d+\.\d+\.\d{8}\.\d+)\] - \d{4}-\d{2}-\d{2}\r?$'
+    )
+    if (-not $match.Success) {
+        throw "CHANGELOG.md has no concrete version section."
+    }
+    if ($match.Groups["version"].Value -ne $Version) {
+        throw "Latest CHANGELOG.md version '$($match.Groups["version"].Value)' does not match repository version '$Version'."
+    }
+}
 
 <#
 .SYNOPSIS
@@ -131,6 +215,7 @@ function Get-ChangedFiles {
         Where-Object { $_ -and $_ -notin $metadataFiles } |
         Where-Object { $_ -notlike 'release/*' } |
         Where-Object { $_ -notmatch '(^|/)(bin|obj)/' } |
+        Where-Object { $_ -notmatch '^release/' } |
         Sort-Object -Unique
 }
 
@@ -172,45 +257,24 @@ function Get-FileHashValue {
     (Get-FileHash -LiteralPath $absolutePath -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 
-<#
-.SYNOPSIS
-    Ensures every tracked or untracked PowerShell script has the required disclaimer.
-#>
-function Assert-ScriptDisclaimers {
-    $trackedScripts = @(git -C $repoRoot ls-files -- "*.ps1")
-    if ($LASTEXITCODE -ne 0) {
-        throw "Unable to determine tracked PowerShell scripts with git."
-    }
-
-    $untrackedScripts = @(git -C $repoRoot ls-files --others --exclude-standard -- "*.ps1")
-    if ($LASTEXITCODE -ne 0) {
-        throw "Unable to determine untracked PowerShell scripts with git."
-    }
-
-    $invalidScripts = @()
-    foreach ($script in @($trackedScripts + $untrackedScripts | Sort-Object -Unique)) {
-        $scriptPath = Join-Path $repoRoot $script
-        $scriptLines = @(Get-Content -LiteralPath $scriptPath | ForEach-Object { $_.Trim() })
-        $missingLines = @($requiredScriptDisclaimerLines | Where-Object { $_ -notin $scriptLines })
-        if ($missingLines.Count -gt 0) {
-            $invalidScripts += $script.Replace('\', '/')
-        }
-    }
-
-    if ($invalidScripts.Count -gt 0) {
-        throw "PowerShell scripts are missing the required Script Info disclaimer: $($invalidScripts -join ', ')"
-    }
-}
-
-Assert-ScriptDisclaimers
-
 if ($Check) {
-    if (-not (Test-Path $versionPath) -or -not (Test-Path $manifestPath)) {
-        throw "VERSION and file-versions.json must exist. Run build/Update-Version.ps1 first."
+    if (-not (Test-Path $versionPath) -or
+        -not (Test-Path $manifestPath) -or
+        -not (Test-Path $readmePath) -or
+        -not (Test-Path $changelogPath)) {
+        throw "VERSION, file-versions.json, README.md, and CHANGELOG.md must exist. Run build/Update-Version.ps1 first."
     }
 
     $version = (Get-Content $versionPath -Raw).Trim()
     Assert-VersionFormat -Version $version
+    $branch = Get-CurrentBranchName
+    $expectedReadmeHeading = Get-ReadmeHeading -Version $version -Branch $branch
+    $actualReadmeHeading = Get-Content -LiteralPath $readmePath -TotalCount 1
+    if ($actualReadmeHeading -ne $expectedReadmeHeading) {
+        throw "README heading '$actualReadmeHeading' does not match expected heading '$expectedReadmeHeading'."
+    }
+    Assert-ChangelogVersion -Version $version
+
     $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
 
     if ($manifest.version -ne $version) {
@@ -255,6 +319,27 @@ if (Test-Path $versionPath) {
 }
 
 $version = "$Major.$Minor.$date.$counter"
+$changedFiles = @(Get-ChangedFiles)
+if ($Staged -and $changelogRelativePath -notin $changedFiles) {
+    throw "CHANGELOG.md must be updated and staged for every commit."
+}
+Update-ChangelogVersion -Version $version
+
+$branch = Get-CurrentBranchName
+$expectedReadmeHeading = Get-ReadmeHeading -Version $version -Branch $branch
+$readmeContent = Get-Content -LiteralPath $readmePath -Raw
+$escapedReadmeTitle = [regex]::Escape($readmeTitle)
+$updatedReadmeContent = $readmeContent -replace "(?m)^# $escapedReadmeTitle(?: - Version .*)?$", $expectedReadmeHeading
+if ($updatedReadmeContent -eq $readmeContent -and
+    $readmeContent -notmatch "(?m)^$([regex]::Escape($expectedReadmeHeading))$") {
+    throw "Project heading was not found in '$readmeRelativePath'."
+}
+[System.IO.File]::WriteAllText(
+    $readmePath,
+    $updatedReadmeContent,
+    [System.Text.UTF8Encoding]::new($false)
+)
+
 $moduleManifestContent = Get-Content -LiteralPath $moduleManifestPath -Raw
 $updatedModuleManifestContent = $moduleManifestContent -replace "(?m)^ModuleVersion\s*=\s*'[^']+'", "ModuleVersion = '$version'"
 if ($updatedModuleManifestContent -eq $moduleManifestContent -and
@@ -267,9 +352,11 @@ if ($updatedModuleManifestContent -eq $moduleManifestContent -and
     [System.Text.UTF8Encoding]::new($false)
 )
 
-$changedFiles = @(Get-ChangedFiles)
 if ($moduleManifestRelativePath -notin $changedFiles) {
     $changedFiles += $moduleManifestRelativePath
+}
+if ($readmeRelativePath -notin $changedFiles) {
+    $changedFiles += $readmeRelativePath
 }
 if ($changedFiles.Count -eq 0) {
     throw "No changed files found."

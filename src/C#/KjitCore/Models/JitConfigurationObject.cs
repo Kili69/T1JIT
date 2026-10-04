@@ -163,6 +163,10 @@ public sealed class JitConfigurationObject
     /// </summary>  
     private IReadOnlyList<string> _targetOU = Array.Empty<string>();
     /// <summary>
+    /// Stores the configured search bases before domain-relative expansion.
+    /// </summary>
+    private IReadOnlyList<string> _t1Searchbase = Array.Empty<string>();
+    /// <summary>
     /// Is a list of organizational units that are excluded from computer processing.
     /// </summary>
     private IReadOnlyList<string> _excludeComputerOu = Array.Empty<string>();
@@ -509,14 +513,20 @@ public sealed class JitConfigurationObject
     }
 
     /// <summary>
-    /// Gets or sets the organizational-unit search bases through the legacy property name.
+    /// Gets or sets the organizational-unit search bases as written in the JIT configuration.
     /// </summary>
-    /// <value>The same validated list exposed by <see cref="TargetOU"/>.</value>
-    /// <remarks>This compatibility alias delegates directly to <see cref="TargetOU"/>.</remarks>
+    /// <value>
+    /// A trimmed, duplicate-free list containing full distinguished names, relative
+    /// distinguished names, or the <c>&lt;DomainRoot&gt;</c> marker.
+    /// </value>
+    /// <remarks>
+    /// <see cref="TargetOU"/> exposes the same entries expanded against the primary configured
+    /// domain for compatibility with consumers that require complete distinguished names.
+    /// </remarks>
     public IReadOnlyList<string> T1Searchbase
     {
-        get => TargetOU;
-        set => TargetOU = value;
+        get => _t1Searchbase;
+        set => _t1Searchbase = ValidateDistinctSearchBases(value);
     }
 
     /// <summary>
@@ -677,6 +687,41 @@ public sealed class JitConfigurationObject
             if (!uniqueValues.Add(normalized))
             {
                 throw new ArgumentException("Duplicate distinguished names are not allowed.");
+            }
+
+            normalizedValues.Add(normalized);
+        }
+
+        return normalizedValues;
+    }
+
+    /// <summary>
+    /// Validates and case-insensitively deduplicates configured search-base values.
+    /// </summary>
+    /// <param name="values">The values to validate, or null.</param>
+    /// <returns>A new normalized list, or an empty list for null or empty input.</returns>
+    /// <exception cref="ArgumentException">Thrown when an item is invalid or duplicated.</exception>
+    private static IReadOnlyList<string> ValidateDistinctSearchBases(IReadOnlyList<string>? values)
+    {
+        if (values is null || values.Count == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        var uniqueValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var normalizedValues = new List<string>(values.Count);
+
+        foreach (var value in values)
+        {
+            var normalized = value?.Trim() ?? string.Empty;
+            if (!normalized.Equals("<DomainRoot>", StringComparison.OrdinalIgnoreCase))
+            {
+                normalized = ValidateDistinguishedName(normalized);
+            }
+
+            if (!uniqueValues.Add(normalized))
+            {
+                throw new ArgumentException("Duplicate search bases are not allowed.");
             }
 
             normalizedValues.Add(normalized);

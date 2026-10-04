@@ -331,8 +331,19 @@
             </summary>
             <param name="user">Principal used for identity or delegation checks; may be null.</param>
             <param name="selectedDomain">Optional DNS domain; null or blank disables filtering.</param>
-            <returns>A new distinct, case-insensitively ordered list; never null.</returns>
-            <remarks>Queries authorized bases independently and logs/skips failures, so partial results are possible. Visibility filtering does not itself authorize access to a computer.</remarks>
+            <returns>A new distinct, case-insensitively ordered list of DNS host names; never null.</returns>
+            <remarks>Only authorized computers with a DNS host name and an existing matching JIT group are returned.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.GetJitGroupNames">
+            <summary>
+            Loads the names of all groups below the configured JIT group OU.
+            </summary>
+            <returns>A case-insensitive set; empty when the group OU is missing or cannot be queried.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.BuildJitGroupName(System.String,System.String)">
+            <summary>
+            Builds the configured JIT administrator-group name for a computer.
+            </summary>
         </member>
         <member name="M:KjitWeb.Services.ActiveDirectoryService.MatchesSelectedDomain(KjitWeb.Services.SearchResultEntry,System.String)">
             <summary>
@@ -749,6 +760,11 @@
             	The separator can be configured to use a specific character or string that is commonly used in the organization's naming conventions, such as a backslash, forward slash, or hyphen, to enhance the readability of event log entries related to JIT management activities.
             </summary>
         </member>
+        <member name="P:KjitWeb.Services.JitConfiguration.EnableMultiDomainSupport">
+            <summary>
+            Gets whether JIT group names include the server DNS domain.
+            </summary>
+        </member>
         <member name="P:KjitWeb.Services.JitConfiguration.GroupOuDistinguishedName">
             <summary>
             	The GroupOuDistinguishedName property represents the distinguished name of the organizational unit (OU) in Active Directory where the server groups are located.
@@ -860,6 +876,9 @@
             <param name="root">The JSON configuration root.</param>
             <returns>The configured Boolean, or <see langword="false"/> when absent or not a JSON Boolean.</returns>
             <remarks>An invalid value fails closed with respect to enabling delegation, but callers must decide whether unfiltered discovery is acceptable.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.JitConfiguration.ReadBoolean(System.Text.Json.JsonElement,System.String,System.Boolean)">
+            <summary>Reads a Boolean property using a case-insensitive property name.</summary>
         </member>
         <member name="M:KjitWeb.Services.JitConfiguration.ReadString(System.Text.Json.JsonElement,System.String,System.String)">
             <summary>Reads a non-blank string property using a case-insensitive property name.</summary>
@@ -1389,6 +1408,9 @@
         <member name="F:KjitWeb.Services.EventLogWriter._domainSeparator">
             <summary>The separator inserted between the server domain and name.</summary>
         </member>
+        <member name="F:KjitWeb.Services.EventLogWriter._enableMultiDomainSupport">
+            <summary>Whether target group names include the server DNS domain.</summary>
+        </member>
         <member name="M:KjitWeb.Services.EventLogWriter.#ctor(Microsoft.Extensions.Configuration.IConfiguration)">
             <summary>
             Initializes a new instance of the <see cref="T:KjitWeb.Services.EventLogWriter"/> class.
@@ -1491,7 +1513,7 @@
             The principal used to enforce delegation, or <see langword="null"/> when no user context is
             available.
             </param>
-            <returns>A non-null, potentially empty list of distinct server names.</returns>
+            <returns>A non-null, potentially empty list of distinct server FQDNs backed by existing JIT groups.</returns>
             <remarks>
             When delegation is enabled, implementations should fail closed if the user's group
             memberships or applicable search bases cannot be resolved.
@@ -1509,7 +1531,7 @@
             The domain filter, or <see langword="null"/>, empty, or whitespace to include every
             permitted domain.
             </param>
-            <returns>A non-null, potentially empty list of distinct server names.</returns>
+            <returns>A non-null, potentially empty list of distinct server FQDNs backed by existing JIT groups.</returns>
             <remarks>
             Implementations may perform LDAP searches and log lookup failures. Delegation must be
             applied before the optional domain filter.

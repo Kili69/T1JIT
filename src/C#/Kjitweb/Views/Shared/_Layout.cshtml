@@ -16,35 +16,134 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - KjitWeb</title>
     <link rel="stylesheet" href="~/lib/bootstrap/css/bootstrap.min.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body class="bg-light d-flex flex-column min-vh-100">
-    <nav class="navbar bg-dark mb-4">
+    <header class="navbar kjit-topbar">
         <div class="container-fluid d-flex justify-content-between align-items-center gap-3">
-            <span class="navbar-brand text-white mb-0">@(Configuration["Branding:CompanyName"] ?? "Firma")</span>
-            <div class="d-flex align-items-center gap-3">
-                <form asp-controller="Home" asp-action="SetLanguage" method="post" class="btn-group btn-group-sm" aria-label="Language">
+            <span class="navbar-brand text-white mb-0 kjit-brand">@(Configuration["Branding:CompanyName"] ?? "Firma")</span>
+            @{
+                var logoPath = Configuration["Branding:LogoPath"];
+                logoPath = string.IsNullOrWhiteSpace(logoPath) ? "/images/kjitlogo.png" : logoPath;
+            }
+            <img src="@logoPath" alt="Logo" class="kjit-topbar-logo" />
+        </div>
+    </header>
+    <nav class="kjit-utilitybar mb-4" aria-label="@L["MainMenuLabel"]">
+        <div class="container-fluid kjit-utilitybar-actions">
+                <a asp-controller="Home"
+                   asp-action="SwitchUser"
+                   class="kjit-menu-button">
+                    @L["SwitchUserButton"]
+                </a>
+                <form asp-controller="Home" asp-action="SetLanguage" method="post" class="btn-group btn-group-sm" aria-label="@L["LanguageSelectorLabel"]">
                     <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
                     <button type="submit"
                             name="culture"
                             value="de"
-                            class="btn @(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "de" ? "btn-light" : "btn-outline-light")"
+                            class="btn kjit-language-button @(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "de" ? "is-active" : "")"
                             aria-pressed="@(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "de" ? "true" : "false")">DE</button>
                     <button type="submit"
                             name="culture"
                             value="en"
-                            class="btn @(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "btn-light" : "btn-outline-light")"
+                            class="btn kjit-language-button @(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "is-active" : "")"
                             aria-pressed="@(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "true" : "false")">EN</button>
                 </form>
-                @{
-                    var logoPath = Configuration["Branding:LogoPath"];
-                    if (!string.IsNullOrEmpty(logoPath))
-                    {
-                        <img src="@logoPath" alt="Logo" style="height: 40px; max-width: 200px;" />
-                    }
-                }
-            </div>
+                <div class="kjit-menu">
+                    <button type="button"
+                            class="kjit-menu-button kjit-menu-button-icon"
+                            id="aboutMenuButton"
+                            aria-label="@L["AboutButton"]"
+                            title="@L["AboutButton"]"
+                            aria-haspopup="dialog"
+                            aria-controls="aboutDialog">
+                        <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                            <circle cx="12" cy="12" r="9"></circle>
+                            <path d="M12 10.75v6"></path>
+                            <path d="M12 7.25h.01"></path>
+                        </svg>
+                    </button>
+                </div>
         </div>
     </nav>
+    <dialog class="kjit-about-dialog"
+            id="aboutDialog"
+            aria-labelledby="aboutDialogTitle"
+            aria-describedby="aboutDialogDescription">
+        <div class="kjit-about-header">
+            <div>
+                <span class="kjit-about-eyebrow">KjitWeb</span>
+                <h2 class="h4 mb-0" id="aboutDialogTitle">@L["AboutDialogTitle"]</h2>
+            </div>
+            <button type="button"
+                    class="kjit-dialog-close"
+                    data-about-close
+                    aria-label="@L["CloseButton"]">
+                <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                    <path d="m7 7 10 10"></path>
+                    <path d="m17 7-10 10"></path>
+                </svg>
+            </button>
+        </div>
+        <div class="kjit-about-body">
+            <p class="text-secondary" id="aboutDialogDescription">@L["AboutDescription"]</p>
+            <div class="kjit-author-card">
+                <a href="https://github.com/Kili69"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="kjit-author-avatar-link">
+                    <img src="~/images/andreas-lucas-github.jpg"
+                         asp-append-version="true"
+                         class="kjit-author-avatar"
+                         alt="@L["AboutAuthorImageAlt"]" />
+                </a>
+                <div>
+                    <span class="kjit-author-label">@L["AboutAuthorLabel"]</span>
+                    <a href="https://github.com/Kili69"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       class="kjit-author-name">Andreas Lucas</a>
+                    <a href="mailto:andreas.lucas@outlook.com"
+                       class="kjit-author-email">andreas.lucas@outlook.com</a>
+                </div>
+            </div>
+            <dl class="kjit-about-details">
+                <div>
+                    <dt>@L["AboutVersionLabel"]</dt>
+                    <dd><span class="kjit-version-badge">@applicationVersion</span></dd>
+                </div>
+                <div>
+                    <dt>@L["AboutLicenseLabel"]</dt>
+                    <dd>@L["AboutLicenseValue"]</dd>
+                </div>
+            </dl>
+            <nav class="kjit-about-links" aria-label="@L["AboutLinksLabel"]">
+                <a href="https://github.com/Kili69/T1JIT"
+                   target="_blank"
+                   rel="noopener noreferrer">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                        <path d="M4 7.5h6l1.5 2H20v9.5H4z"></path>
+                        <path d="M4 7.5V5h6l1.5 2H20v2.5"></path>
+                    </svg>
+                    <span>@L["AboutRepositoryLink"]</span>
+                </a>
+                <a href="https://github.com/Kili69/T1JIT/graphs/contributors"
+                   target="_blank"
+                   rel="noopener noreferrer">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                        <circle cx="9" cy="8" r="3"></circle>
+                        <circle cx="17" cy="9" r="2.25"></circle>
+                        <path d="M3.5 19c.5-3.5 2.3-5.25 5.5-5.25s5 1.75 5.5 5.25"></path>
+                        <path d="M14.5 14.4c.7-.45 1.55-.65 2.5-.65 2.4 0 3.75 1.4 4 4.25"></path>
+                    </svg>
+                    <span>@L["AboutContributorsLink"]</span>
+                </a>
+            </nav>
+        </div>
+        <div class="kjit-about-footer">
+            <button type="button" class="btn btn-dark px-4" data-about-close>@L["CloseButton"]</button>
+        </div>
+    </dialog>
     <div class="container py-4 flex-grow-1">
         <main role="main" class="pb-3">
             @RenderBody()
@@ -62,6 +161,39 @@
         </div>
     </footer>
     <script>
+        (function () {
+            const openButton = document.getElementById('aboutMenuButton');
+            const dialog = document.getElementById('aboutDialog');
+            if (!openButton || !dialog) {
+                return;
+            }
+
+            openButton.addEventListener('click', function () {
+                dialog.showModal();
+            });
+
+            dialog.querySelectorAll('[data-about-close]').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    dialog.close();
+                });
+            });
+
+            dialog.addEventListener('click', function (event) {
+                const bounds = dialog.getBoundingClientRect();
+                const clickedOutside = event.clientX < bounds.left ||
+                    event.clientX > bounds.right ||
+                    event.clientY < bounds.top ||
+                    event.clientY > bounds.bottom;
+                if (clickedOutside) {
+                    dialog.close();
+                }
+            });
+
+            dialog.addEventListener('close', function () {
+                openButton.focus();
+            });
+        })();
+
         // Polls the event log health indicator every 5 minutes and shows a symbol next to the
         // version number when Error or Warning entries were logged in the Tier 1 Management event
         // log within the last 24 hours (see HomeController.EventLogHealthStatus).

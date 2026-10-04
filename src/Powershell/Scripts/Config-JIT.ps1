@@ -1,6 +1,4 @@
 <#
-Script Info
-
 .Synopsis
     Installs and configures the Tier 1 JIT solution.
 
@@ -30,17 +28,6 @@ Script Info
 .NOTES
     Author: Andreas Lucas [MSFT]
 
-    Disclaimer:
-    This sample script is not supported under any Microsoft standard support program or service.
-    The sample script is provided AS IS without warranty of any kind. Microsoft further disclaims
-    all implied warranties including, without limitation, any implied warranties of merchantability
-    or of fitness for a particular purpose. The entire risk arising out of the use or performance of
-    the sample scripts and documentation remains with you. In no event shall Microsoft, its authors,
-    or anyone else involved in the creation, production, or delivery of the scripts be liable for any
-    damages whatsoever (including, without limitation, damages for loss of business profits, business
-    interruption, loss of business information, or other pecuniary loss) arising out of the use of or
-    inability to use the sample scripts or documentation, even if Microsoft has been advised of the
-    possibility of such damages
 
     Version Tracking
     2021-10-12
@@ -1021,9 +1008,10 @@ function Set-JitEventLog {
 .SYNOPSIS
     Registers the recurring group-management and event-driven elevation tasks.
 .DESCRIPTION
-    Creates missing scheduled tasks under the configured task folder. The group task
-    starts at boot and repeats at GroupManagementTaskRerun intervals. The elevation
-    task reacts to configured JIT request events and permits parallel instances.
+    Creates missing scheduled tasks under the configured task folder and repairs tasks
+    whose principal is not the configured GMSA service-account principal. The group task
+    starts at boot and repeats at GroupManagementTaskRerun intervals. The elevation task
+    reacts to configured JIT request events and permits parallel instances.
 .PARAMETER Configuration
     JIT configuration containing the GMSA, event, and repetition settings.
 .PARAMETER InstallationDirectory
@@ -1053,7 +1041,7 @@ function Set-JitEventLog {
 
     Displays only the task registrations that would be required.
 .NOTES
-    Existing tasks are preserved and are not reconfigured by this function.
+    Existing tasks with the expected GMSA service-account principal are preserved.
 #>
 function Set-JitScheduledTask {
     [CmdletBinding(SupportsShouldProcess = $true)]
@@ -1071,27 +1059,37 @@ function Set-JitScheduledTask {
     )
 
     # Compare full task URIs so existing tasks in other folders do not suppress creation.
-    $taskUris = @((Get-ScheduledTask).URI)
+    $scheduledTasks = @(Get-ScheduledTask)
     $groupManagementTaskUri = "$TaskPath\$GroupManagementTaskName"
     $elevateUserTaskUri = "$TaskPath\$ElevateUserTaskName"
-    $registerGroupManagementTask = $groupManagementTaskUri -notin $taskUris -and $PSCmdlet.ShouldProcess($groupManagementTaskUri, "Register and start scheduled task")
-    $registerElevateUserTask = $elevateUserTaskUri -notin $taskUris -and $PSCmdlet.ShouldProcess($elevateUserTaskUri, "Register event-triggered scheduled task")
+    $domain = Get-ADDomain
+    $serviceAccount = Get-ADServiceAccount $Configuration.GroupManagedServiceAccountName
+    $principalUserId = "$($domain.NetbiosName)\$($serviceAccount.SamAccountName)"
+    # Password tells Task Scheduler to use the gMSA-managed credential without requiring an interactive session.
+    $principal = New-ScheduledTaskPrincipal -UserId $principalUserId -LogonType Password
+    $groupManagementTask = $scheduledTasks | Where-Object URI -EQ $groupManagementTaskUri | Select-Object -First 1
+    $elevateUserTask = $scheduledTasks | Where-Object URI -EQ $elevateUserTaskUri | Select-Object -First 1
+    $groupManagementPrincipalIsValid = $null -ne $groupManagementTask -and
+        $groupManagementTask.Principal.UserId -eq $principalUserId -and
+        [string]$groupManagementTask.Principal.LogonType -eq "Password"
+    $elevateUserPrincipalIsValid = $null -ne $elevateUserTask -and
+        $elevateUserTask.Principal.UserId -eq $principalUserId -and
+        [string]$elevateUserTask.Principal.LogonType -eq "Password"
+    $registerGroupManagementTask = -not $groupManagementPrincipalIsValid -and
+        $PSCmdlet.ShouldProcess($groupManagementTaskUri, "Register or repair and start scheduled task")
+    $registerElevateUserTask = -not $elevateUserPrincipalIsValid -and
+        $PSCmdlet.ShouldProcess($elevateUserTaskUri, "Register or repair event-triggered scheduled task")
 
-    # Resolve the GMSA principal only when at least one task must be registered.
     if (-not $registerGroupManagementTask -and -not $registerElevateUserTask) {
         return
     }
-
-    $domain = Get-ADDomain
-    $serviceAccount = Get-ADServiceAccount $Configuration.GroupManagedServiceAccountName
-    $principal = New-ScheduledTaskPrincipal -UserId "$($domain.NetbiosName)\$($serviceAccount.SamAccountName)" -LogonType Password
 
     # The group-management task starts at boot and repeats at the configured interval.
     if ($registerGroupManagementTask) {
         $action = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $InstallationDirectory + '\Tier1LocalAdminGroup.ps1"')
         $trigger = New-ScheduledTaskTrigger -AtStartup
         $trigger.Repetition = (New-ScheduledTaskTrigger -Once -At 7am -RepetitionInterval (New-TimeSpan -Minutes $Configuration.GroupManagementTaskRerun)).Repetition
-        $null = Register-ScheduledTask -Principal $principal -TaskName $GroupManagementTaskName -TaskPath $TaskPath -Action $action -Trigger $trigger
+        $null = Register-ScheduledTask -Principal $principal -TaskName $GroupManagementTaskName -TaskPath $TaskPath -Action $action -Trigger $trigger -Force
         $null = Start-ScheduledTask -TaskPath "$TaskPath\" -TaskName $GroupManagementTaskName
     }
 
@@ -1106,7 +1104,7 @@ function Set-JitScheduledTask {
         $trigger.ValueQueries[0].Name = "eventRecordID"
         $trigger.ValueQueries[0].Value = "Event/System/EventRecordID"
         $settings = New-ScheduledTaskSettingsSet -MultipleInstances Parallel
-        $null = Register-ScheduledTask -Principal $principal -TaskName $ElevateUserTaskName -TaskPath $TaskPath -Action $action -Trigger $trigger -Settings $settings
+        $null = Register-ScheduledTask -Principal $principal -TaskName $ElevateUserTaskName -TaskPath $TaskPath -Action $action -Trigger $trigger -Settings $settings -Force
     }
 }
 #endregion

@@ -422,6 +422,7 @@ internal static class JitConfigurationReader
 
         if (TryReadStringList(root, out var searchBaseOus, "T1Searchbase"))
         {
+            configuration.T1Searchbase = searchBaseOus;
             configuration.TargetOU = NormalizeDistinguishedNames(searchBaseOus, configuration);
         }
 
@@ -566,6 +567,7 @@ internal static class JitConfigurationReader
 
         if (TryReadStringList(root, out var searchBaseOus, "T1Searchbase"))
         {
+            configuration.T1Searchbase = searchBaseOus;
             configuration.TargetOU = NormalizeDistinguishedNames(searchBaseOus, configuration);
         }
 
@@ -695,6 +697,7 @@ internal static class JitConfigurationReader
 
         if (TryReadStringList(attributes, out var searchBaseOus, "T1Searchbase", "JitCnfg-T1Searchbase"))
         {
+            configuration.T1Searchbase = searchBaseOus;
             configuration.TargetOU = NormalizeDistinguishedNames(searchBaseOus, configuration);
         }
 

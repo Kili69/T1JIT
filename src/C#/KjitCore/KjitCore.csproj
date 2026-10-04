@@ -9,6 +9,9 @@
     <WarningsAsErrors>$(WarningsAsErrors);CS1570;CS1572;CS1573;CS1587;CS1591</WarningsAsErrors>
     <Description>Core library for Just-In-Time logic shared by PowerShell modules and native .NET apps.</Description>
     <PackageId>KjitCore</PackageId>
+    <Authors>Andreas Lucas</Authors>
+    <Copyright>Copyright 2024 Andreas Lucas</Copyright>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <RootNamespace>KjitCore</RootNamespace>
   </PropertyGroup>
 

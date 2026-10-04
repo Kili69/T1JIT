@@ -248,7 +248,8 @@ public class HomeController : Controller
 
         try
         {
-            var requestedServer = model.SelectedServer!;
+            var requestedServerFqdn = model.SelectedServer!;
+            var requestedServer = requestedServerFqdn.Split('.', 2)[0];
             var userDn = _activeDirectoryService.GetUserDistinguishedName(identityName);
             var callingUserUpn = _activeDirectoryService.GetUserPrincipalName(identityName);
 
@@ -284,8 +285,8 @@ public class HomeController : Controller
             model.SelectedServer = null;
             ModelState.Remove(nameof(model.SelectedServer));
 
-            ViewBag.SuccessMessage = _localizer["SuccessUserElevated", requestedServer];
-            ViewBag.SuccessComputerName = requestedServer;
+            ViewBag.SuccessMessage = _localizer["SuccessUserElevated", requestedServerFqdn];
+            ViewBag.SuccessComputerName = requestedServerFqdn;
         }
         catch (Exception ex)
         {

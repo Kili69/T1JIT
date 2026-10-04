@@ -1,24 +1,12 @@
 <#
-Script Info
-
-Disclaimer:
-This sample script is not supported under any Microsoft standard support program or service.
-The sample script is provided AS IS without warranty of any kind. Microsoft further disclaims
-all implied warranties including, without limitation, any implied warranties of merchantability
-or of fitness for a particular purpose. The entire risk arising out of the use or performance of
-the sample scripts and documentation remains with you. In no event shall Microsoft, its authors,
-or anyone else involved in the creation, production, or delivery of the scripts be liable for any
-damages whatsoever (including, without limitation, damages for loss of business profits, business
-interruption, loss of business information, or other pecuniary loss) arising out of the use of or
-inability to use the sample scripts or documentation, even if Microsoft has been advised of the
-possibility of such damages
 
 .SYNOPSIS
     Versions staged files and refreshes the distributable release directory.
 .DESCRIPTION
     Runs build/Update-Version.ps1 in staged mode, builds release from the current
     source tree with that version, and adds the generated metadata and release files
-    to the current commit. Any error stops the commit.
+    plus the versioned changelog and README heading to the current commit. Any error
+    stops the commit.
 #>
 
 Set-StrictMode -Version Latest
@@ -31,9 +19,9 @@ try {
     }
 
     & (Join-Path $repoRoot "build/Update-Version.ps1") -Staged
-    git -C $repoRoot add -- VERSION file-versions.json src/Powershell/modules/Just-In-time.psd1
+    git -C $repoRoot add -- VERSION file-versions.json CHANGELOG.md README.md src/Powershell/modules/Just-In-time.psd1
     if ($LASTEXITCODE -ne 0) {
-        throw "Unable to stage VERSION and file-versions.json."
+        throw "Unable to stage version metadata, CHANGELOG.md, and README.md."
     }
 
     & (Join-Path $repoRoot "build/release_build.ps1") -SkipVersionCheck
