@@ -6,6 +6,133 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-10-04 08:11:40 +02:00 - `main` to `origin/main`
+
+Commits:
+
+<!-- commit:6843b48629f4461bd4ea13c9ffe513839d0ae68b -->
+- `6843b48` Add Windows Autopilot registration workflow
+<!-- commit:404f423d14979275b49254ed2067fe89a3675961 -->
+- `404f423` Relicense project under Apache 2.0
+<!-- commit:aefb1adbe7bf26c9f509a4881bd46574bf37dd63 -->
+- `aefb1ad` Document GitHub push history
+<!-- commit:4f956fea10b07eea77893bfbda52104e2a37c718 -->
+- `4f956fe` Add Group Policy provisioning and improve release workflow
+<!-- commit:82c6bd9eb9c85955f349c3522d18b9b9a3fb8295 -->
+- `82c6bd9` Filter KjitWeb servers and repair gMSA tasks
+<!-- commit:030b48984f6d945c667e62c3d229ed39d3b1c124 -->
+- `030b489` Fix gMSA scheduled task logon
+<!-- commit:4b32deb8f48145f72f10e0a92656a8adf94c39e2 -->
+- `4b32deb` Version changelog entries per commit
+<!-- commit:44aa31da5294f4244e2c6d359eb67cdd99be37cf -->
+- `44aa31d` Accept CRLF changelog versions
+<!-- commit:c856aeafbf0371f634f5251a00fd415f7260a03b -->
+- `c856aea` Exclude generated release from version checks
+<!-- commit:da1c26fa7c6335b95107be26a0df526487c90400 -->
+- `da1c26f` Add KjitWeb About menu and unify documentation
+<!-- commit:352ccb020ebed10acb7d8f947c4bea3adba31615 -->
+- `352ccb0` Document GitHub push history
+<!-- commit:9c0db427de90fa7aa8089d0781c3ae68fda5f9ce -->
+- `9c0db42` Allow versioned history metadata in pushes
+<!-- commit:c514d376acf9e12be3b29b5ef73ea331f40794a9 -->
+- `c514d37` Document GitHub push history
+<!-- commit:5df2dc056b026d7bce57702b78b1b95cf48595b0 -->
+- `5df2dc0` Refine KjitWeb utility navigation
+<!-- commit:ae0b1641d9a98ed78865dcc66f821706a0337149 -->
+- `ae0b164` Document GitHub push history
+<!-- commit:38fcfec155fb6fec4e8bfe4be93ce492d81eb3a1 -->
+- `38fcfec` Promote dev changes to main
+
+Changed files:
+
+- `M -> .githooks/pre-commit.ps1`
+- `M -> .githooks/pre-push.ps1`
+- `A -> .mailmap`
+- `M -> CHANGELOG.md`
+- `M -> Developer.md`
+- `A -> GroupPolicy/New-T1JitLocalAdministratorsGpo.ps1`
+- `A -> GroupPolicy/README.md`
+- `M -> LICENSE`
+- `M -> README.md`
+- `M -> VERSION`
+- `M -> build/New-InstallationPackage.ps1`
+- `M -> build/Push-GitHub.ps1`
+- `M -> build/Test-PowerShellModules.ps1`
+- `M -> build/Update-Version.ps1`
+- `M -> build/release_build.ps1`
+- `M -> file-versions.json`
+- `M -> release/Config-JIT.ps1`
+- `M -> release/Config-JITUI.ps1`
+- `M -> release/ElevateUser.ps1`
+- `A -> release/GroupPolicy/New-T1JitLocalAdministratorsGpo.ps1`
+- `A -> release/GroupPolicy/README.md`
+- `A -> release/LICENSE`
+- `A -> release/Register-WindowsAutopilotDevice.ps1`
+- `M -> release/Request-AdminAccessUI.ps1`
+- `M -> release/RequestAdminAccessUI.ps1`
+- `M -> release/Show-KjitConfiguration.ps1`
+- `M -> release/Tier1LocalAdminGroup.ps1`
+- `M -> release/VERSION`
+- `M -> release/file-versions.json`
+- `M -> release/install-JIT.ps1`
+- `M -> release/kJITWeb/get-kjitweb-allowedclient.ps1`
+- `M -> release/kJITWeb/install-kjitweb.ps1`
+- `M -> release/kJITWeb/publish-service/KjitWeb.dll`
+- `M -> release/kJITWeb/publish-service/KjitWeb.exe`
+- `M -> release/kJITWeb/publish-service/KjitWeb.pdb`
+- `M -> release/kJITWeb/publish-service/KjitWeb.staticwebassets.endpoints.json`
+- `M -> release/kJITWeb/publish-service/KjitWeb.xml`
+- `M -> release/kJITWeb/publish-service/de/KjitWeb.resources.dll`
+- `M -> release/kJITWeb/publish-service/en/KjitWeb.resources.dll`
+- `A -> release/kJITWeb/publish-service/wwwroot/css/site.css`
+- `A -> release/kJITWeb/publish-service/wwwroot/images/andreas-lucas-github.jpg`
+- `M -> release/kJITWeb/set-kjitweb-allowedclient.ps1`
+- `M -> release/kJITWeb/update-kjitweb.ps1`
+- `M -> release/modules/0.1/KjitCore.dll`
+- `M -> release/modules/0.1/just-in-Time-DelegationConfig.psm1`
+- `M -> release/modules/0.1/just-in-Time-GUIs.psm1`
+- `M -> release/modules/0.1/just-in-time-configuration.psm1`
+- `M -> release/modules/0.1/just-in-time-request.psm1`
+- `M -> release/modules/Just-In-time.psd1`
+- `M -> src/C#/KjitCore.DebugHost/KjitCore.DebugHost.csproj`
+- `M -> src/C#/KjitCore/KjitCore.csproj`
+- `M -> src/C#/KjitCore/Models/JitConfigurationObject.cs`
+- `M -> src/C#/KjitCore/Services/JitConfigurationReader.cs`
+- `M -> src/C#/Kjitweb/Controllers/HomeController.cs`
+- `M -> src/C#/Kjitweb/KjitWeb.csproj`
+- `M -> src/C#/Kjitweb/Resources/SharedResource.de.resx`
+- `M -> src/C#/Kjitweb/Resources/SharedResource.en.resx`
+- `M -> src/C#/Kjitweb/Services/ActiveDirectoryService.cs`
+- `M -> src/C#/Kjitweb/Services/EventLogWriter.cs`
+- `M -> src/C#/Kjitweb/Services/IActiveDirectoryService.cs`
+- `M -> src/C#/Kjitweb/Services/configuration.cs`
+- `M -> src/C#/Kjitweb/Views/Home/Index.cshtml`
+- `M -> src/C#/Kjitweb/Views/Shared/_Layout.cshtml`
+- `M -> src/C#/Kjitweb/get-kjitweb-allowedclient.ps1`
+- `M -> src/C#/Kjitweb/install-kjitweb.ps1`
+- `M -> src/C#/Kjitweb/set-kjitweb-allowedclient.ps1`
+- `M -> src/C#/Kjitweb/uninstall-service.ps1`
+- `M -> src/C#/Kjitweb/update-kjitweb.ps1`
+- `A -> src/C#/Kjitweb/wwwroot/css/site.css`
+- `A -> src/C#/Kjitweb/wwwroot/images/andreas-lucas-github.jpg`
+- `M -> src/Powershell/Scripts/Config-JIT.ps1`
+- `M -> src/Powershell/Scripts/Config-JITUI.ps1`
+- `M -> src/Powershell/Scripts/ElevateUser.ps1`
+- `A -> src/Powershell/Scripts/Register-WindowsAutopilotDevice.ps1`
+- `M -> src/Powershell/Scripts/Request-AdminAccessUI.ps1`
+- `M -> src/Powershell/Scripts/RequestAdminAccessUI.ps1`
+- `M -> src/Powershell/Scripts/Show-KjitConfiguration.ps1`
+- `M -> src/Powershell/Scripts/Tier1LocalAdminGroup.ps1`
+- `M -> src/Powershell/Scripts/install-JIT.ps1`
+- `M -> src/Powershell/modules/0.1/just-in-Time-DelegationConfig.psm1`
+- `M -> src/Powershell/modules/0.1/just-in-Time-GUIs.psm1`
+- `M -> src/Powershell/modules/0.1/just-in-time-configuration.psm1`
+- `M -> src/Powershell/modules/0.1/just-in-time-request.psm1`
+- `M -> src/Powershell/modules/Just-In-time.psd1`
+- `M -> tests/PowerShell/Modules.Tests.ps1`
+- `D -> tmp_ps51_test.ps1`
+- `D -> tmp_release_test.ps1`
+
 ## 2026-10-04 08:05:49 +02:00 - `dev` to `origin/dev`
 
 Commits:
@@ -4853,3 +4980,4 @@ Changed files:
 - `A -> tests/PowerShell/Modules.Tests.ps1`
 - `A -> tmp_ps51_test.ps1`
 - `A -> tmp_release_test.ps1`
+
