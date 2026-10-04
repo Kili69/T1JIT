@@ -11,6 +11,11 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261004.4] - 2026-10-04
+### Fixed
+
+- Version validation now excludes the generated `release/` tree, matching pre-commit version generation and avoiding stale-manifest failures for derived binaries and recursive release metadata.
+
 ## [0.2.20261004.3] - 2026-10-04
 ### Fixed
 
