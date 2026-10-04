@@ -1,5 +1,7 @@
 # Just-In-Time Solution for Active Directory Member Servers - Version 0.2.20261004.10 (dev)
 
+[![By me a coffee](https://img.shields.io/badge/%E2%98%95-By_me_a_coffee-yellow?style=for-the-badge)](https://buymeacoffee.com/andreaslmuz)
+
 ## Project Description
 
 T1JIT provides Just-In-Time (JIT) local administrator access to Active Directory member servers. It reduces the risk of lateral movement by granting elevated privileges only for an approved period. T1JIT uses native Active Directory capabilities and does not require agents or permanently privileged service accounts on target servers.
