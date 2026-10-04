@@ -1,45 +1,25 @@
 {
-  "version": "0.2.20261004.5",
+  "version": "0.2.20261004.6",
   "files": [
     {
       "path": "CHANGELOG.md",
-      "version": "0.2.20261004.5",
-      "sha256": "c2775a8bb14344b20e949b9457c16df5527e52b8bbe3e883d7371539515e3ace"
+      "version": "0.2.20261004.6",
+      "sha256": "3a14bb60ac6885593ca7562c87ef3c58757fee27960eb70b69d2aaf1596475e9"
     },
     {
-      "path": "README.md",
-      "version": "0.2.20261004.5",
-      "sha256": "39b4e48e051baa80f2a2d43e463438c63f7d13b0e3fde9989f2b33384d5b29e6"
-    },
-    {
-      "path": "src/C#/Kjitweb/Resources/SharedResource.de.resx",
-      "version": "0.2.20261004.5",
-      "sha256": "0a7d583c09bb47f496084a1a0cd78e516979adb04fde89f971b6438dee012e15"
-    },
-    {
-      "path": "src/C#/Kjitweb/Resources/SharedResource.en.resx",
-      "version": "0.2.20261004.5",
-      "sha256": "d6f7060f0caae90050f4d012ae038cce7c1285641f7ade5ffe984488c964cc86"
-    },
-    {
-      "path": "src/C#/Kjitweb/Views/Shared/_Layout.cshtml",
-      "version": "0.2.20261004.5",
-      "sha256": "e96049b5a9b14e9fea6b66904cd100cf1c41cfdcd2ce0df491e35e77fda95ad4"
-    },
-    {
-      "path": "src/C#/Kjitweb/wwwroot/css/site.css",
-      "version": "0.2.20261004.5",
-      "sha256": "c0cb623a7821628eaeb701486002d55a207ed8c2c26032f0b9887f00bf366abf"
-    },
-    {
-      "path": "src/C#/Kjitweb/wwwroot/images/andreas-lucas-github.jpg",
-      "version": "0.2.20261004.5",
-      "sha256": "b84fc76adcaf9437a519b61e5922cdf42e107066fe1d131e4c0642f5a5460571"
+      "path": "History.md",
+      "version": "0.2.20261004.6",
+      "sha256": "827955cef33339756158e4c4efd852b0da257007af0fd08b7dbd2cd1be5341f2"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20261004.5",
-      "sha256": "d996cd841d0b904db35bda6fd837b4127d495cde2a3c81e0932b07c44842a1f0"
+      "version": "0.2.20261004.6",
+      "sha256": "5c35c618e5cece486185413ad2fdeedf8ca22afff50cd7968354f42b239ea4cf"
+    },
+    {
+      "path": "README.md",
+      "version": "0.2.20261004.6",
+      "sha256": "accef7bac816f19c1fc8cd489fe030323fbd7f1c8b6dd52eb70176f27fbc867d"
     }
   ]
 }
