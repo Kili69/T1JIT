@@ -1065,15 +1065,16 @@ function Set-JitScheduledTask {
     $domain = Get-ADDomain
     $serviceAccount = Get-ADServiceAccount $Configuration.GroupManagedServiceAccountName
     $principalUserId = "$($domain.NetbiosName)\$($serviceAccount.SamAccountName)"
-    $principal = New-ScheduledTaskPrincipal -UserId $principalUserId -LogonType ServiceAccount
+    # Password tells Task Scheduler to use the gMSA-managed credential without requiring an interactive session.
+    $principal = New-ScheduledTaskPrincipal -UserId $principalUserId -LogonType Password
     $groupManagementTask = $scheduledTasks | Where-Object URI -EQ $groupManagementTaskUri | Select-Object -First 1
     $elevateUserTask = $scheduledTasks | Where-Object URI -EQ $elevateUserTaskUri | Select-Object -First 1
     $groupManagementPrincipalIsValid = $null -ne $groupManagementTask -and
         $groupManagementTask.Principal.UserId -eq $principalUserId -and
-        [string]$groupManagementTask.Principal.LogonType -eq "ServiceAccount"
+        [string]$groupManagementTask.Principal.LogonType -eq "Password"
     $elevateUserPrincipalIsValid = $null -ne $elevateUserTask -and
         $elevateUserTask.Principal.UserId -eq $principalUserId -and
-        [string]$elevateUserTask.Principal.LogonType -eq "ServiceAccount"
+        [string]$elevateUserTask.Principal.LogonType -eq "Password"
     $registerGroupManagementTask = -not $groupManagementPrincipalIsValid -and
         $PSCmdlet.ShouldProcess($groupManagementTaskUri, "Register or repair and start scheduled task")
     $registerElevateUserTask = -not $elevateUserPrincipalIsValid -and

@@ -601,7 +601,7 @@ Describe "Just-In-Time PowerShell module package" {
         }
     }
 
-    It "registers and repairs scheduled tasks with a GMSA service-account principal" {
+    It "registers and repairs scheduled tasks with a non-interactive GMSA principal" {
         $configScriptPath = Join-Path $repoRoot "src/Powershell/Scripts/Config-JIT.ps1"
         $tokens = $null
         $parseErrors = $null
@@ -619,7 +619,7 @@ Describe "Just-In-Time PowerShell module package" {
         $parseErrors | Should -BeNullOrEmpty
         $scheduledTaskFunction | Should -Not -BeNullOrEmpty
         $scheduledTaskFunction.Extent.Text |
-            Should -Match 'New-ScheduledTaskPrincipal[\s\S]+-LogonType\s+ServiceAccount'
+            Should -Match 'New-ScheduledTaskPrincipal[\s\S]+-LogonType\s+Password'
         @([regex]::Matches(
             $scheduledTaskFunction.Extent.Text,
             'Register-ScheduledTask[\s\S]*?-Force'

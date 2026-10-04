@@ -48,7 +48,7 @@ Changes merged into `dev` since the last published release (`v0.1.20260908.12`),
 
 ### Fixed
 
-- Scheduled tasks now register the gMSA with the `ServiceAccount` logon type and automatically repair existing JIT tasks whose principal was stored as `(NONE)` or with an incompatible password logon.
+- Scheduled tasks now register the gMSA with the non-interactive `Password` logon type and automatically repair existing JIT tasks whose principal was stored as `(NONE)`, `ServiceAccount`, or another incompatible logon type.
 - KjitWeb management scripts now remove IPv6 interface scope IDs (for example `%5`) before creating Windows Firewall rules and treat firewall creation failures as fatal instead of reporting a false success.
 - Fixed `set-kjitweb-allowedclient.ps1` rejecting multiple `-AllowedClient` values while
   persisting the normalized value to `appsettings*.json`.

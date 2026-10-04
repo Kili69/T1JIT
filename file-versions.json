@@ -1,55 +1,30 @@
 {
-  "version": "0.2.20261003.2",
+  "version": "0.2.20261004.1",
   "files": [
     {
       "path": "CHANGELOG.md",
-      "version": "0.2.20261003.2",
-      "sha256": "730b86d677c866d5c3feaa487ac3ccd2d8c73e047f5b08b9555cc8ade33c2aa2"
-    },
-    {
-      "path": "README.md",
-      "version": "0.2.20261003.2",
-      "sha256": "495c6f0a4e4b62314fcd8ca9039bf2a6b262c908393dfc708642db7a4b8a8a1b"
-    },
-    {
-      "path": "src/C#/Kjitweb/Controllers/HomeController.cs",
-      "version": "0.2.20261003.2",
-      "sha256": "9e4a755dd9fc31a88008f9f0c118588dababcdf4cb2c9342d05b2e6e5b77d64f"
-    },
-    {
-      "path": "src/C#/Kjitweb/Services/ActiveDirectoryService.cs",
-      "version": "0.2.20261003.2",
-      "sha256": "5be7f46c0c50cd743d4abedd2da0acc5741b64909fb3bbb2fbdbe470b3c61318"
-    },
-    {
-      "path": "src/C#/Kjitweb/Services/configuration.cs",
-      "version": "0.2.20261003.2",
-      "sha256": "2f156586ce6da21d3745195a1c58c197d39953bef66dfd5efe8311c4a852eb46"
-    },
-    {
-      "path": "src/C#/Kjitweb/Services/EventLogWriter.cs",
-      "version": "0.2.20261003.2",
-      "sha256": "e241759bc66c5ab3b5df31faef60cb056c7c870e8a3191a423a04b7bad8df2aa"
-    },
-    {
-      "path": "src/C#/Kjitweb/Services/IActiveDirectoryService.cs",
-      "version": "0.2.20261003.2",
-      "sha256": "154aa6970acaaf24aa2e27141f7a492f6afd9476a6d07f86d44bffe6e1714dd6"
+      "version": "0.2.20261004.1",
+      "sha256": "5e8ea2667fb49ccc6f8f02a9471deb68da897f3ac7f7dd715f3752667267a4d3"
     },
     {
       "path": "src/Powershell/Scripts/Config-JIT.ps1",
-      "version": "0.2.20261003.2",
-      "sha256": "074abdd837143aa48e2daf25baa755e4fc74cede1735219e2d8afcf5412c4943"
+      "version": "0.2.20261004.1",
+      "sha256": "73e7dd4aef971ba72f7266209366ebc4806eb398f5bc0edbdbc1bc096be2210e"
     },
     {
       "path": "tests/PowerShell/Modules.Tests.ps1",
-      "version": "0.2.20261003.2",
-      "sha256": "aded818bcb70c03f8210a63df1d4ee8a92ebe49422b1541080437c1708c18837"
+      "version": "0.2.20261004.1",
+      "sha256": "ba3696fb84ac47f2045ad8ce637d1bcfff52313212072f74c351d08652477351"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20261003.2",
-      "sha256": "08e58519eda28bcd61fe313c31057326c16ade1dd7ead69567be786f11cc35ec"
+      "version": "0.2.20261004.1",
+      "sha256": "8e2a5dc4d6ec969703dac7c30a4676cb35713f4c2962dfd462908bb30fd036d2"
+    },
+    {
+      "path": "README.md",
+      "version": "0.2.20261004.1",
+      "sha256": "6bb5c60f2672a6a3e48c33122e160738fc35b6d827aa2efd59f18a7a9a3ba080"
     }
   ]
 }
