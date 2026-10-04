@@ -639,6 +639,8 @@ Describe "Just-In-Time PowerShell module package" {
             Should -Match '(?m)^## \[\d+\.\d+\.\d{8}\.\d+\] - \d{4}-\d{2}-\d{2}\r?$'
         $commitHook | Should -Match 'git -C \$repoRoot add -- VERSION file-versions\.json CHANGELOG\.md'
         $pushScript | Should -Match '"add", "--", "History\.md", "CHANGELOG\.md"'
+        $prePushHook = Get-Content -LiteralPath (Join-Path $repoRoot ".githooks/pre-push.ps1") -Raw
+        $prePushHook | Should -Match '"History\.md",\s+"CHANGELOG\.md",\s+"README\.md"'
     }
 
     It "contains syntactically valid module files" {

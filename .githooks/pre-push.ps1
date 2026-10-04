@@ -79,6 +79,8 @@ foreach ($update in $refUpdates) {
         }
         $historyCommitFiles = @(
             "History.md",
+            "CHANGELOG.md",
+            "README.md",
             "VERSION",
             "file-versions.json",
             "src/Powershell/modules/Just-In-time.psd1"

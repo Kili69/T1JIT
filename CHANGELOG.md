@@ -11,6 +11,11 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261004.7] - 2026-10-04
+### Fixed
+
+- The GitHub pre-push hook now recognizes the automatically versioned `CHANGELOG.md` and `README.md` as valid metadata in documented history commits.
+
 ## [0.2.20261004.6] - 2026-10-04
 ### Changed
 

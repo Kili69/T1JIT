@@ -1,4 +1,4 @@
-# Just-In-Time Solution for Active Directory Member Servers - Version 0.2.20261004.6 (dev)
+# Just-In-Time Solution for Active Directory Member Servers - Version 0.2.20261004.7 (dev)
 
 ## Project Description
 
