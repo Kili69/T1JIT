@@ -19,34 +19,42 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body class="bg-light d-flex flex-column min-vh-100">
-    <nav class="navbar kjit-topbar mb-4">
+    <header class="navbar kjit-topbar">
         <div class="container-fluid d-flex justify-content-between align-items-center gap-3">
             <span class="navbar-brand text-white mb-0 kjit-brand">@(Configuration["Branding:CompanyName"] ?? "Firma")</span>
-            <div class="kjit-topbar-actions">
-                @{
-                    var logoPath = Configuration["Branding:LogoPath"];
-                    if (!string.IsNullOrEmpty(logoPath))
-                    {
-                        <img src="@logoPath" alt="Logo" class="kjit-topbar-logo" />
-                    }
-                }
+            @{
+                var logoPath = Configuration["Branding:LogoPath"];
+                logoPath = string.IsNullOrWhiteSpace(logoPath) ? "/images/kjitlogo.png" : logoPath;
+            }
+            <img src="@logoPath" alt="Logo" class="kjit-topbar-logo" />
+        </div>
+    </header>
+    <nav class="kjit-utilitybar mb-4" aria-label="@L["MainMenuLabel"]">
+        <div class="container-fluid kjit-utilitybar-actions">
+                <a asp-controller="Home"
+                   asp-action="SwitchUser"
+                   class="kjit-menu-button">
+                    @L["SwitchUserButton"]
+                </a>
                 <form asp-controller="Home" asp-action="SetLanguage" method="post" class="btn-group btn-group-sm" aria-label="@L["LanguageSelectorLabel"]">
                     <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
                     <button type="submit"
                             name="culture"
                             value="de"
-                            class="btn @(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "de" ? "btn-light" : "btn-outline-light")"
+                            class="btn kjit-language-button @(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "de" ? "is-active" : "")"
                             aria-pressed="@(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "de" ? "true" : "false")">DE</button>
                     <button type="submit"
                             name="culture"
                             value="en"
-                            class="btn @(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "btn-light" : "btn-outline-light")"
+                            class="btn kjit-language-button @(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "is-active" : "")"
                             aria-pressed="@(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "true" : "false")">EN</button>
                 </form>
-                <div class="kjit-menu" aria-label="@L["MainMenuLabel"]">
+                <div class="kjit-menu">
                     <button type="button"
-                            class="kjit-menu-button"
+                            class="kjit-menu-button kjit-menu-button-icon"
                             id="aboutMenuButton"
+                            aria-label="@L["AboutButton"]"
+                            title="@L["AboutButton"]"
                             aria-haspopup="dialog"
                             aria-controls="aboutDialog">
                         <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
@@ -54,10 +62,8 @@
                             <path d="M12 10.75v6"></path>
                             <path d="M12 7.25h.01"></path>
                         </svg>
-                        <span>@L["AboutButton"]</span>
                     </button>
                 </div>
-            </div>
         </div>
     </nav>
     <dialog class="kjit-about-dialog"

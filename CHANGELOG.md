@@ -11,6 +11,11 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261004.9] - 2026-10-04
+### Changed
+
+- KjitWeb now places Switch user, language selection, and the compact About action in a low-emphasis utility bar below the branded header; the configurable branding logo remains at the far right and defaults to the bundled `kjitlogo.png`.
+
 ## [0.2.20261004.8] - 2026-10-04
 ### Changed
 
