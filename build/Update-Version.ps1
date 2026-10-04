@@ -174,7 +174,7 @@ function Assert-ChangelogVersion {
     $content = Get-Content -LiteralPath $changelogPath -Raw
     $match = [regex]::Match(
         $content,
-        '(?m)^## \[(?<version>\d+\.\d+\.\d{8}\.\d+)\] - \d{4}-\d{2}-\d{2}$'
+        '(?m)^## \[(?<version>\d+\.\d+\.\d{8}\.\d+)\] - \d{4}-\d{2}-\d{2}\r?$'
     )
     if (-not $match.Success) {
         throw "CHANGELOG.md has no concrete version section."

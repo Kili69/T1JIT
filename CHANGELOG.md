@@ -11,6 +11,11 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261004.3] - 2026-10-04
+### Fixed
+
+- Changelog version validation now accepts the repository's Windows `CRLF` line endings.
+
 ## [0.2.20261004.2] - 2026-10-04
 Changes merged into `dev` since the last published release (`v0.1.20260908.12`), not yet published as a GitHub release.
 

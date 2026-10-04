@@ -1,45 +1,30 @@
 {
-  "version": "0.2.20261004.2",
+  "version": "0.2.20261004.3",
   "files": [
     {
-      "path": ".githooks/pre-commit.ps1",
-      "version": "0.2.20261004.2",
-      "sha256": "3dbf3776c0b21ad21e5dcb05451cb14fb6a773f16ccd3cafb4cf5c74020a3038"
-    },
-    {
-      "path": "build/Push-GitHub.ps1",
-      "version": "0.2.20261004.2",
-      "sha256": "1ea7547b00684992b395b3829d7740bd4c04f54c0890a7473c19439a78a24775"
-    },
-    {
       "path": "build/Update-Version.ps1",
-      "version": "0.2.20261004.2",
-      "sha256": "8c8bcb38c16aa70c8eb1aa662963eb86fbf2c37b282f0e495c817912efd58aef"
+      "version": "0.2.20261004.3",
+      "sha256": "b50800e12ba74b6ce32a7530d1cef0b98ad230f379421a7a6875f50fb41673e2"
     },
     {
       "path": "CHANGELOG.md",
-      "version": "0.2.20261004.2",
-      "sha256": "0529e245f30cd9404ebb8946b079aa477d8aeea05ed9ad099246d63b51071ea0"
-    },
-    {
-      "path": "Developer.md",
-      "version": "0.2.20261004.2",
-      "sha256": "9e2acc1d807d26ad41dae69a80a8ae4d9c975e55ca04e50e1ac904e5251a21fa"
+      "version": "0.2.20261004.3",
+      "sha256": "c1c8943df99ed7ccf44e018e454e70762596ed1d6316abdb6fb06541ccf6381b"
     },
     {
       "path": "tests/PowerShell/Modules.Tests.ps1",
-      "version": "0.2.20261004.2",
-      "sha256": "50138eb06d4af3c477576c3c12e848a00708c1ff2c791b6ee0bbeb3ffbcd075a"
+      "version": "0.2.20261004.3",
+      "sha256": "263fc680b5d2e0d10d3e7a67968f1674b64effddf4e02b4e9caa5d26be3aad4a"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20261004.2",
-      "sha256": "5b6b5bfa8799e06e130fc9ba615782b2f24395ca622dc4ababf0cd72db5c498e"
+      "version": "0.2.20261004.3",
+      "sha256": "bde2807ca4335e411d73fa92811ab2c8656cd26c16a1a3c5ba54f6563fb12d69"
     },
     {
       "path": "README.md",
-      "version": "0.2.20261004.2",
-      "sha256": "ca7a2c29a0fa0666ae99cfe19360e4e6f6c9b7a67bc0092f35986a4e4a7b89ee"
+      "version": "0.2.20261004.3",
+      "sha256": "7540487e8310301c62cee28de16a92a351526f8ce32251676eda794152edabd2"
     }
   ]
 }

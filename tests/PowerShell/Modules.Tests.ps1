@@ -634,6 +634,8 @@ Describe "Just-In-Time PowerShell module package" {
         $versionScript | Should -Match 'CHANGELOG\.md must be updated and staged for every commit'
         $versionScript | Should -Match 'Update-ChangelogVersion -Version \$version'
         $versionScript | Should -Match 'Assert-ChangelogVersion -Version \$version'
+        "## [0.2.20261004.2] - 2026-10-04`r`n" |
+            Should -Match '(?m)^## \[\d+\.\d+\.\d{8}\.\d+\] - \d{4}-\d{2}-\d{2}\r?$'
         $commitHook | Should -Match 'git -C \$repoRoot add -- VERSION file-versions\.json CHANGELOG\.md'
         $pushScript | Should -Match '"add", "--", "History\.md", "CHANGELOG\.md"'
     }
