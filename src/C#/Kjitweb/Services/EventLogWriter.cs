@@ -36,6 +36,9 @@ public class EventLogWriter : IEventLogWriter
     /// <summary>The separator inserted between the server domain and name.</summary>
     private readonly string _domainSeparator;
 
+    /// <summary>Whether target group names include the server DNS domain.</summary>
+    private readonly bool _enableMultiDomainSupport;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="EventLogWriter"/> class.
     /// </summary>
@@ -59,6 +62,7 @@ public class EventLogWriter : IEventLogWriter
         _eventSource = jitConfig.EventLogSourceName; // We set the event source name for the event log based on the JIT configuration, which will be used when writing events to specify the source of the events in the Windows Event Log. This allows for better organization and identification of events in the logs, as administrators can filter and analyze events based on their source.
         _adminPreFix = jitConfig.AdminPreFix; // We set the admin prefix based on the JIT configuration, which will be used when constructing the server group name in the event messages. This allows for consistent formatting of server group names in the event log, making it easier to identify and analyze events related to specific servers or domains.
         _domainSeparator = jitConfig.DomainSeparator; // We set the domain separator based on the JIT configuration, which will be used when constructing the server group name in the event messages. This allows for consistent formatting of server group names in the event log, making it easier to identify and analyze events related to specific servers or domains.
+        _enableMultiDomainSupport = jitConfig.EnableMultiDomainSupport;
     }
 
     /// <summary>
@@ -86,7 +90,9 @@ public class EventLogWriter : IEventLogWriter
     /// </exception>
     public void WriteManagementEvent(string userDistinguishedName, string serverName, string serverDomain, int elevationDurationMinutes, string callingUserUpn)
     {
-        var serverGroup = $"{_adminPreFix}{serverDomain}{_domainSeparator}{serverName}";
+        var serverGroup = _enableMultiDomainSupport
+            ? $"{_adminPreFix}{serverDomain}{_domainSeparator}{serverName}"
+            : $"{_adminPreFix}{serverName}";
         var payload = new
         {
             UserDN = userDistinguishedName,

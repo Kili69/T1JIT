@@ -56,6 +56,10 @@ public class JitConfiguration
 	/// </summary>
 	public string DomainSeparator { get; }
 	/// <summary>
+	/// Gets whether JIT group names include the server DNS domain.
+	/// </summary>
+	public bool EnableMultiDomainSupport { get; }
+	/// <summary>
 	/// 	The GroupOuDistinguishedName property represents the distinguished name of the organizational unit (OU) in Active Directory where the server groups are located.
 	/// 	This value is used when constructing LDAP paths for querying server objects in Active Directory, allowing the application to target specific OUs for server discovery.
 	/// 	If this value is not specified, the application may default to searching the entire directory or use other configured search bases, which may result in broader queries and potentially more results. 
@@ -134,7 +138,9 @@ public class JitConfiguration
 		EventLogSourceName = ReadEventLogSourceName(document.RootElement); // We read the event log source name with backward compatibility for both EventLogSource and legacy EventSource keys.
 		AdminPreFix = ReadString(document.RootElement, "AdminPreFix", string.Empty); // We read the AdminPreFix from the root element of the JSON document using the ReadString helper method, which extracts a string value for the "AdminPreFix" property, with a fallback default value of an empty string if it is not specified. This allows us to have a configurable prefix for administrative accounts, while still providing a sensible default value that can be used if the configuration does not specify one.
 		DomainSeparator = ReadString(document.RootElement, "DomainSeparator", string.Empty); // We read the DomainSeparator from the root element of the JSON document using the ReadString helper method, which extracts a string value for the "DomainSeparator" property, with a fallback default value of an empty string if it is not specified. This allows us to have a configurable separator for domain and server names when constructing server group names for event logging purposes, while still providing a sensible default value that can be used if the configuration does not specify one.
-		GroupOuDistinguishedName = ReadOptionalString(document.RootElement, "OU"); // We read the GroupOuDistinguishedName from the root element of the JSON document using the ReadOptionalString helper method, which extracts a string value for the "OU" property and returns null if it is not specified or is empty. This allows us to have an optional configuration setting for the distinguished name of the organizational unit (OU) in Active Directory where the server groups are located, which can be used to optimize LDAP queries for server discovery. If this setting is not provided, the application can default to searching the entire directory or use other configured search bases.
+		EnableMultiDomainSupport = ReadBoolean(document.RootElement, "EnableMultiDomainSupport", true);
+		GroupOuDistinguishedName = ReadOptionalString(document.RootElement, "AdminGroupOU")
+			?? ReadOptionalString(document.RootElement, "OU");
 		DelegationConfigPath = ReadDelegationConfigPath(document.RootElement); // We read the DelegationConfigPath from the root element of the JSON document using the ReadDelegationConfigPath helper method, which extracts a string value for the "DelegationConfigPath" property and returns null if it is not specified or is empty. This allows us to have an optional configuration setting for the file path to a delegation configuration file that defines rules for limiting server discovery based on group membership. If this setting is provided, the application will read the delegation rules from the specified file and apply them when determining which servers to include in the results of server discovery queries. If this setting is not provided, the application will not apply any delegation rules and will return all servers that match the configured search criteria.
 		EnableDelegation = ReadEnableDelegation(document.RootElement); // We read the EnableDelegation from the root element of the JSON document using the ReadEnableDelegation helper method, which extracts a boolean value for the "EnableDelegation" property and returns false if it is not specified or is not a valid boolean. This allows us to have a configuration setting that specifies whether delegation rules should be applied when determining which servers to include in the results of server discovery queries. If this setting is true, the application will read the delegation rules from the specified DelegationConfigPath file and apply them based on the user's group memberships in Active Directory. If this setting is false, the application will ignore any delegation rules and return all servers that match the configured search criteria, regardless of the user's group memberships.
 		MaxElevatedTimeMinutes = ReadPositiveInteger(document.RootElement, "MaxElevatedTime", 60); // We read the MaxElevatedTimeMinutes from the root element of the JSON document using the ReadPositiveInteger helper method, which extracts an integer value for the "MaxElevatedTime" property and returns a fallback default value of 60 if it is not specified, is not a valid integer, or is less than or equal to 0. This allows us to have a configurable maximum duration for elevation requests in minutes, while still providing a sensible default value that can be used if the configuration does not specify one. This property can be used throughout the application to validate user input for elevation duration and ensure that it does not exceed the maximum allowed duration, helping to maintain a secure and controlled elevation process for users requesting Just-In-Time access.
@@ -301,6 +307,15 @@ public class JitConfiguration
 		}
 
 		return element.GetBoolean(); // If the "EnableDelegation" property exists and is a valid boolean, we return its value using GetBoolean(), which will be true or false based on the configuration. This allows us to determine whether delegation rules should be applied when determining which servers to include in the results of server discovery queries, based on the user's group memberships in Active Directory.
+	}
+
+	/// <summary>Reads a Boolean property using a case-insensitive property name.</summary>
+	private static bool ReadBoolean(JsonElement root, string propertyName, bool fallbackValue)
+	{
+		return TryGetPropertyIgnoreCase(root, propertyName, out var element)
+			&& (element.ValueKind == JsonValueKind.True || element.ValueKind == JsonValueKind.False)
+				? element.GetBoolean()
+				: fallbackValue;
 	}
 
 	// This helper method reads a string property from the root element of the JSON document, ignoring case sensitivity for the property name. 

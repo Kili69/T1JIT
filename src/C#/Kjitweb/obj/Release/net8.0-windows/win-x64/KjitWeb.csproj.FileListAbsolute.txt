@@ -9,7 +9,6 @@ C:\Repos\T1JIT\src\C#\Kjitweb\bin\Release\net8.0-windows\win-x64\publish\KjitWeb
 C:\Repos\T1JIT\src\C#\Kjitweb\bin\Release\net8.0-windows\win-x64\publish\KjitWeb.runtimeconfig.json
 C:\Repos\T1JIT\src\C#\Kjitweb\bin\Release\net8.0-windows\win-x64\publish\KjitWeb.staticwebassets.endpoints.json
 C:\Repos\T1JIT\src\C#\Kjitweb\bin\Release\net8.0-windows\win-x64\KjitWeb.staticwebassets.runtime.json
-C:\Repos\T1JIT\src\C#\Kjitweb\bin\Release\net8.0-windows\win-x64\KjitWeb.staticwebassets.endpoints.json
 C:\Repos\T1JIT\src\C#\Kjitweb\bin\Release\net8.0-windows\win-x64\KjitWeb.exe
 C:\Repos\T1JIT\src\C#\Kjitweb\bin\Release\net8.0-windows\win-x64\KjitWeb.deps.json
 C:\Repos\T1JIT\src\C#\Kjitweb\bin\Release\net8.0-windows\win-x64\KjitWeb.runtimeconfig.json
@@ -22,7 +21,6 @@ C:\Repos\T1JIT\src\C#\Kjitweb\bin\Release\net8.0-windows\win-x64\Microsoft.Exten
 C:\Repos\T1JIT\src\C#\Kjitweb\bin\Release\net8.0-windows\win-x64\System.DirectoryServices.Protocols.dll
 C:\Repos\T1JIT\src\C#\Kjitweb\bin\Release\net8.0-windows\win-x64\System.ServiceProcess.ServiceController.dll
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\win-x64\KjitWeb.csproj.AssemblyReference.cache
-C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\win-x64\rpswa.dswa.cache.json
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\win-x64\KjitWeb.Resources.SharedResource.de.resources
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\win-x64\KjitWeb.Resources.SharedResource.en.resources
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\win-x64\KjitWeb.csproj.GenerateResource.cache
@@ -38,15 +36,9 @@ C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\win-x64\de\KjitWeb.reso
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\win-x64\de\KjitWeb.resources.dll
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\win-x64\en\KjitWeb.resources.cs
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\win-x64\en\KjitWeb.resources.dll
-C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\win-x64\rjimswa.dswa.cache.json
-C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\win-x64\rjsmrazor.dswa.cache.json
-C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\win-x64\rjsmcshtml.dswa.cache.json
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\win-x64\scopedcss\bundle\KjitWeb.styles.css
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\win-x64\staticwebassets.build.json
-C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\win-x64\staticwebassets.build.json.cache
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\win-x64\staticwebassets.development.json
-C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\win-x64\staticwebassets.build.endpoints.json
-C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\win-x64\swae.build.ex.cache
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\win-x64\KjitWeb.csproj.Up2Date
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\win-x64\KjitWeb.dll
 C:\Repos\T1JIT\src\C#\Kjitweb\obj\Release\net8.0-windows\win-x64\refint\KjitWeb.dll

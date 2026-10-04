@@ -91,6 +91,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
     private readonly string? _groupOuDistinguishedName; // The group OU distinguished name is an optional configuration value that specifies the LDAP distinguished name of the organizational unit (OU) where elevation groups are located. If configured, it is used by the GetCurrentElevationGroups method to perform LDAP queries to find the groups that the authenticated user is a member of. This allows the service to determine the user's current elevation groups based on their group memberships in Active Directory. If this value is not configured, the service will not be able to retrieve elevation groups and will return an empty list instead.
     private readonly string _adminPreFix; // The admin prefix is a configuration value that can be used to format the display names of elevation groups for better readability. It is typically a string that is prefixed to the group name when formatting the current elevation group names for display. This allows the application to present elevation groups in a more user-friendly way, especially if the actual group names in Active Directory are not easily readable or need additional context to be understood by end users. The admin prefix can be an empty string if no prefixing is desired.
     private readonly string _domainSeparator; // The domain separator is a configuration value that defines the character used to separate the domain from the username in formats like "DOMAIN\username". It is used by the service when parsing or formatting user and group names that include domain information. This allows the service to correctly handle different naming conventions and ensure that comparisons and formatting of names are consistent with the expected format in the environment where it is deployed.
+    private readonly bool _enableMultiDomainSupport;
     private readonly IReadOnlyList<string> _serverSearchBaseLdapPaths; // The server search base LDAP paths are critical configuration values that specify the base LDAP paths where the service will search for computer objects (servers) in Active Directory. These paths are resolved from the JIT configuration and stored in a private readonly list for use in the GetServerNames method when performing LDAP queries to retrieve server information. Having multiple search base paths allows the service to search across different parts of the directory, which can be useful in complex Active Directory environments where computer objects may be located in various OUs or containers.
     private readonly bool _delegationEnabled; // The delegation enabled flag is a configuration value that indicates whether delegation rules should be applied when retrieving server names. If delegation is enabled, the service will resolve the effective search bases for the user based on their group memberships and the defined delegation rules, which can restrict the servers that are visible to the user based on their group memberships. This allows for more granular control over server visibility and can enhance security by ensuring that users only see servers they are allowed to access based on their roles in Active Directory.
     private readonly IReadOnlyList<DelegationRule> _delegationRules; // The delegation rules are a collection of rules defined in the JIT configuration that specify how to determine the effective search bases for a user based on their group memberships. Each rule typically includes a group name and a corresponding search base LDAP path. If delegation is enabled, the service will evaluate these rules against the user's group memberships to determine which search bases should be used when retrieving server names. This allows for dynamic adjustment of server visibility based on the user's roles in Active Directory, enhancing security and ensuring that users only see servers they are authorized to access.
@@ -127,6 +128,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
         _groupOuDistinguishedName = jitConfiguration.GroupOuDistinguishedName; // Load the group OU distinguished name from the JIT configuration, which specifies where elevation groups are located in Active Directory. This is used by the GetCurrentElevationGroups method to perform LDAP queries to find the groups that the authenticated user is a member of. If this value is not configured, the service will not be able to retrieve elevation groups and will return an empty list instead.
         _adminPreFix = jitConfiguration.AdminPreFix; // Load the admin prefix from the JIT configuration, which may be used to format elevation group names for display. This is optional and can be an empty string if not used.   
         _domainSeparator = jitConfiguration.DomainSeparator; // Load the domain separator from the JIT configuration, which may be used to parse or format domain-related information.
+        _enableMultiDomainSupport = jitConfiguration.EnableMultiDomainSupport;
         _serverSearchBaseLdapPaths = ResolveServerSearchBasesFromJitConfiguration(jitConfiguration); // Resolve the LDAP paths for server search bases from the JIT configuration. These paths will be used to search for servers in the directory.
         _delegationEnabled = jitConfiguration.EnableDelegation; // Load the delegation enabled flag from the JIT configuration, which indicates whether delegation rules should be applied.
         _delegationRules = ResolveDelegationRules(jitConfiguration); // Resolve the delegation rules from the JIT configuration, if delegation is enabled.
@@ -269,14 +271,20 @@ public class ActiveDirectoryService : IActiveDirectoryService
     /// </summary>
     /// <param name="user">Principal used for identity or delegation checks; may be null.</param>
     /// <param name="selectedDomain">Optional DNS domain; null or blank disables filtering.</param>
-    /// <returns>A new distinct, case-insensitively ordered list; never null.</returns>
-    /// <remarks>Queries authorized bases independently and logs/skips failures, so partial results are possible. Visibility filtering does not itself authorize access to a computer.</remarks>
+    /// <returns>A new distinct, case-insensitively ordered list of DNS host names; never null.</returns>
+    /// <remarks>Only authorized computers with a DNS host name and an existing matching JIT group are returned.</remarks>
     public List<string> GetServerNames(ClaimsPrincipal? user, string? selectedDomain)
     {
-        var serverNames = new List<string>(); // This list will hold the server names that we retrieve from the LDAP queries.
-        var effectiveSearchBases = ResolveSearchBasesForUser(user); // Resolve the effective search bases for the user, taking into account delegation rules if enabled. This determines where in the directory we will search for computer objects.
-        var normalizedSelectedDomain = NormalizeDomain(selectedDomain); // Normalize the selected domain for consistent comparison during filtering. This allows the method to correctly filter servers based on the specified domain, even if there are variations in formatting (e.g. case differences, trailing dots).
-        // Iterate through each effective search base and perform an LDAP query to find computer objects.
+        var serverNames = new List<string>();
+        var effectiveSearchBases = ResolveSearchBasesForUser(user);
+        var normalizedSelectedDomain = NormalizeDomain(selectedDomain);
+        var jitGroupNames = GetJitGroupNames();
+        if (jitGroupNames.Count == 0)
+        {
+            _logger.LogWarning("No JIT groups were found in {GroupOu}. Returning no servers.", _groupOuDistinguishedName);
+            return serverNames;
+        }
+
         foreach (var searchBase in effectiveSearchBases)
         {
             try
@@ -295,20 +303,29 @@ public class ActiveDirectoryService : IActiveDirectoryService
                     if (!MatchesSelectedDomain(entry, normalizedSelectedDomain))
                         continue;
 
-                    var name = ReadEntryAttribute(entry, "name");
-                    if (!string.IsNullOrWhiteSpace(name))
-                        serverNames.Add(name);
+                    var computerName = ReadEntryAttribute(entry, "name");
+                    var dnsHostName = ReadEntryAttribute(entry, "dNSHostName");
+                    var computerDomain = ResolveComputerDomain(entry);
+                    if (string.IsNullOrWhiteSpace(computerName)
+                        || string.IsNullOrWhiteSpace(dnsHostName)
+                        || string.IsNullOrWhiteSpace(computerDomain))
+                    {
+                        continue;
+                    }
+
+                    var expectedGroupName = BuildJitGroupName(computerName, computerDomain);
+                    if (jitGroupNames.Contains(expectedGroupName))
+                    {
+                        serverNames.Add(dnsHostName.TrimEnd('.'));
+                    }
                 }
             }
-            // If there is an issue with the LDAP query for this search base (e.g. invalid search base, connectivity problems), 
-            // log a warning and continue to the next search base rather than throwing an exception. 
-            // This allows us to still retrieve servers from other valid search bases even if one of them has issues.
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Ignoring LDAP search base due to unexpected error: {SearchBase}", searchBase);
             }
         }
-        // After processing all search bases, we return a distinct and ordered list of server names for better usability.
+
         var serverResults = serverNames
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
@@ -331,6 +348,54 @@ public class ActiveDirectoryService : IActiveDirectoryService
         }
 
         return serverResults;
+    }
+
+    /// <summary>
+    /// Loads the names of all groups below the configured JIT group OU.
+    /// </summary>
+    /// <returns>A case-insensitive set; empty when the group OU is missing or cannot be queried.</returns>
+    private HashSet<string> GetJitGroupNames()
+    {
+        if (string.IsNullOrWhiteSpace(_groupOuDistinguishedName))
+        {
+            _logger.LogWarning("No JIT group OU is configured. Returning no servers.");
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var groupOuLdapPath = NormalizeLdapPath(_groupOuDistinguishedName);
+        if (string.IsNullOrWhiteSpace(groupOuLdapPath))
+        {
+            _logger.LogWarning("The configured JIT group OU is invalid: {GroupOu}. Returning no servers.", _groupOuDistinguishedName);
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        try
+        {
+            return LdapSearchPaged(
+                    groupOuLdapPath,
+                    "(objectCategory=group)",
+                    SearchScope.Subtree,
+                    "name")
+                .Select(entry => ReadEntryAttribute(entry, "name"))
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Select(name => name!)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Unable to query JIT groups in {GroupOu}. Returning no servers.", _groupOuDistinguishedName);
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    /// <summary>
+    /// Builds the configured JIT administrator-group name for a computer.
+    /// </summary>
+    private string BuildJitGroupName(string computerName, string computerDomain)
+    {
+        return _enableMultiDomainSupport
+            ? $"{_adminPreFix}{computerDomain}{_domainSeparator}{computerName}"
+            : $"{_adminPreFix}{computerName}";
     }
 
     // This helper method checks if a given LDAP search result for a computer object matches the selected domain filter.

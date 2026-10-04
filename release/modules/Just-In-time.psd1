@@ -8,17 +8,6 @@
 # updated: 18/12/2024 by Andreas Luy
 #
 
-Disclaimer:
-This sample script is not supported under any Microsoft standard support program or service. 
-The sample script is provided AS IS without warranty of any kind. Microsoft further disclaims 
-all implied warranties including, without limitation, any implied warranties of merchantability 
-or of fitness for a particular purpose. The entire risk arising out of the use or performance of 
-the sample scripts and documentation remains with you. In no event shall Microsoft, its authors, 
-or anyone else involved in the creation, production, or delivery of the scripts be liable for any 
-damages whatsoever (including, without limitation, damages for loss of business profits, business 
-interruption, loss of business information, or other pecuniary loss) arising out of the use of or 
-inability to use the sample scripts or documentation, even if Microsoft has been advised of the 
-possibility of such damages
 
 This module file contains the user functions to request the administrator privileges
 #>
@@ -30,7 +19,7 @@ This module file contains the user functions to request the administrator privil
 
 
 # Version number of this module.
-ModuleVersion = '0.2.20260927.3'
+ModuleVersion = '0.2.20261004.12'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Desktop')
@@ -45,7 +34,7 @@ Author = 'Andreas Lucas (aka Kili)'
 #CompanyName = ''
 
 # Copyright statement for this module
-Copyright = '(c) 2024 Andreas Lucas (aka Kili). All rights reserved.'
+Copyright = 'Copyright 2024 Andreas Lucas. Licensed under the Apache License, Version 2.0.'
 
 # Description of the functionality provided by this module
 Description = 'Just-in-time administration commands for requesting, configuring, and delegating temporary server access.'
@@ -137,7 +126,7 @@ PrivateData = @{
         # Tags = @()
 
         # A URL to the license for this module.
-        # LicenseUri = ''
+        LicenseUri = 'https://github.com/Kili69/T1JIT/blob/main/LICENSE'
 
         # A URL to the main website for this project.
         # ProjectUri = ''

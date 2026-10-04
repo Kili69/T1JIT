@@ -8,10 +8,7 @@
     <script src="~/lib/jquery-validation/jquery.validate.min.js" asp-append-version="true"></script>
     <script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js" asp-append-version="true"></script>
         <h1 class="h4 mb-3">@L["Heading"]</h1>
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-            <p class="text-muted mb-0">@L["SignedInAs"]: @User.Identity?.Name</p>
-            <a asp-action="SwitchUser" class="btn btn-outline-dark btn-sm">@L["SwitchUserButton"]</a>
-        </div>
+        <p class="text-muted mb-3">@L["SignedInAs"]: @User.Identity?.Name</p>
 
         @if (ViewBag.SuccessMessage != null)
         {

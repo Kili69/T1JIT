@@ -54,7 +54,7 @@ public interface IActiveDirectoryService
     /// The principal used to enforce delegation, or <see langword="null"/> when no user context is
     /// available.
     /// </param>
-    /// <returns>A non-null, potentially empty list of distinct server names.</returns>
+    /// <returns>A non-null, potentially empty list of distinct server FQDNs backed by existing JIT groups.</returns>
     /// <remarks>
     /// When delegation is enabled, implementations should fail closed if the user's group
     /// memberships or applicable search bases cannot be resolved.
@@ -72,7 +72,7 @@ public interface IActiveDirectoryService
     /// The domain filter, or <see langword="null"/>, empty, or whitespace to include every
     /// permitted domain.
     /// </param>
-    /// <returns>A non-null, potentially empty list of distinct server names.</returns>
+    /// <returns>A non-null, potentially empty list of distinct server FQDNs backed by existing JIT groups.</returns>
     /// <remarks>
     /// Implementations may perform LDAP searches and log lookup failures. Delegation must be
     /// applied before the optional domain filter.
