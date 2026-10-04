@@ -38,6 +38,19 @@
   <data name="CurrentElevationsDialogTitle" xml:space="preserve"><value>Current elevations</value></data>
   <data name="CurrentElevationsEmpty" xml:space="preserve"><value>No matching group memberships were found.</value></data>
   <data name="CloseButton" xml:space="preserve"><value>Close</value></data>
+  <data name="LanguageSelectorLabel" xml:space="preserve"><value>Language</value></data>
+  <data name="MainMenuLabel" xml:space="preserve"><value>Main menu</value></data>
+  <data name="AboutButton" xml:space="preserve"><value>About</value></data>
+  <data name="AboutDialogTitle" xml:space="preserve"><value>About KjitWeb</value></data>
+  <data name="AboutDescription" xml:space="preserve"><value>KjitWeb is Just-In-Time administration for Active Directory.</value></data>
+  <data name="AboutAuthorLabel" xml:space="preserve"><value>Author</value></data>
+  <data name="AboutAuthorImageAlt" xml:space="preserve"><value>Profile picture of Andreas Lucas</value></data>
+  <data name="AboutVersionLabel" xml:space="preserve"><value>Version</value></data>
+  <data name="AboutLicenseLabel" xml:space="preserve"><value>License</value></data>
+  <data name="AboutLicenseValue" xml:space="preserve"><value>Apache License 2.0</value></data>
+  <data name="AboutLinksLabel" xml:space="preserve"><value>Project links</value></data>
+  <data name="AboutRepositoryLink" xml:space="preserve"><value>GitHub repository</value></data>
+  <data name="AboutContributorsLink" xml:space="preserve"><value>Contributors</value></data>
   <data name="EventLogStatusOk" xml:space="preserve"><value>No errors or warnings in the last 24 hours.</value></data>
   <data name="EventLogStatusWarning" xml:space="preserve"><value>Warnings were logged in the last 24 hours. Check the Tier 1 Management event log.</value></data>
   <data name="EventLogStatusError" xml:space="preserve"><value>Errors were logged in the last 24 hours. Check the Tier 1 Management event log.</value></data>

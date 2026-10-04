@@ -1,30 +1,45 @@
 {
-  "version": "0.2.20261004.4",
+  "version": "0.2.20261004.5",
   "files": [
     {
-      "path": "build/Update-Version.ps1",
-      "version": "0.2.20261004.4",
-      "sha256": "9a01feaeb583c6f44f647ab06d73e930587a75a8059d4ac6573f63ae349daf3b"
-    },
-    {
       "path": "CHANGELOG.md",
-      "version": "0.2.20261004.4",
-      "sha256": "bc965eadff0c83dc5ecfc060950e23b6c4c7ebe07509eb90bd20df44fdefff78"
-    },
-    {
-      "path": "tests/PowerShell/Modules.Tests.ps1",
-      "version": "0.2.20261004.4",
-      "sha256": "69cb50435c50b30de2b448461dac1e927849fc559e9529756a20172210ce6fda"
-    },
-    {
-      "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20261004.4",
-      "sha256": "121383876c8db10576446a83efdf84937448c50e82a0062cc992bd901be5457f"
+      "version": "0.2.20261004.5",
+      "sha256": "c2775a8bb14344b20e949b9457c16df5527e52b8bbe3e883d7371539515e3ace"
     },
     {
       "path": "README.md",
-      "version": "0.2.20261004.4",
-      "sha256": "fbca85f3480998a3af82fa169353e153a5b44b93b0c6560d9a2b8d5ab4cbf62e"
+      "version": "0.2.20261004.5",
+      "sha256": "39b4e48e051baa80f2a2d43e463438c63f7d13b0e3fde9989f2b33384d5b29e6"
+    },
+    {
+      "path": "src/C#/Kjitweb/Resources/SharedResource.de.resx",
+      "version": "0.2.20261004.5",
+      "sha256": "0a7d583c09bb47f496084a1a0cd78e516979adb04fde89f971b6438dee012e15"
+    },
+    {
+      "path": "src/C#/Kjitweb/Resources/SharedResource.en.resx",
+      "version": "0.2.20261004.5",
+      "sha256": "d6f7060f0caae90050f4d012ae038cce7c1285641f7ade5ffe984488c964cc86"
+    },
+    {
+      "path": "src/C#/Kjitweb/Views/Shared/_Layout.cshtml",
+      "version": "0.2.20261004.5",
+      "sha256": "e96049b5a9b14e9fea6b66904cd100cf1c41cfdcd2ce0df491e35e77fda95ad4"
+    },
+    {
+      "path": "src/C#/Kjitweb/wwwroot/css/site.css",
+      "version": "0.2.20261004.5",
+      "sha256": "c0cb623a7821628eaeb701486002d55a207ed8c2c26032f0b9887f00bf366abf"
+    },
+    {
+      "path": "src/C#/Kjitweb/wwwroot/images/andreas-lucas-github.jpg",
+      "version": "0.2.20261004.5",
+      "sha256": "b84fc76adcaf9437a519b61e5922cdf42e107066fe1d131e4c0642f5a5460571"
+    },
+    {
+      "path": "src/Powershell/modules/Just-In-time.psd1",
+      "version": "0.2.20261004.5",
+      "sha256": "d996cd841d0b904db35bda6fd837b4127d495cde2a3c81e0932b07c44842a1f0"
     }
   ]
 }

@@ -11,6 +11,15 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261004.5] - 2026-10-04
+### Added
+
+- KjitWeb now provides an extensible modern menu in the top bar, starting with a localized About dialog that shows the application version, license, author contact and GitHub profile picture, plus links to the repository and its contributors.
+
+### Changed
+
+- Reworked the complete README into a consistent procedural style with standardized T1JIT/KjitWeb terminology, headings, parameter lists, PowerShell examples, installation guidance, and current cmdlet signatures. The monitoring section now links to the authoritative `EVENTS.md` reference, and redundant usage and historical text was removed.
+
 ## [0.2.20261004.4] - 2026-10-04
 ### Fixed
 

@@ -38,6 +38,19 @@
   <data name="CurrentElevationsDialogTitle" xml:space="preserve"><value>Current elevations</value></data>
   <data name="CurrentElevationsEmpty" xml:space="preserve"><value>Keine passenden Gruppenmitgliedschaften gefunden.</value></data>
   <data name="CloseButton" xml:space="preserve"><value>Schliessen</value></data>
+  <data name="LanguageSelectorLabel" xml:space="preserve"><value>Sprache</value></data>
+  <data name="MainMenuLabel" xml:space="preserve"><value>Hauptmenü</value></data>
+  <data name="AboutButton" xml:space="preserve"><value>Info</value></data>
+  <data name="AboutDialogTitle" xml:space="preserve"><value>Über KjitWeb</value></data>
+  <data name="AboutDescription" xml:space="preserve"><value>KjitWeb is Just-In-Time administration for Active Directory.</value></data>
+  <data name="AboutAuthorLabel" xml:space="preserve"><value>Autor</value></data>
+  <data name="AboutAuthorImageAlt" xml:space="preserve"><value>Profilbild von Andreas Lucas</value></data>
+  <data name="AboutVersionLabel" xml:space="preserve"><value>Version</value></data>
+  <data name="AboutLicenseLabel" xml:space="preserve"><value>Lizenz</value></data>
+  <data name="AboutLicenseValue" xml:space="preserve"><value>Apache License 2.0</value></data>
+  <data name="AboutLinksLabel" xml:space="preserve"><value>Projektlinks</value></data>
+  <data name="AboutRepositoryLink" xml:space="preserve"><value>GitHub Repository</value></data>
+  <data name="AboutContributorsLink" xml:space="preserve"><value>Contributors</value></data>
   <data name="EventLogStatusOk" xml:space="preserve"><value>Keine Fehler oder Warnungen in den letzten 24 Stunden.</value></data>
   <data name="EventLogStatusWarning" xml:space="preserve"><value>In den letzten 24 Stunden wurden Warnungen protokolliert. Bitte das Ereignisprotokoll "Tier 1 Management" prüfen.</value></data>
   <data name="EventLogStatusError" xml:space="preserve"><value>In den letzten 24 Stunden wurden Fehler protokolliert. Bitte das Ereignisprotokoll "Tier 1 Management" prüfen.</value></data>
