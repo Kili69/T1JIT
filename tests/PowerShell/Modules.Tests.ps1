@@ -626,6 +626,18 @@ Describe "Just-In-Time PowerShell module package" {
         )).Count | Should -Be 2
     }
 
+    It "requires and versions the changelog for every commit" {
+        $versionScript = Get-Content -LiteralPath (Join-Path $repoRoot "build/Update-Version.ps1") -Raw
+        $commitHook = Get-Content -LiteralPath (Join-Path $repoRoot ".githooks/pre-commit.ps1") -Raw
+        $pushScript = Get-Content -LiteralPath (Join-Path $repoRoot "build/Push-GitHub.ps1") -Raw
+
+        $versionScript | Should -Match 'CHANGELOG\.md must be updated and staged for every commit'
+        $versionScript | Should -Match 'Update-ChangelogVersion -Version \$version'
+        $versionScript | Should -Match 'Assert-ChangelogVersion -Version \$version'
+        $commitHook | Should -Match 'git -C \$repoRoot add -- VERSION file-versions\.json CHANGELOG\.md'
+        $pushScript | Should -Match '"add", "--", "History\.md", "CHANGELOG\.md"'
+    }
+
     It "contains syntactically valid module files" {
         $moduleFiles = @(Get-ChildItem -LiteralPath $versionedModulePath -Filter "*.psm1" -File)
         $moduleFiles.Count | Should -BeGreaterThan 0

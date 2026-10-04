@@ -4,7 +4,8 @@
     Documents and pushes all commits not yet present on a GitHub remote branch.
 .DESCRIPTION
     Fetches the selected remote branch, writes the outgoing commits and changed files
-    to History.md, creates a versioned history commit, and pushes the complete branch.
+    to History.md, adds the required changelog entry, creates a versioned history commit,
+    and pushes the complete branch.
 .PARAMETER Remote
     Git remote name. The default is origin.
 .PARAMETER Branch
@@ -31,6 +32,7 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $historyPath = Join-Path $repoRoot "History.md"
+$changelogPath = Join-Path $repoRoot "CHANGELOG.md"
 $entryMarker = "<!-- history-entries -->"
 
 function Invoke-Git {
@@ -106,7 +108,29 @@ $entry = $entryLines -join [Environment]::NewLine
 $updatedHistory = $history.Replace($entryMarker, "$entryMarker$entry")
 Set-Content -LiteralPath $historyPath -Value $updatedHistory -Encoding UTF8
 
-Invoke-Git -Arguments @("add", "--", "History.md") | Out-Null
+$changelog = Get-Content -LiteralPath $changelogPath -Raw
+$unreleasedHeading = [regex]::Match($changelog, '(?m)^## \[Unreleased\]\r?\n')
+if (-not $unreleasedHeading.Success) {
+    throw "Unreleased section not found in $changelogPath."
+}
+$newline = if ($changelog.Contains("`r`n")) { "`r`n" } else { "`n" }
+$changelogEntry = $newline +
+    "### Changed" +
+    $newline +
+    $newline +
+    "- Documented $($outgoingCommits.Count) outgoing commit(s) in ``History.md`` before the GitHub push." +
+    $newline
+$updatedChangelog = $changelog.Insert(
+    $unreleasedHeading.Index + $unreleasedHeading.Length,
+    $changelogEntry
+)
+[System.IO.File]::WriteAllText(
+    $changelogPath,
+    $updatedChangelog,
+    [System.Text.UTF8Encoding]::new($false)
+)
+
+Invoke-Git -Arguments @("add", "--", "History.md", "CHANGELOG.md") | Out-Null
 Invoke-Git -Arguments @("commit", "-m", "Document GitHub push history") | Out-Null
 Invoke-Git -Arguments @("push", $Remote, "HEAD:$Branch") | Out-Null
 

@@ -6,7 +6,9 @@
     the format <Major>.<Minor>.<yyyyMMdd>.<counter>, and writes VERSION plus
     file-versions.json. It also writes the version to the README heading and includes
     the current branch name on branches other than main. Every changed file receives
-    the same version and its current SHA-256 hash in the manifest.
+    the same version and its current SHA-256 hash in the manifest. In staged mode,
+    CHANGELOG.md must contain a staged entry below Unreleased; that entry is stamped
+    with the generated version and date.
 
     In check mode, validates the version format, README heading, manifest version, and
     changed-file versions and hashes. Generated files below bin and obj and the version
@@ -69,6 +71,8 @@ $versionPath = Join-Path $repoRoot "VERSION"
 $manifestPath = Join-Path $repoRoot "file-versions.json"
 $readmeRelativePath = "README.md"
 $readmePath = Join-Path $repoRoot $readmeRelativePath
+$changelogRelativePath = "CHANGELOG.md"
+$changelogPath = Join-Path $repoRoot $changelogRelativePath
 $moduleManifestRelativePath = "src/Powershell/modules/Just-In-time.psd1"
 $moduleManifestPath = Join-Path $repoRoot $moduleManifestRelativePath
 $versionPattern = '^(?<major>\d+)\.(?<minor>\d+)\.(?<date>\d{8})\.(?<counter>[1-9]\d*)$'
@@ -116,6 +120,68 @@ function Get-ReadmeHeading {
     }
 
     $heading
+}
+
+<#
+.SYNOPSIS
+    Moves pending changelog entries into a section for the generated version.
+#>
+function Update-ChangelogVersion {
+    param([Parameter(Mandatory = $true)][string]$Version)
+
+    $content = Get-Content -LiteralPath $changelogPath -Raw
+    $pattern = [regex]::new(
+        '^(?<heading>## \[Unreleased\]\r?\n)(?<pending>.*?)(?=^## \[)',
+        [Text.RegularExpressions.RegexOptions]::Multiline -bor
+            [Text.RegularExpressions.RegexOptions]::Singleline
+    )
+    $match = $pattern.Match($content)
+    if (-not $match.Success) {
+        throw "CHANGELOG.md must contain an Unreleased section before the latest version."
+    }
+    if ([string]::IsNullOrWhiteSpace($match.Groups["pending"].Value)) {
+        throw "CHANGELOG.md has no pending entry below Unreleased. Document this commit before committing."
+    }
+
+    $versionDate = [datetime]::ParseExact(
+        $Version.Split('.')[2],
+        "yyyyMMdd",
+        [Globalization.CultureInfo]::InvariantCulture
+    ).ToString("yyyy-MM-dd", [Globalization.CultureInfo]::InvariantCulture)
+    $newline = if ($content.Contains("`r`n")) { "`r`n" } else { "`n" }
+    $replacement = $match.Groups["heading"].Value +
+        $newline +
+        "## [$Version] - $versionDate" +
+        $match.Groups["pending"].Value
+    $updatedContent = $content.Substring(0, $match.Index) +
+        $replacement +
+        $content.Substring($match.Index + $match.Length)
+
+    [System.IO.File]::WriteAllText(
+        $changelogPath,
+        $updatedContent,
+        [System.Text.UTF8Encoding]::new($false)
+    )
+}
+
+<#
+.SYNOPSIS
+    Verifies that the latest concrete changelog section matches the repository version.
+#>
+function Assert-ChangelogVersion {
+    param([Parameter(Mandatory = $true)][string]$Version)
+
+    $content = Get-Content -LiteralPath $changelogPath -Raw
+    $match = [regex]::Match(
+        $content,
+        '(?m)^## \[(?<version>\d+\.\d+\.\d{8}\.\d+)\] - \d{4}-\d{2}-\d{2}$'
+    )
+    if (-not $match.Success) {
+        throw "CHANGELOG.md has no concrete version section."
+    }
+    if ($match.Groups["version"].Value -ne $Version) {
+        throw "Latest CHANGELOG.md version '$($match.Groups["version"].Value)' does not match repository version '$Version'."
+    }
 }
 
 <#
@@ -192,8 +258,9 @@ function Get-FileHashValue {
 if ($Check) {
     if (-not (Test-Path $versionPath) -or
         -not (Test-Path $manifestPath) -or
-        -not (Test-Path $readmePath)) {
-        throw "VERSION, file-versions.json, and README.md must exist. Run build/Update-Version.ps1 first."
+        -not (Test-Path $readmePath) -or
+        -not (Test-Path $changelogPath)) {
+        throw "VERSION, file-versions.json, README.md, and CHANGELOG.md must exist. Run build/Update-Version.ps1 first."
     }
 
     $version = (Get-Content $versionPath -Raw).Trim()
@@ -204,6 +271,7 @@ if ($Check) {
     if ($actualReadmeHeading -ne $expectedReadmeHeading) {
         throw "README heading '$actualReadmeHeading' does not match expected heading '$expectedReadmeHeading'."
     }
+    Assert-ChangelogVersion -Version $version
 
     $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
 
@@ -249,6 +317,12 @@ if (Test-Path $versionPath) {
 }
 
 $version = "$Major.$Minor.$date.$counter"
+$changedFiles = @(Get-ChangedFiles)
+if ($Staged -and $changelogRelativePath -notin $changedFiles) {
+    throw "CHANGELOG.md must be updated and staged for every commit."
+}
+Update-ChangelogVersion -Version $version
+
 $branch = Get-CurrentBranchName
 $expectedReadmeHeading = Get-ReadmeHeading -Version $version -Branch $branch
 $readmeContent = Get-Content -LiteralPath $readmePath -Raw
@@ -276,7 +350,6 @@ if ($updatedModuleManifestContent -eq $moduleManifestContent -and
     [System.Text.UTF8Encoding]::new($false)
 )
 
-$changedFiles = @(Get-ChangedFiles)
 if ($moduleManifestRelativePath -notin $changedFiles) {
     $changedFiles += $moduleManifestRelativePath
 }

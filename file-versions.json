@@ -1,30 +1,45 @@
 {
-  "version": "0.2.20261004.1",
+  "version": "0.2.20261004.2",
   "files": [
     {
-      "path": "CHANGELOG.md",
-      "version": "0.2.20261004.1",
-      "sha256": "5e8ea2667fb49ccc6f8f02a9471deb68da897f3ac7f7dd715f3752667267a4d3"
+      "path": ".githooks/pre-commit.ps1",
+      "version": "0.2.20261004.2",
+      "sha256": "3dbf3776c0b21ad21e5dcb05451cb14fb6a773f16ccd3cafb4cf5c74020a3038"
     },
     {
-      "path": "src/Powershell/Scripts/Config-JIT.ps1",
-      "version": "0.2.20261004.1",
-      "sha256": "73e7dd4aef971ba72f7266209366ebc4806eb398f5bc0edbdbc1bc096be2210e"
+      "path": "build/Push-GitHub.ps1",
+      "version": "0.2.20261004.2",
+      "sha256": "1ea7547b00684992b395b3829d7740bd4c04f54c0890a7473c19439a78a24775"
+    },
+    {
+      "path": "build/Update-Version.ps1",
+      "version": "0.2.20261004.2",
+      "sha256": "8c8bcb38c16aa70c8eb1aa662963eb86fbf2c37b282f0e495c817912efd58aef"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "version": "0.2.20261004.2",
+      "sha256": "0529e245f30cd9404ebb8946b079aa477d8aeea05ed9ad099246d63b51071ea0"
+    },
+    {
+      "path": "Developer.md",
+      "version": "0.2.20261004.2",
+      "sha256": "9e2acc1d807d26ad41dae69a80a8ae4d9c975e55ca04e50e1ac904e5251a21fa"
     },
     {
       "path": "tests/PowerShell/Modules.Tests.ps1",
-      "version": "0.2.20261004.1",
-      "sha256": "ba3696fb84ac47f2045ad8ce637d1bcfff52313212072f74c351d08652477351"
+      "version": "0.2.20261004.2",
+      "sha256": "50138eb06d4af3c477576c3c12e848a00708c1ff2c791b6ee0bbeb3ffbcd075a"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20261004.1",
-      "sha256": "8e2a5dc4d6ec969703dac7c30a4676cb35713f4c2962dfd462908bb30fd036d2"
+      "version": "0.2.20261004.2",
+      "sha256": "5b6b5bfa8799e06e130fc9ba615782b2f24395ca622dc4ababf0cd72db5c498e"
     },
     {
       "path": "README.md",
-      "version": "0.2.20261004.1",
-      "sha256": "6bb5c60f2672a6a3e48c33122e160738fc35b6d827aa2efd59f18a7a9a3ba080"
+      "version": "0.2.20261004.2",
+      "sha256": "ca7a2c29a0fa0666ae99cfe19360e4e6f6c9b7a67bc0092f35986a4e4a7b89ee"
     }
   ]
 }

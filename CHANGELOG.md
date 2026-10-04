@@ -5,12 +5,13 @@ This file describes **user- and administrator-facing changes** to T1JIT: new fea
 This is different from [`History.md`](History.md), which is an automatically generated, per-push audit log of raw commits and changed files created by `build/Push-GitHub.ps1`.
 `History.md` answers "what was pushed and when"; this file answers "what changed for me as a user of T1JIT, and why does it matter".
 
-Versions follow this repository's scheme `<Major>.<Minor>.<yyyyMMdd>.<Counter>` (see `build/Update-Version.ps1`), for example `0.2.20260925.3`. Update this file as part of [creating a release](Developer.md#creating-a-release), before publishing the corresponding GitHub release.
+Versions follow this repository's scheme `<Major>.<Minor>.<yyyyMMdd>.<Counter>` (see `build/Update-Version.ps1`), for example `0.2.20260925.3`. Every commit adds its change below `Unreleased`; the pre-commit hook moves those entries into the generated version section automatically.
 
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261004.2] - 2026-10-04
 Changes merged into `dev` since the last published release (`v0.1.20260908.12`), not yet published as a GitHub release.
 
 ### Added
@@ -76,6 +77,7 @@ Changes merged into `dev` since the last published release (`v0.1.20260908.12`),
 
 ### Changed
 
+- Every commit must now include a staged changelog entry. The pre-commit hook stamps pending `Unreleased` entries with the generated version and date, version validation rejects a changelog whose latest version differs from `VERSION`, and the documented-push script creates the entry for its automatic history commit.
 - Relicensed the project from the MIT License to the Apache License 2.0, centralized the
   warranty disclaimer in the README, and included the license in release packages.
 - Separated developer, build, versioning, release, and contribution information into [`Developer.md`](Developer.md), leaving the README focused on installation, configuration, and operation.
