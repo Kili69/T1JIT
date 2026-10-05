@@ -1042,6 +1042,7 @@ function Set-JitEventLog {
     Displays only the task registrations that would be required.
 .NOTES
     Existing tasks with the expected GMSA service-account principal are preserved.
+    The elevation task is repaired when its multiple-instance policy is not Queue.
 #>
 function Set-JitScheduledTask {
     [CmdletBinding(SupportsShouldProcess = $true)]
@@ -1075,9 +1076,11 @@ function Set-JitScheduledTask {
     $elevateUserPrincipalIsValid = $null -ne $elevateUserTask -and
         $elevateUserTask.Principal.UserId -eq $principalUserId -and
         [string]$elevateUserTask.Principal.LogonType -eq "Password"
+    $elevateUserSettingsAreValid = $null -ne $elevateUserTask -and
+        [string]$elevateUserTask.Settings.MultipleInstances -eq "Queue"
     $registerGroupManagementTask = -not $groupManagementPrincipalIsValid -and
         $PSCmdlet.ShouldProcess($groupManagementTaskUri, "Register or repair and start scheduled task")
-    $registerElevateUserTask = -not $elevateUserPrincipalIsValid -and
+    $registerElevateUserTask = (-not $elevateUserPrincipalIsValid -or -not $elevateUserSettingsAreValid) -and
         $PSCmdlet.ShouldProcess($elevateUserTaskUri, "Register or repair event-triggered scheduled task")
 
     if (-not $registerGroupManagementTask -and -not $registerElevateUserTask) {
@@ -1093,7 +1096,7 @@ function Set-JitScheduledTask {
         $null = Start-ScheduledTask -TaskPath "$TaskPath\" -TaskName $GroupManagementTaskName
     }
 
-    # The elevation task receives the triggering event record ID and allows parallel runs.
+    # Queue instances so the per-user count and membership update cannot race.
     if ($registerElevateUserTask) {
         $action = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -file "' + $InstallationDirectory + '\ElevateUser.ps1" -eventRecordID $(eventRecordID)') -WorkingDirectory $InstallationDirectory
         $triggerClass = Get-CimClass -ClassName MSFT_TaskEventTrigger -Namespace Root/Microsoft/Windows/TaskScheduler:MSFT_TaskEventTrigger
@@ -1103,7 +1106,7 @@ function Set-JitScheduledTask {
         $trigger.ValueQueries = [CimInstance[]](Get-CimClass -ClassName MSFT_TaskNamedValue -Namespace Root/Microsoft/Windows/TaskScheduler:MSFT_TaskNamedValue)
         $trigger.ValueQueries[0].Name = "eventRecordID"
         $trigger.ValueQueries[0].Value = "Event/System/EventRecordID"
-        $settings = New-ScheduledTaskSettingsSet -MultipleInstances Parallel
+        $settings = New-ScheduledTaskSettingsSet -MultipleInstances Queue
         $null = Register-ScheduledTask -Principal $principal -TaskName $ElevateUserTaskName -TaskPath $TaskPath -Action $action -Trigger $trigger -Settings $settings -Force
     }
 }

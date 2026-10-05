@@ -263,8 +263,9 @@ try{
         Write-ScriptMessage -EventID 2002 -Severity Warning -Message "Can't find user $($Request.UserDN)"
         return
     }
-    if ((Get-Adminstatus -User $oUser).count -gt $config.MaxConcurrentServer){
+    if ((Get-Adminstatus -User $oUser).count -ge $config.MaxConcurrentServer){
         Write-ScriptMessage -EventID 2009 -Severity Warning -Message "The Administrator request for user $oUser exceeded the maximum concurrent server limit of $($config.MaxConcurrentServer)"
+        return
     }
     $userDomain = [regex]::Match($oUser.canonicalName,"[^/]+").value
     Write-Log -Severity Debug -Message "Found user $userDomain \ $($oUser.SamAccountName)"

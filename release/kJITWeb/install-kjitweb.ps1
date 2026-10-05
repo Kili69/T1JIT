@@ -460,6 +460,12 @@ function Get-ServiceUrlFromAllowedClient {
     return "http://*:$Port"
 }
 
+function Write-HttpsSecurityWarning {
+    Write-Warning @"
+KjitWeb is configured for plain HTTP. HTTPS with a trusted SSL/TLS certificate is strongly recommended before production or remote use. The Switch User feature submits reusable Active Directory credentials, and authenticated sessions use cookies; HTTP does not protect either from interception or modification on the network path. Terminate TLS at a trusted reverse proxy, Microsoft Entra Application Proxy, or another approved HTTPS endpoint, and prevent clients from bypassing that endpoint. If HTTP is retained, restrict it to a trusted, isolated management network and do not use Switch User over that connection.
+"@
+}
+
 <#
 .SYNOPSIS
     Reserves an HTTP.sys URL namespace for a non-administrator service account.
@@ -1068,6 +1074,7 @@ $FirewallRuleName = "KjitWeb Port $Port Client Restriction"
 $ServiceUrl = Get-ServiceUrlFromAllowedClient -Client $AllowedClient -Port $Port
 Write-Host "TCP port: $Port"
 Write-Host "Service URL binding: $ServiceUrl"
+Write-HttpsSecurityWarning
 
 Write-Host "Copying service files to $InstallRoot ..."
 Copy-ServiceFiles -SourceServiceFolder $SourceServiceFolder -TargetServiceFolder $InstallServiceFolder
@@ -1150,6 +1157,7 @@ Start-Service -Name $ServiceName
 $status = Get-Service -Name $ServiceName
 Write-Host "Status: $($status.Status)"
 Write-Host "URL   : http://$($env:COMPUTERNAME).$($env:USERDNSDOMAIN):$Port"
+Write-HttpsSecurityWarning
 if ($status.Status -eq "Running") { Write-Host "Service is running." -ForegroundColor Green }
 else {
     Write-Warning "Service did not start. Check: Get-EventLog -LogName Application -Source KjitWeb -Newest 10"

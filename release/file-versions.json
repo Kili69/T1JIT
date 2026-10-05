@@ -1,25 +1,45 @@
 {
-  "version": "0.2.20261005.1",
+  "version": "0.2.20261005.2",
   "files": [
     {
       "path": "CHANGELOG.md",
-      "version": "0.2.20261005.1",
-      "sha256": "b327faaf201458ddd9d873df3673878ec7eb659f6bf1aaeda3bede71f9735c5b"
-    },
-    {
-      "path": "History.md",
-      "version": "0.2.20261005.1",
-      "sha256": "61c5efb5096d5c034837b9821522faa9e9536d9691450c09cf1bbb328400d15c"
-    },
-    {
-      "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20261005.1",
-      "sha256": "09d22ba7a06bfab0916d485a3b34074a4ead90fa24b5b55b2e2d4145f3d4dc75"
+      "version": "0.2.20261005.2",
+      "sha256": "89d3b2520e4d3a2eb0a1f4d0f356babe7e02af9a65ea5d53f25b1a3f2efe1fd0"
     },
     {
       "path": "README.md",
-      "version": "0.2.20261005.1",
-      "sha256": "7835d514d0dbf09d210c490d39df9b7aae114773066418b330a1e0039158d4bf"
+      "version": "0.2.20261005.2",
+      "sha256": "22492c4763512568c89f7b92a6b55edace9b73b332e1ac9f52f18d77a3d1d7d0"
+    },
+    {
+      "path": "src/C#/Kjitweb/install-kjitweb.ps1",
+      "version": "0.2.20261005.2",
+      "sha256": "07bb9220bf547fe11d7de15aa99da1c6aebd63f2e25d83f1aa852266ed791ff2"
+    },
+    {
+      "path": "src/Powershell/modules/0.1/just-in-time-request.psm1",
+      "version": "0.2.20261005.2",
+      "sha256": "c0d2fd57ddccdf43b4de931d57e95dc20df5e9b53763f7ba34eb7f1d16290142"
+    },
+    {
+      "path": "src/Powershell/Scripts/Config-JIT.ps1",
+      "version": "0.2.20261005.2",
+      "sha256": "97df9a2edb44fdd5362a874c3283ba3a018a8259d9a4b78c5f41cb5bead29248"
+    },
+    {
+      "path": "src/Powershell/Scripts/ElevateUser.ps1",
+      "version": "0.2.20261005.2",
+      "sha256": "b1f937d9ca76de876f5fe3b15ab60ff08471c9163672e8a7426be1104b207747"
+    },
+    {
+      "path": "tests/PowerShell/Modules.Tests.ps1",
+      "version": "0.2.20261005.2",
+      "sha256": "7cb83de2b8c1bbb44649eda6134744bbd60e11831d2fcf142883e94dfb479110"
+    },
+    {
+      "path": "src/Powershell/modules/Just-In-time.psd1",
+      "version": "0.2.20261005.2",
+      "sha256": "4cb11e89c6149b69b66691b9089799105a6e6dbffc8818c411a725a0f67b6ff4"
     }
   ]
 }

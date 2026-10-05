@@ -11,6 +11,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261005.2] - 2026-10-05
+### Security
+
+- Enforced `MaxConcurrentServer` before privileged group membership changes and serialized elevation task instances to prevent parallel requests from bypassing the configured limit.
+- Added prominent installer and README warnings that KjitWeb uses plain HTTP by default and that trusted SSL/TLS termination is strongly recommended to protect Switch User credentials and authenticated session cookies.
+
 ## [0.2.20261005.1] - 2026-10-05
 ### Changed
 

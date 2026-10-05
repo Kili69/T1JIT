@@ -512,8 +512,9 @@ function New-AdminRequest{
         return
     }
     Write-Verbose "Resolved user DN '$($oUser.DistinguishedName)', SAM account '$($oUser.SamAccountName)', UPN '$($oUser.UserPrincipalName)'."
-    if ((Get-AdminStatus $oUser).count -gt $config.MaxConcurrentServer){
+    if ((Get-AdminStatus $oUser).count -ge $config.MaxConcurrentServer){
         Write-ScriptMessage "Elevation limit reached. retry in a couple of minutes" -UIused $UIused
+        return
     }
 
     # Delegation accepts UPN and canonical-name identities; use the latter when UPN is unset.

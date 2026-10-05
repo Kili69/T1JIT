@@ -1,4 +1,4 @@
-# Just-In-Time Solution for Active Directory Member Servers - Version 0.2.20261005.1 (dev)
+# Just-In-Time Solution for Active Directory Member Servers - Version 0.2.20261005.2 (dev)
 
 <p align="center"><img src="./release/kJITWeb/kjitlogo.png" alt="T1JIT logo" width="180"></p>
 <p align="center"><strong>Time-limited local administrator access for Active Directory member servers</strong></p>
@@ -104,9 +104,14 @@ flowchart TD
 ## Using the web interface
 
 > [!IMPORTANT]
-> KjitWeb can request privileged access and must only be reachable from trusted, managed computers or through a trusted access proxy. Do not expose the KjitWeb service or port `5240` directly to the Internet. Restrict the Windows Firewall rule and all network security controls to the required management clients or proxy connectors, and use HTTPS for every connection that can carry credentials.
+> KjitWeb can request privileged access and must only be reachable from trusted, managed computers or through a trusted access proxy. Do not expose the KjitWeb service or port `5240` directly to the Internet. Restrict the Windows Firewall rule and all network security controls to the required management clients or proxy connectors.
 >
 > In Microsoft Azure environments, publish KjitWeb through Microsoft Entra Application Proxy as an Enterprise Application. Require Microsoft Entra pre-authentication and apply Conditional Access policies such as MFA and a compliant or managed device. Block direct client access to the internal KjitWeb URL; otherwise, users could bypass Conditional Access and MFA.
+
+> [!CAUTION]
+> **HTTPS with a trusted SSL/TLS certificate is strongly recommended before production or remote use.** The default installer deliberately keeps HTTP available and does not install or bind a certificate. The **Switch User** feature submits reusable Active Directory credentials, and authenticated sessions use cookies; plain HTTP does not protect either from interception or modification on the network path.
+>
+> Terminate TLS at a trusted reverse proxy, Microsoft Entra Application Proxy, or another organization-approved HTTPS endpoint, and block direct client access to the internal HTTP URL so that users cannot bypass TLS and access controls. If HTTP must be retained, limit it to a trusted, isolated management network and do not use **Switch User** over that connection.
 
 KjitWeb provides a browser interface for requesting temporary administrator access. Open `http://<server>.<domain>:5240`, select a target server and elevation duration, and submit the request. The server list contains only delegated computers with a matching JIT administrator group and displays each server by its fully qualified DNS name. The interface also shows active elevations and their remaining time.
 
@@ -178,6 +183,8 @@ If the Active Directory Privileged Access Management feature is not enabled, an 
 ##### Install KjitWeb
 
 KjitWeb is installed as part of the standard `install-JIT.ps1` workflow. After T1JIT configuration completes, accept the default `Y` at the KjitWeb prompt. The installer then runs `install-kjitweb.ps1` automatically on the current JIT server; no separate setup command is required.
+
+The installer configures an HTTP.sys HTTP binding but does not install or bind an SSL/TLS certificate. During installation and again in the completion summary, it warns that HTTPS is strongly recommended. This warning is informational and does not prevent installation where HTTP is an explicit operational requirement. Configure a trusted TLS endpoint before allowing production or remote access, especially when users can select **Switch User**.
 
 ###### Restrict KjitWeb clients (`AllowedClient`)
 

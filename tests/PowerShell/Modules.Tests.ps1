@@ -7,6 +7,12 @@ param(
     [string]$ExpectedVersion
 )
 
+BeforeDiscovery {
+    $discoveryVersionedModulePath = Join-Path $ModuleRoot "0.1"
+    $discoveryReleaseRoot = Split-Path -Path $ModuleRoot -Parent
+    $discoveryRepoRoot = Split-Path -Path $discoveryReleaseRoot -Parent
+}
+
 BeforeAll {
     $manifestPath = Join-Path $ModuleRoot "Just-In-time.psd1"
     $versionedModulePath = Join-Path $ModuleRoot "0.1"
@@ -19,6 +25,69 @@ Describe "Just-In-Time PowerShell module package" {
         Test-Path -LiteralPath $manifestPath -PathType Leaf | Should -BeTrue
         $manifest = Test-ModuleManifest -Path $manifestPath -ErrorAction Stop
         $manifest.Version.ToString() | Should -Be $ExpectedVersion
+    }
+
+    Describe "Concurrent elevation limit security" {
+        It "rejects requests at the configured limit in <Path>" -ForEach @(
+            @{ Path = (Join-Path $discoveryRepoRoot "src\PowerShell\Scripts\ElevateUser.ps1"); Message = "EventID 2009" }
+            @{ Path = (Join-Path $discoveryReleaseRoot "ElevateUser.ps1"); Message = "EventID 2009" }
+            @{ Path = (Join-Path $discoveryRepoRoot "src\PowerShell\modules\0.1\just-in-time-request.psm1"); Message = "Elevation limit reached" }
+            @{ Path = (Join-Path $discoveryVersionedModulePath "just-in-time-request.psm1"); Message = "Elevation limit reached" }
+        ) {
+            $content = Get-Content -LiteralPath $Path -Raw
+            $limitCheck = [regex]::Match(
+                $content,
+                '(?is)if\s*\(\s*\(Get-AdminStatus\b.*?\)\.count\s+-ge\s+\$config\.MaxConcurrentServer\s*\)\s*\{(?<body>.*?)\}'
+            )
+
+            $limitCheck.Success | Should -BeTrue
+            $limitCheck.Groups["body"].Value | Should -Match ([regex]::Escape($Message))
+            $limitCheck.Groups["body"].Value | Should -Match '\breturn\b'
+        }
+
+        It "serializes elevation task instances and repairs an unsafe existing task in <Path>" -ForEach @(
+            @{ Path = (Join-Path $discoveryRepoRoot "src\PowerShell\Scripts\Config-JIT.ps1") }
+            @{ Path = (Join-Path $discoveryReleaseRoot "Config-JIT.ps1") }
+        ) {
+            $content = Get-Content -LiteralPath $Path -Raw
+
+            $content | Should -Match 'New-ScheduledTaskSettingsSet\s+-MultipleInstances\s+Queue'
+            $content | Should -Match '\[string\]\$elevateUserTask\.Settings\.MultipleInstances\s+-eq\s+"Queue"'
+            $content | Should -Match '\(-not \$elevateUserPrincipalIsValid -or -not \$elevateUserSettingsAreValid\)'
+            $content | Should -Not -Match 'New-ScheduledTaskSettingsSet\s+-MultipleInstances\s+Parallel'
+        }
+    }
+
+    Describe "KjitWeb transport security guidance" {
+        It "strongly recommends HTTPS without blocking HTTP installation in <Path>" -ForEach @(
+            @{ Path = (Join-Path $discoveryRepoRoot "src\C#\Kjitweb\install-kjitweb.ps1") }
+            @{ Path = (Join-Path (Join-Path $discoveryReleaseRoot "kJITWeb") "install-kjitweb.ps1") }
+        ) {
+            $content = Get-Content -LiteralPath $Path -Raw
+            $tokens = $null
+            $parseErrors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseInput(
+                $content,
+                [ref]$tokens,
+                [ref]$parseErrors
+            )
+            $warningFunction = $ast.Find({
+                param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                    $node.Name -eq "Write-HttpsSecurityWarning"
+            }, $true)
+
+            $parseErrors | Should -BeNullOrEmpty
+            $warningFunction | Should -Not -BeNullOrEmpty
+            $warningText = $warningFunction.Extent.Text
+            $warningText | Should -Match 'HTTPS with a trusted SSL/TLS certificate is strongly recommended'
+            $warningText | Should -Match 'reusable Active Directory credentials'
+            $warningText | Should -Match 'authenticated sessions use cookies'
+            $warningText | Should -Match '\bWrite-Warning\b'
+            $warningText | Should -Not -Match '\b(?:exit|throw)\b'
+            ([regex]::Matches($content, '(?m)^\s*Write-HttpsSecurityWarning\s*$')).Count |
+                Should -Be 2
+        }
     }
 
     Describe "KjitWeb firewall configuration" {
