@@ -11,6 +11,11 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261005.4] - 2026-10-05
+### Fixed
+
+- Resolved Markdown lint warnings in the README by using semantic command-reference headings and valid callout spacing.
+
 ## [0.2.20261005.3] - 2026-10-05
 ### Changed
 

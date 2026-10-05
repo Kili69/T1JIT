@@ -1,4 +1,4 @@
-# Just-In-Time Solution for Active Directory Member Servers - Version 0.2.20261005.3 (dev)
+# Just-In-Time Solution for Active Directory Member Servers - Version 0.2.20261005.4 (dev)
 
 <p align="center"><img src="./release/kJITWeb/kjitlogo.png" alt="T1JIT logo" width="180"></p>
 <p align="center"><strong>Time-limited local administrator access for Active Directory member servers</strong></p>
@@ -79,7 +79,6 @@ Users submit requests through KjitWeb or PowerShell. Each request identifies a t
 
 ### Temporary privilege assignment
 
-
 ```mermaid
 flowchart TD
     Request[User requests temporary Administrator access to a server] -->
@@ -107,6 +106,8 @@ flowchart TD
 > KjitWeb can request privileged access and must only be reachable from trusted, managed computers or through a trusted access proxy. Do not expose the KjitWeb service or port `5240` directly to the Internet. Restrict the Windows Firewall rule and all network security controls to the required management clients or proxy connectors.
 >
 > In Microsoft Azure environments, publish KjitWeb through Microsoft Entra Application Proxy as an Enterprise Application. Require Microsoft Entra pre-authentication and apply Conditional Access policies such as MFA and a compliant or managed device. Block direct client access to the internal KjitWeb URL; otherwise, users could bypass Conditional Access and MFA.
+
+<br>
 
 > [!CAUTION]
 > **HTTPS with a trusted SSL/TLS certificate is strongly recommended before production or remote use.** The default installer deliberately keeps HTTP available and does not install or bind a certificate. The **Switch User** feature submits reusable Active Directory credentials, and authenticated sessions use cookies; plain HTTP does not protect either from interception or modification on the network path.
@@ -420,7 +421,7 @@ The module requires Windows PowerShell 5.1 Desktop and the Active Directory Powe
 
 Creates a validated JIT elevation request and writes it as JSON to the configured Windows event log. The scheduled task running as the gMSA processes the event and creates the temporary group membership.
 
-**Syntax**
+#### Syntax
 
 ```powershell
 New-AdminRequest [-Server] <String> [[-Minutes] <Int32>] `
@@ -428,7 +429,7 @@ New-AdminRequest [-Server] <String> [[-Minutes] <Int32>] `
     [<CommonParameters>]
 ```
 
-**Parameters**
+#### Parameters
 
 - `Server` – Required target computer. Accepts an unqualified name, FQDN, `DOMAIN\ComputerName`, or `dns-domain\ComputerName`.
 - `Minutes` – Requested duration in minutes. `0` uses `DefaultElevatedTime`; console requests below 15 minutes are raised to 15 and values above `MaxElevatedTime` are reduced to that maximum. The default is `0`.
@@ -438,7 +439,7 @@ New-AdminRequest [-Server] <String> [[-Minutes] <Int32>] `
 
 The command validates the user, server, concurrent-elevation limit, administrator group, configured search bases, and delegation before writing the event. It accepts no pipeline input. Console mode writes status messages to the host and normally returns no object.
 
-**Examples**
+#### Examples
 
 ```powershell
 New-AdminRequest -Server 'server01.contoso.com'
@@ -451,18 +452,18 @@ New-AdminRequest -Server 'server01.contoso.com' -User 'user@contoso.com' -Minute
 
 Returns the current JIT administrator assignments for a user. Each result contains a `Server` property and a `TTL` property with the remaining whole minutes or `permanent` for a non-expiring membership.
 
-**Syntax**
+#### Syntax
 
 ```powershell
 Get-AdminStatus [[-User] <Object>] [-UIused <Boolean>]
 ```
 
-**Parameters**
+#### Parameters
 
 - `User` – Optional user name or Active Directory user object. When omitted, the current user is checked. String values are resolved in Active Directory. Pipeline input is supported.
 - `UIused` – Writes formatted status messages instead of returning objects when `$true`. Intended for UI integrations; the default is `$false`.
 
-**Examples**
+#### Examples
 
 ```powershell
 Get-AdminStatus
@@ -475,14 +476,14 @@ Get-AdminStatus | Format-Table Server, TTL
 
 Tests whether a user is authorized to request elevation for a target server. Depending on the parameters and configuration, authorization can originate from the computer's `ManagedBy` attribute or the OU delegation file.
 
-**Syntax**
+#### Syntax
 
 ```powershell
 Get-UserElevationStatus [-ServerName] <String> [-UserName] <String> `
     [[-DelegationConfig] <String>] [-AllowManagedByAttribute <Boolean>]
 ```
 
-**Parameters**
+#### Parameters
 
 - `ServerName` – Required computer name, FQDN, `DOMAIN\ComputerName`, or canonical name.
 - `UserName` – Required user name, UPN, `DOMAIN\UserName`, or canonical name.
@@ -491,7 +492,7 @@ Get-UserElevationStatus [-ServerName] <String> [-UserName] <String> `
 
 The command accepts no pipeline input and returns `$true` when authorization is found. It returns `$false` when authorization is absent or the user or computer cannot be resolved.
 
-**Examples**
+#### Examples
 
 ```powershell
 Get-UserElevationStatus `
@@ -509,19 +510,19 @@ Get-UserElevationStatus `
 
 Loads and returns the T1JIT configuration through `KjitCore.dll`.
 
-**Syntax**
+#### Syntax
 
 ```powershell
 Get-JITconfig [[-configurationFile] <String>]
 ```
 
-**Parameters**
+#### Parameters
 
 - `configurationFile` – Optional JSON file path or Active Directory configuration common name. An explicit value takes precedence over the `JustInTimeConfig` environment variable. If neither is available, the command uses the Active Directory common name `Jit-Configuration`.
 
 The command accepts no pipeline input and returns the configuration object produced by `KjitCore`. `KjitCore.dll` must be available in one of the supported module, release, or build locations.
 
-**Examples**
+#### Examples
 
 ```powershell
 Get-JITconfig
@@ -533,7 +534,7 @@ Get-JITconfig -configurationFile 'Jit-Configuration-Test'
 
 Returns one object for each configured delegation. Each object contains the OU distinguished name in `OU` and the translated NT account names in `SID`.
 
-**Syntax**
+#### Syntax
 
 ```powershell
 Get-JitDelegation
@@ -541,7 +542,7 @@ Get-JitDelegation
 
 The command accepts no parameters or pipeline input. It requires access to the JIT and delegation configurations and Active Directory connectivity to translate the stored SIDs.
 
-**Examples**
+#### Examples
 
 ```powershell
 Get-JitDelegation
@@ -553,7 +554,7 @@ Get-JitDelegation | Select-Object -ExpandProperty SID
 
 Displays the configured `T1Searchbase` distinguished names and returns the complete deserialized T1JIT configuration object.
 
-**Syntax**
+#### Syntax
 
 ```powershell
 Get-JitServerOU
@@ -561,7 +562,7 @@ Get-JitServerOU
 
 The command accepts no parameters or pipeline input. It reads the JSON file identified by the `JustInTimeConfig` environment variable.
 
-**Examples**
+#### Examples
 
 ```powershell
 Get-JitServerOU
@@ -572,20 +573,20 @@ Get-JitServerOU
 
 Allows an Active Directory user or group to request elevation for servers in an OU and its child OUs.
 
-**Syntax**
+#### Syntax
 
 ```powershell
 Add-JitDelegation [-OU] <String> [-ADobject] <String>
 ```
 
-**Parameters**
+#### Parameters
 
 - `OU` – Required distinguished name of the organizational unit.
 - `ADobject` – Required Active Directory user or group. Accepts identifiers resolved by Active Directory, including a UPN, `DOMAIN\Name`, or common name.
 
 The command validates both inputs, stores the resolved SID in the delegation JSON file, and returns `$true` after a successful write. It accepts no pipeline input.
 
-**Example**
+#### Example
 
 ```powershell
 Add-JitDelegation `
@@ -597,13 +598,13 @@ Add-JitDelegation `
 
 Removes either one Active Directory user or group from an OU delegation or the complete OU delegation.
 
-**Syntax**
+#### Syntax
 
 ```powershell
 Remove-JitDelegation [-OU] <String> [[-ADObject] <String>] [-Force]
 ```
 
-**Parameters**
+#### Parameters
 
 - `OU` – Required distinguished name of the delegated organizational unit.
 - `ADObject` – Optional Active Directory user or group. When omitted, the complete OU delegation is removed.
@@ -611,7 +612,7 @@ Remove-JitDelegation [-OU] <String> [[-ADObject] <String>] [-Force]
 
 The command accepts no pipeline input. It returns `$true` when the removal is performed and `$false` when confirmation is declined. Removing an account that is not present in the OU entry returns no value.
 
-**Examples**
+#### Examples
 
 ```powershell
 Remove-JitDelegation `
@@ -627,19 +628,19 @@ Remove-JitDelegation `
 
 Adds an Active Directory object as a T1JIT server search base. When delegation mode is enabled, the owning domain's Domain Admins group receives default delegation for the search base.
 
-**Syntax**
+#### Syntax
 
 ```powershell
 Add-JitServerOU [-OU] <String>
 ```
 
-**Parameters**
+#### Parameters
 
 - `OU` – Required distinguished name containing valid domain components. Pipeline input is supported.
 
 The command validates that the object exists in the current forest, adds it to `T1Searchbase` unless already present, and returns no object. It reads and writes the configuration identified by `JustInTimeConfig`.
 
-**Examples**
+#### Examples
 
 ```powershell
 Add-JitServerOU -OU 'OU=Servers,DC=contoso,DC=com'
@@ -650,19 +651,19 @@ Add-JitServerOU -OU 'OU=Servers,DC=contoso,DC=com'
 
 Removes a server search base and every delegation whose `ComputerOU` matches that search base.
 
-**Syntax**
+#### Syntax
 
 ```powershell
 Remove-JITServerOU [-OU] <String>
 ```
 
-**Parameters**
+#### Parameters
 
 - `OU` – Required distinguished name of the search base. Pipeline input is supported.
 
 When the search base exists, the command returns an object with `OU`, `RemovedDelegationCount`, and `RemovedDelegations`. If the search base is not configured, it writes an informational message and returns no object.
 
-**Examples**
+#### Examples
 
 ```powershell
 Remove-JITServerOU -OU 'OU=Servers,DC=contoso,DC=com'
@@ -673,7 +674,7 @@ Remove-JITServerOU -OU 'OU=Servers,DC=contoso,DC=com'
 
 Displays a modal Windows Forms message box with the title **Critical Error!** and a stop icon, then terminates the current PowerShell session by calling `exit`.
 
-**Syntax**
+#### Syntax
 
 ```powershell
 New-BreakMsgBox -Message <Object>
@@ -683,7 +684,7 @@ New-BreakMsgBox -Message <Object>
 
 The command accepts no pipeline input and returns no object. Use it only for fatal interactive errors because it terminates the importing session. Windows PowerShell Desktop and `System.Windows.Forms` are required.
 
-**Example**
+#### Example
 
 ```powershell
 New-BreakMsgBox -Message 'Cannot determine the Active Directory domain.'
@@ -693,7 +694,7 @@ New-BreakMsgBox -Message 'Cannot determine the Active Directory domain.'
 
 Displays a modal Windows Forms warning dialog with the title **Error!** and returns after the user dismisses it.
 
-**Syntax**
+#### Syntax
 
 ```powershell
 New-WarningMsgBox -Message <Object>
@@ -703,7 +704,7 @@ New-WarningMsgBox -Message <Object>
 
 The command accepts no pipeline input and returns no object. Windows PowerShell Desktop and `System.Windows.Forms` are required.
 
-**Example**
+#### Example
 
 ```powershell
 New-WarningMsgBox -Message 'The configured search base is invalid.'
