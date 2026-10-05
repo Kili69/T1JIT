@@ -11,6 +11,11 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261005.5] - 2026-10-05
+### Fixed
+
+- File-version hashes now use Git-normalized blob content so version validation is independent of Windows line-ending conversion.
+
 ## [0.2.20261005.4] - 2026-10-05
 ### Changed
 

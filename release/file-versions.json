@@ -1,25 +1,25 @@
 {
-  "version": "0.2.20261005.4",
+  "version": "0.2.20261005.5",
   "files": [
     {
-      "path": "CHANGELOG.md",
-      "version": "0.2.20261005.4",
-      "sha256": "0ae7f5e3262bd9c79f9e72856e95d9c6a9d7be6c1692fcb55e162a3211cec965"
+      "path": "build/Update-Version.ps1",
+      "version": "0.2.20261005.5",
+      "sha256": "c383d5c9d3c8ad5652d3554058dd15e662f2a6725a125338c21c489220c46ab3"
     },
     {
-      "path": "History.md",
-      "version": "0.2.20261005.4",
-      "sha256": "bb47e2297a5223369edd5ff27105922ad66c768ea88d6109f3cdc715cdb18eae"
+      "path": "CHANGELOG.md",
+      "version": "0.2.20261005.5",
+      "sha256": "f3db6186c60bf97f7b28b37cc365ffdec1162eeb990fa30b365a353590534e0f"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20261005.4",
-      "sha256": "6079aba0c00e34523eb5a7cf65e793ee8143c5d12f2e1a47655c18fa41e5f60b"
+      "version": "0.2.20261005.5",
+      "sha256": "bb1d9037b2732eb6d3db844bc2fb25fbf2c926fe923dca2c12b338250301f344"
     },
     {
       "path": "README.md",
-      "version": "0.2.20261005.4",
-      "sha256": "6e58a5a7ba6f4d3445e0d25b12c0fb1095db044e95b64bce9e327258a67ab9f0"
+      "version": "0.2.20261005.5",
+      "sha256": "072db3b080c0335b2421b823943657b714dcdd888eadd4d1ed8ae3743125fc4d"
     }
   ]
 }
