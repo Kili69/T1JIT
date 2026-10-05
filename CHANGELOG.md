@@ -11,6 +11,11 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261005.7] - 2026-10-05
+### Fixed
+
+- Version-policy validation now checks merge commits against the merged PR parent instead of revalidating the complete PR as changes to its history commit.
+
 ## [0.2.20261005.6] - 2026-10-05
 ### Changed
 

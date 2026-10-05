@@ -1,25 +1,25 @@
 {
-  "version": "0.2.20261005.6",
+  "version": "0.2.20261005.7",
   "files": [
     {
-      "path": "CHANGELOG.md",
-      "version": "0.2.20261005.6",
-      "sha256": "f44f44bd6e82969f87c4ccd24e601b3fb1f6c087977a308da0a688bf49a4f9db"
+      "path": ".github/workflows/version-policy.yml",
+      "version": "0.2.20261005.7",
+      "sha256": "21440ffd63e1072115345f2f1beef875e8c88cb8f69d1593eb63bfcce3e11289"
     },
     {
-      "path": "History.md",
-      "version": "0.2.20261005.6",
-      "sha256": "1ea8ce76ac9ff72cf902f1d20ef1c7be16e079815ea4327c4554dfda4c968b27"
+      "path": "CHANGELOG.md",
+      "version": "0.2.20261005.7",
+      "sha256": "85e7440f24ae6a0b91e0cc53d2865899b6ca7abc4806e4f360297e747af9da65"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20261005.6",
-      "sha256": "3a709b3b094c579669cc15710d02392e10ca6cdae96ff1a74c56b7eb7de510e0"
+      "version": "0.2.20261005.7",
+      "sha256": "d319cca3bf18595d45a77cc976919841bfb0198bc4cc05de78fe2615eea46f28"
     },
     {
       "path": "README.md",
-      "version": "0.2.20261005.6",
-      "sha256": "3b68b7e83c2f2b404fd40d9f426f46456c4dfa875c1c838124f27597aef203df"
+      "version": "0.2.20261005.7",
+      "sha256": "f7360ac542b0efc7ba884d5274145243784103af427498371646f0cc86c30e4b"
     }
   ]
 }
