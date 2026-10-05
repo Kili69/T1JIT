@@ -6,6 +6,31 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-10-05 09:23:02 +02:00 - `main` to `origin/main`
+
+Commits:
+
+<!-- commit:d5ec4ad81dd87de35398a93c4903e7cad9960e16 -->
+- `d5ec4ad` Validate version policy merge commits
+
+Changed files:
+
+- `M -> .github/workflows/version-policy.yml`
+- `M -> CHANGELOG.md`
+- `M -> README.md`
+- `M -> VERSION`
+- `M -> file-versions.json`
+- `M -> release/VERSION`
+- `M -> release/file-versions.json`
+- `M -> release/kJITWeb/publish-service/KjitWeb.dll`
+- `M -> release/kJITWeb/publish-service/KjitWeb.exe`
+- `M -> release/kJITWeb/publish-service/KjitWeb.pdb`
+- `M -> release/kJITWeb/publish-service/de/KjitWeb.resources.dll`
+- `M -> release/kJITWeb/publish-service/en/KjitWeb.resources.dll`
+- `M -> release/modules/0.1/KjitCore.dll`
+- `M -> release/modules/Just-In-time.psd1`
+- `M -> src/Powershell/modules/Just-In-time.psd1`
+
 ## 2026-10-05 09:20:08 +02:00 - `readme-main-update` to `origin/readme-main-update`
 
 Commits:
@@ -5383,6 +5408,7 @@ Changed files:
 - `A -> tests/PowerShell/Modules.Tests.ps1`
 - `A -> tmp_ps51_test.ps1`
 - `A -> tmp_release_test.ps1`
+
 
 
 

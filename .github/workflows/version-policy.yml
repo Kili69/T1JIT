@@ -34,4 +34,6 @@ jobs:
       - name: Validate version and changed files
         shell: pwsh
         run: |
-          ./build/Update-Version.ps1 -Check -BaseRef HEAD^
+          $parents = @(git rev-list --parents -n 1 HEAD)[0] -split '\s+'
+          $baseRef = if ($parents.Count -gt 2) { 'HEAD^2' } else { 'HEAD^' }
+          ./build/Update-Version.ps1 -Check -BaseRef $baseRef
