@@ -1,45 +1,25 @@
 {
-  "version": "0.2.20261005.2",
+  "version": "0.2.20261005.3",
   "files": [
     {
       "path": "CHANGELOG.md",
-      "version": "0.2.20261005.2",
-      "sha256": "89d3b2520e4d3a2eb0a1f4d0f356babe7e02af9a65ea5d53f25b1a3f2efe1fd0"
+      "version": "0.2.20261005.3",
+      "sha256": "851e0844aac1c7cc23a5e1a310dc5dacd3f95d0f9b177fe76269110f329a540a"
     },
     {
-      "path": "README.md",
-      "version": "0.2.20261005.2",
-      "sha256": "22492c4763512568c89f7b92a6b55edace9b73b332e1ac9f52f18d77a3d1d7d0"
-    },
-    {
-      "path": "src/C#/Kjitweb/install-kjitweb.ps1",
-      "version": "0.2.20261005.2",
-      "sha256": "07bb9220bf547fe11d7de15aa99da1c6aebd63f2e25d83f1aa852266ed791ff2"
-    },
-    {
-      "path": "src/Powershell/modules/0.1/just-in-time-request.psm1",
-      "version": "0.2.20261005.2",
-      "sha256": "c0d2fd57ddccdf43b4de931d57e95dc20df5e9b53763f7ba34eb7f1d16290142"
-    },
-    {
-      "path": "src/Powershell/Scripts/Config-JIT.ps1",
-      "version": "0.2.20261005.2",
-      "sha256": "97df9a2edb44fdd5362a874c3283ba3a018a8259d9a4b78c5f41cb5bead29248"
-    },
-    {
-      "path": "src/Powershell/Scripts/ElevateUser.ps1",
-      "version": "0.2.20261005.2",
-      "sha256": "b1f937d9ca76de876f5fe3b15ab60ff08471c9163672e8a7426be1104b207747"
-    },
-    {
-      "path": "tests/PowerShell/Modules.Tests.ps1",
-      "version": "0.2.20261005.2",
-      "sha256": "7cb83de2b8c1bbb44649eda6134744bbd60e11831d2fcf142883e94dfb479110"
+      "path": "History.md",
+      "version": "0.2.20261005.3",
+      "sha256": "e5f6a74d23a9a31d648b8f048aabc70bcc1305036b369e4c59c32595c580ef0b"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20261005.2",
-      "sha256": "4cb11e89c6149b69b66691b9089799105a6e6dbffc8818c411a725a0f67b6ff4"
+      "version": "0.2.20261005.3",
+      "sha256": "956a0493c2c9c17b08590c8afd07d3c042fddfb4fd309185940cec4d532b0bd3"
+    },
+    {
+      "path": "README.md",
+      "version": "0.2.20261005.3",
+      "sha256": "a09b2ff54acafd2f8f0e47a920bbc4ad45af4498a5c00b52566dee6dd98c1d27"
     }
   ]
 }
