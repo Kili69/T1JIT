@@ -11,6 +11,11 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261005.3] - 2026-10-05
+### Fixed
+
+- Version-policy validation now uses the pull request target branch for the README heading so the same content remains valid after merging.
+
 ## [0.2.20261005.2] - 2026-10-05
 ### Changed
 

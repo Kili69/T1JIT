@@ -84,6 +84,10 @@ $readmeTitle = "Just-In-Time Solution for Active Directory Member Servers"
     Returns the source branch used for README version labeling.
 #>
 function Get-CurrentBranchName {
+    if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_BASE_REF)) {
+        return $env:GITHUB_BASE_REF.Trim()
+    }
+
     if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_HEAD_REF)) {
         return $env:GITHUB_HEAD_REF.Trim()
     }
