@@ -1,30 +1,25 @@
 {
-  "version": "0.2.20261005.1",
+  "version": "0.2.20261005.2",
   "files": [
     {
       "path": "CHANGELOG.md",
-      "version": "0.2.20261005.1",
-      "sha256": "b68c5136f25648f8fbbedb01f51a014ebbf3dd033c412c424d045759ec94b681"
+      "version": "0.2.20261005.2",
+      "sha256": "b4740778ea05656fbb84b9c3cd7385e7ed8de52c230846172ff8bd6afe5fbda8"
     },
     {
-      "path": "docs/images/kjitweb-server-selection.png",
-      "version": "0.2.20261005.1",
-      "sha256": "eac87f68cb54a7a9e5f41a6de585738f4160e747a82b473b41610b6d25ccc1fa"
-    },
-    {
-      "path": "docs/images/t1jit-powershell-request.png",
-      "version": "0.2.20261005.1",
-      "sha256": "5cbdd5532d998060e791b3208966db06f30adab073bb732be69f73e8c5901bd1"
-    },
-    {
-      "path": "README.md",
-      "version": "0.2.20261005.1",
-      "sha256": "2280658c875afad24931e2a8626adcaf18f3a9795a0814e206af42e2e8431bfd"
+      "path": "History.md",
+      "version": "0.2.20261005.2",
+      "sha256": "98f610ee3cbec51b43227a6466a7fe26991cdc83a44a7cb6446583e62eb2fca8"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20261005.1",
-      "sha256": "09d22ba7a06bfab0916d485a3b34074a4ead90fa24b5b55b2e2d4145f3d4dc75"
+      "version": "0.2.20261005.2",
+      "sha256": "4cb11e89c6149b69b66691b9089799105a6e6dbffc8818c411a725a0f67b6ff4"
+    },
+    {
+      "path": "README.md",
+      "version": "0.2.20261005.2",
+      "sha256": "e33800e623bcdbdb7d24abef4206b953b10a31b2d944f3db280a8b0e5a8ee12f"
     }
   ]
 }
