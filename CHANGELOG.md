@@ -11,6 +11,11 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261005.1] - 2026-10-05
+### Changed
+
+- Redesigned and expanded the README with modern navigation, workflow diagrams, interface screenshots, installation and update guidance, and a complete reference for every exported PowerShell module command.
+
 ## [0.2.20261004.12] - 2026-10-04
 ### Changed
 
