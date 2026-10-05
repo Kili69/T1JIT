@@ -1,4 +1,4 @@
-# Just-In-Time Solution for Active Directory Member Servers - Version 0.2.20261004.12 (dev)
+# Just-In-Time Solution for Active Directory Member Servers - Version 0.2.20261005.1 (dev)
 
 <p align="center"><img src="./release/kJITWeb/kjitlogo.png" alt="T1JIT logo" width="180"></p>
 <p align="center"><strong>Time-limited local administrator access for Active Directory member servers</strong></p>

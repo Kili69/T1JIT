@@ -6,6 +6,20 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-10-05 09:10:02 +02:00 - `dev` to `origin/dev`
+
+Commits:
+
+<!-- commit:2202185859a2061f424273edd690d19179e6a9a7 -->
+- `2202185` Modernize README documentation
+
+Changed files:
+
+- `M -> CHANGELOG.md`
+- `M -> README.md`
+- `A -> docs/images/kjitweb-server-selection.png`
+- `A -> docs/images/t1jit-powershell-request.png`
+
 ## 2026-10-04 08:11:40 +02:00 - `main` to `origin/main`
 
 Commits:
@@ -4980,4 +4994,5 @@ Changed files:
 - `A -> tests/PowerShell/Modules.Tests.ps1`
 - `A -> tmp_ps51_test.ps1`
 - `A -> tmp_release_test.ps1`
+
 
