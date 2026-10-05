@@ -6,6 +6,31 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-10-05 11:12:37 +02:00 - `dev` to `origin/dev`
+
+Commits:
+
+<!-- commit:44faffe831ed57addf73054f77e1af09d83dec17 -->
+- `44faffe` Fix README markdown lint issues
+
+Changed files:
+
+- `M -> CHANGELOG.md`
+- `M -> README.md`
+- `M -> VERSION`
+- `M -> file-versions.json`
+- `M -> release/ElevateUser.ps1`
+- `M -> release/VERSION`
+- `M -> release/file-versions.json`
+- `M -> release/kJITWeb/publish-service/KjitWeb.dll`
+- `M -> release/kJITWeb/publish-service/KjitWeb.exe`
+- `M -> release/kJITWeb/publish-service/KjitWeb.pdb`
+- `M -> release/kJITWeb/publish-service/de/KjitWeb.resources.dll`
+- `M -> release/kJITWeb/publish-service/en/KjitWeb.resources.dll`
+- `M -> release/modules/0.1/KjitCore.dll`
+- `M -> release/modules/Just-In-time.psd1`
+- `M -> src/Powershell/modules/Just-In-time.psd1`
+
 ## 2026-10-05 10:19:53 +02:00 - `dev` to `origin/dev`
 
 Commits:
@@ -5027,6 +5052,7 @@ Changed files:
 - `A -> tests/PowerShell/Modules.Tests.ps1`
 - `A -> tmp_ps51_test.ps1`
 - `A -> tmp_release_test.ps1`
+
 
 
 
