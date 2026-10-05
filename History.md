@@ -6,6 +6,409 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-10-05 09:20:08 +02:00 - `readme-main-update` to `origin/readme-main-update`
+
+Commits:
+
+<!-- commit:1af9c9a422f759c96f8d4fb8ae29d7dfdc8073f7 -->
+- `1af9c9a` Normalize version manifest hashes
+
+Changed files:
+
+- `M -> CHANGELOG.md`
+- `M -> README.md`
+- `M -> VERSION`
+- `M -> build/Update-Version.ps1`
+- `M -> file-versions.json`
+- `M -> release/VERSION`
+- `M -> release/file-versions.json`
+- `M -> release/kJITWeb/publish-service/KjitWeb.dll`
+- `M -> release/kJITWeb/publish-service/KjitWeb.exe`
+- `M -> release/kJITWeb/publish-service/KjitWeb.pdb`
+- `M -> release/kJITWeb/publish-service/de/KjitWeb.resources.dll`
+- `M -> release/kJITWeb/publish-service/en/KjitWeb.resources.dll`
+- `M -> release/modules/0.1/KjitCore.dll`
+- `M -> release/modules/Just-In-time.psd1`
+- `M -> src/Powershell/modules/Just-In-time.psd1`
+
+## 2026-10-05 09:17:04 +02:00 - `readme-main-update` to `origin/readme-main-update`
+
+Commits:
+
+<!-- commit:455b7dc42f4a3babe89f59ff8c283727e05836e0 -->
+- `455b7dc` Align README branch validation
+
+Changed files:
+
+- `M -> CHANGELOG.md`
+- `M -> README.md`
+- `M -> VERSION`
+- `M -> build/Update-Version.ps1`
+- `M -> file-versions.json`
+- `M -> release/VERSION`
+- `M -> release/file-versions.json`
+- `M -> release/kJITWeb/publish-service/KjitWeb.dll`
+- `M -> release/kJITWeb/publish-service/KjitWeb.exe`
+- `M -> release/kJITWeb/publish-service/KjitWeb.pdb`
+- `M -> release/kJITWeb/publish-service/de/KjitWeb.resources.dll`
+- `M -> release/kJITWeb/publish-service/en/KjitWeb.resources.dll`
+- `M -> release/modules/0.1/KjitCore.dll`
+- `M -> release/modules/Just-In-time.psd1`
+- `M -> src/Powershell/modules/Just-In-time.psd1`
+
+## 2026-10-05 09:13:15 +02:00 - `main` to `origin/main`
+
+Commits:
+
+<!-- commit:b3550dddb485436d0a3403fe529b10e1b43962e2 -->
+- `b3550dd` Modernize README documentation
+
+Changed files:
+
+- `M -> CHANGELOG.md`
+- `M -> README.md`
+- `M -> VERSION`
+- `A -> docs/images/kjitweb-server-selection.png`
+- `A -> docs/images/t1jit-powershell-request.png`
+- `M -> file-versions.json`
+- `M -> release/VERSION`
+- `M -> release/file-versions.json`
+- `M -> release/kJITWeb/publish-service/KjitWeb.deps.json`
+- `M -> release/kJITWeb/publish-service/KjitWeb.dll`
+- `M -> release/kJITWeb/publish-service/KjitWeb.exe`
+- `M -> release/kJITWeb/publish-service/KjitWeb.pdb`
+- `M -> release/kJITWeb/publish-service/KjitWeb.runtimeconfig.json`
+- `D -> release/kJITWeb/publish-service/KjitWeb.staticwebassets.endpoints.json`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Antiforgery.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Authentication.Abstractions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Authentication.BearerToken.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Authentication.Cookies.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Authentication.Core.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Authentication.OAuth.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Authentication.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Authorization.Policy.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Authorization.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Components.Authorization.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Components.Endpoints.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Components.Forms.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Components.Server.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Components.Web.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Components.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Connections.Abstractions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.CookiePolicy.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Cors.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Cryptography.Internal.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Cryptography.KeyDerivation.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.DataProtection.Abstractions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.DataProtection.Extensions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.DataProtection.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Diagnostics.Abstractions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Diagnostics.HealthChecks.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Diagnostics.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.HostFiltering.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Hosting.Abstractions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Hosting.Server.Abstractions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Hosting.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Html.Abstractions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Http.Abstractions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Http.Connections.Common.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Http.Connections.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Http.Extensions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Http.Features.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Http.Results.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Http.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.HttpLogging.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.HttpOverrides.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.HttpsPolicy.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Identity.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Localization.Routing.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Localization.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Metadata.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.Abstractions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.ApiExplorer.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.Core.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.Cors.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.DataAnnotations.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.Formatters.Json.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.Formatters.Xml.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.Localization.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.Razor.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.RazorPages.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.TagHelpers.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.ViewFeatures.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Mvc.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.OutputCaching.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.RateLimiting.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Razor.Runtime.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Razor.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.RequestDecompression.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.ResponseCaching.Abstractions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.ResponseCaching.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.ResponseCompression.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Rewrite.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Routing.Abstractions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Routing.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Server.HttpSys.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Server.IIS.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Server.IISIntegration.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Server.Kestrel.Core.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Server.Kestrel.Transport.NamedPipes.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Server.Kestrel.Transport.Quic.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Server.Kestrel.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.Session.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.SignalR.Common.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.SignalR.Core.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.SignalR.Protocols.Json.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.SignalR.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.StaticFiles.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.WebSockets.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.WebUtilities.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.AspNetCore.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.CSharp.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.DiaSymReader.Native.amd64.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Caching.Abstractions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Caching.Memory.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Configuration.Abstractions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Configuration.Binder.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Configuration.CommandLine.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Configuration.EnvironmentVariables.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Configuration.FileExtensions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Configuration.Ini.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Configuration.Json.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Configuration.KeyPerFile.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Configuration.UserSecrets.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Configuration.Xml.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Configuration.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.DependencyInjection.Abstractions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.DependencyInjection.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Diagnostics.Abstractions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Diagnostics.HealthChecks.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Diagnostics.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Features.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.FileProviders.Abstractions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.FileProviders.Composite.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.FileProviders.Embedded.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.FileProviders.Physical.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.FileSystemGlobbing.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Hosting.Abstractions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Hosting.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Http.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Identity.Core.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Identity.Stores.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Localization.Abstractions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Localization.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Logging.Abstractions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Logging.Configuration.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Logging.Console.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Logging.Debug.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Logging.EventLog.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Logging.EventSource.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Logging.TraceSource.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Logging.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.ObjectPool.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Options.ConfigurationExtensions.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Options.DataAnnotations.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Options.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.Primitives.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Extensions.WebEncoders.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.JSInterop.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Net.Http.Headers.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.VisualBasic.Core.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.VisualBasic.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Win32.Primitives.dll`
+- `M -> release/kJITWeb/publish-service/Microsoft.Win32.Registry.dll`
+- `M -> release/kJITWeb/publish-service/System.AppContext.dll`
+- `M -> release/kJITWeb/publish-service/System.Buffers.dll`
+- `M -> release/kJITWeb/publish-service/System.Collections.Concurrent.dll`
+- `M -> release/kJITWeb/publish-service/System.Collections.Immutable.dll`
+- `M -> release/kJITWeb/publish-service/System.Collections.NonGeneric.dll`
+- `M -> release/kJITWeb/publish-service/System.Collections.Specialized.dll`
+- `M -> release/kJITWeb/publish-service/System.Collections.dll`
+- `M -> release/kJITWeb/publish-service/System.ComponentModel.Annotations.dll`
+- `M -> release/kJITWeb/publish-service/System.ComponentModel.DataAnnotations.dll`
+- `M -> release/kJITWeb/publish-service/System.ComponentModel.EventBasedAsync.dll`
+- `M -> release/kJITWeb/publish-service/System.ComponentModel.Primitives.dll`
+- `M -> release/kJITWeb/publish-service/System.ComponentModel.TypeConverter.dll`
+- `M -> release/kJITWeb/publish-service/System.ComponentModel.dll`
+- `M -> release/kJITWeb/publish-service/System.Configuration.dll`
+- `M -> release/kJITWeb/publish-service/System.Console.dll`
+- `M -> release/kJITWeb/publish-service/System.Core.dll`
+- `M -> release/kJITWeb/publish-service/System.Data.Common.dll`
+- `M -> release/kJITWeb/publish-service/System.Data.DataSetExtensions.dll`
+- `M -> release/kJITWeb/publish-service/System.Data.dll`
+- `M -> release/kJITWeb/publish-service/System.Diagnostics.Contracts.dll`
+- `M -> release/kJITWeb/publish-service/System.Diagnostics.Debug.dll`
+- `M -> release/kJITWeb/publish-service/System.Diagnostics.DiagnosticSource.dll`
+- `M -> release/kJITWeb/publish-service/System.Diagnostics.EventLog.Messages.dll`
+- `M -> release/kJITWeb/publish-service/System.Diagnostics.EventLog.dll`
+- `M -> release/kJITWeb/publish-service/System.Diagnostics.FileVersionInfo.dll`
+- `M -> release/kJITWeb/publish-service/System.Diagnostics.Process.dll`
+- `M -> release/kJITWeb/publish-service/System.Diagnostics.StackTrace.dll`
+- `M -> release/kJITWeb/publish-service/System.Diagnostics.TextWriterTraceListener.dll`
+- `M -> release/kJITWeb/publish-service/System.Diagnostics.Tools.dll`
+- `M -> release/kJITWeb/publish-service/System.Diagnostics.TraceSource.dll`
+- `M -> release/kJITWeb/publish-service/System.Diagnostics.Tracing.dll`
+- `M -> release/kJITWeb/publish-service/System.Drawing.Primitives.dll`
+- `M -> release/kJITWeb/publish-service/System.Drawing.dll`
+- `M -> release/kJITWeb/publish-service/System.Dynamic.Runtime.dll`
+- `M -> release/kJITWeb/publish-service/System.Formats.Asn1.dll`
+- `M -> release/kJITWeb/publish-service/System.Formats.Tar.dll`
+- `M -> release/kJITWeb/publish-service/System.Globalization.Calendars.dll`
+- `M -> release/kJITWeb/publish-service/System.Globalization.Extensions.dll`
+- `M -> release/kJITWeb/publish-service/System.Globalization.dll`
+- `M -> release/kJITWeb/publish-service/System.IO.Compression.Brotli.dll`
+- `M -> release/kJITWeb/publish-service/System.IO.Compression.FileSystem.dll`
+- `M -> release/kJITWeb/publish-service/System.IO.Compression.Native.dll`
+- `M -> release/kJITWeb/publish-service/System.IO.Compression.ZipFile.dll`
+- `M -> release/kJITWeb/publish-service/System.IO.Compression.dll`
+- `M -> release/kJITWeb/publish-service/System.IO.FileSystem.AccessControl.dll`
+- `M -> release/kJITWeb/publish-service/System.IO.FileSystem.DriveInfo.dll`
+- `M -> release/kJITWeb/publish-service/System.IO.FileSystem.Primitives.dll`
+- `M -> release/kJITWeb/publish-service/System.IO.FileSystem.Watcher.dll`
+- `M -> release/kJITWeb/publish-service/System.IO.FileSystem.dll`
+- `M -> release/kJITWeb/publish-service/System.IO.IsolatedStorage.dll`
+- `M -> release/kJITWeb/publish-service/System.IO.MemoryMappedFiles.dll`
+- `M -> release/kJITWeb/publish-service/System.IO.Pipelines.dll`
+- `M -> release/kJITWeb/publish-service/System.IO.Pipes.AccessControl.dll`
+- `M -> release/kJITWeb/publish-service/System.IO.Pipes.dll`
+- `M -> release/kJITWeb/publish-service/System.IO.UnmanagedMemoryStream.dll`
+- `M -> release/kJITWeb/publish-service/System.IO.dll`
+- `M -> release/kJITWeb/publish-service/System.Linq.Expressions.dll`
+- `M -> release/kJITWeb/publish-service/System.Linq.Parallel.dll`
+- `M -> release/kJITWeb/publish-service/System.Linq.Queryable.dll`
+- `M -> release/kJITWeb/publish-service/System.Linq.dll`
+- `M -> release/kJITWeb/publish-service/System.Memory.dll`
+- `M -> release/kJITWeb/publish-service/System.Net.Http.Json.dll`
+- `M -> release/kJITWeb/publish-service/System.Net.Http.dll`
+- `M -> release/kJITWeb/publish-service/System.Net.HttpListener.dll`
+- `M -> release/kJITWeb/publish-service/System.Net.Mail.dll`
+- `M -> release/kJITWeb/publish-service/System.Net.NameResolution.dll`
+- `M -> release/kJITWeb/publish-service/System.Net.NetworkInformation.dll`
+- `M -> release/kJITWeb/publish-service/System.Net.Ping.dll`
+- `M -> release/kJITWeb/publish-service/System.Net.Primitives.dll`
+- `M -> release/kJITWeb/publish-service/System.Net.Quic.dll`
+- `M -> release/kJITWeb/publish-service/System.Net.Requests.dll`
+- `M -> release/kJITWeb/publish-service/System.Net.Security.dll`
+- `M -> release/kJITWeb/publish-service/System.Net.ServicePoint.dll`
+- `M -> release/kJITWeb/publish-service/System.Net.Sockets.dll`
+- `M -> release/kJITWeb/publish-service/System.Net.WebClient.dll`
+- `M -> release/kJITWeb/publish-service/System.Net.WebHeaderCollection.dll`
+- `M -> release/kJITWeb/publish-service/System.Net.WebProxy.dll`
+- `M -> release/kJITWeb/publish-service/System.Net.WebSockets.Client.dll`
+- `M -> release/kJITWeb/publish-service/System.Net.WebSockets.dll`
+- `M -> release/kJITWeb/publish-service/System.Net.dll`
+- `M -> release/kJITWeb/publish-service/System.Numerics.Vectors.dll`
+- `M -> release/kJITWeb/publish-service/System.Numerics.dll`
+- `M -> release/kJITWeb/publish-service/System.ObjectModel.dll`
+- `M -> release/kJITWeb/publish-service/System.Private.CoreLib.dll`
+- `M -> release/kJITWeb/publish-service/System.Private.DataContractSerialization.dll`
+- `M -> release/kJITWeb/publish-service/System.Private.Uri.dll`
+- `M -> release/kJITWeb/publish-service/System.Private.Xml.Linq.dll`
+- `M -> release/kJITWeb/publish-service/System.Private.Xml.dll`
+- `M -> release/kJITWeb/publish-service/System.Reflection.DispatchProxy.dll`
+- `M -> release/kJITWeb/publish-service/System.Reflection.Emit.ILGeneration.dll`
+- `M -> release/kJITWeb/publish-service/System.Reflection.Emit.Lightweight.dll`
+- `M -> release/kJITWeb/publish-service/System.Reflection.Emit.dll`
+- `M -> release/kJITWeb/publish-service/System.Reflection.Extensions.dll`
+- `M -> release/kJITWeb/publish-service/System.Reflection.Metadata.dll`
+- `M -> release/kJITWeb/publish-service/System.Reflection.Primitives.dll`
+- `M -> release/kJITWeb/publish-service/System.Reflection.TypeExtensions.dll`
+- `M -> release/kJITWeb/publish-service/System.Reflection.dll`
+- `M -> release/kJITWeb/publish-service/System.Resources.Reader.dll`
+- `M -> release/kJITWeb/publish-service/System.Resources.ResourceManager.dll`
+- `M -> release/kJITWeb/publish-service/System.Resources.Writer.dll`
+- `M -> release/kJITWeb/publish-service/System.Runtime.CompilerServices.Unsafe.dll`
+- `M -> release/kJITWeb/publish-service/System.Runtime.CompilerServices.VisualC.dll`
+- `M -> release/kJITWeb/publish-service/System.Runtime.Extensions.dll`
+- `M -> release/kJITWeb/publish-service/System.Runtime.Handles.dll`
+- `M -> release/kJITWeb/publish-service/System.Runtime.InteropServices.JavaScript.dll`
+- `M -> release/kJITWeb/publish-service/System.Runtime.InteropServices.RuntimeInformation.dll`
+- `M -> release/kJITWeb/publish-service/System.Runtime.InteropServices.dll`
+- `M -> release/kJITWeb/publish-service/System.Runtime.Intrinsics.dll`
+- `M -> release/kJITWeb/publish-service/System.Runtime.Loader.dll`
+- `M -> release/kJITWeb/publish-service/System.Runtime.Numerics.dll`
+- `M -> release/kJITWeb/publish-service/System.Runtime.Serialization.Formatters.dll`
+- `M -> release/kJITWeb/publish-service/System.Runtime.Serialization.Json.dll`
+- `M -> release/kJITWeb/publish-service/System.Runtime.Serialization.Primitives.dll`
+- `M -> release/kJITWeb/publish-service/System.Runtime.Serialization.Xml.dll`
+- `M -> release/kJITWeb/publish-service/System.Runtime.Serialization.dll`
+- `M -> release/kJITWeb/publish-service/System.Runtime.dll`
+- `M -> release/kJITWeb/publish-service/System.Security.AccessControl.dll`
+- `M -> release/kJITWeb/publish-service/System.Security.Claims.dll`
+- `M -> release/kJITWeb/publish-service/System.Security.Cryptography.Algorithms.dll`
+- `M -> release/kJITWeb/publish-service/System.Security.Cryptography.Cng.dll`
+- `M -> release/kJITWeb/publish-service/System.Security.Cryptography.Csp.dll`
+- `M -> release/kJITWeb/publish-service/System.Security.Cryptography.Encoding.dll`
+- `M -> release/kJITWeb/publish-service/System.Security.Cryptography.OpenSsl.dll`
+- `M -> release/kJITWeb/publish-service/System.Security.Cryptography.Pkcs.dll`
+- `M -> release/kJITWeb/publish-service/System.Security.Cryptography.Primitives.dll`
+- `M -> release/kJITWeb/publish-service/System.Security.Cryptography.X509Certificates.dll`
+- `M -> release/kJITWeb/publish-service/System.Security.Cryptography.Xml.dll`
+- `M -> release/kJITWeb/publish-service/System.Security.Cryptography.dll`
+- `M -> release/kJITWeb/publish-service/System.Security.Principal.Windows.dll`
+- `M -> release/kJITWeb/publish-service/System.Security.Principal.dll`
+- `M -> release/kJITWeb/publish-service/System.Security.SecureString.dll`
+- `M -> release/kJITWeb/publish-service/System.Security.dll`
+- `M -> release/kJITWeb/publish-service/System.ServiceModel.Web.dll`
+- `M -> release/kJITWeb/publish-service/System.ServiceProcess.dll`
+- `M -> release/kJITWeb/publish-service/System.Text.Encoding.CodePages.dll`
+- `M -> release/kJITWeb/publish-service/System.Text.Encoding.Extensions.dll`
+- `M -> release/kJITWeb/publish-service/System.Text.Encoding.dll`
+- `M -> release/kJITWeb/publish-service/System.Text.Encodings.Web.dll`
+- `M -> release/kJITWeb/publish-service/System.Text.Json.dll`
+- `M -> release/kJITWeb/publish-service/System.Text.RegularExpressions.dll`
+- `M -> release/kJITWeb/publish-service/System.Threading.Channels.dll`
+- `M -> release/kJITWeb/publish-service/System.Threading.Overlapped.dll`
+- `M -> release/kJITWeb/publish-service/System.Threading.RateLimiting.dll`
+- `M -> release/kJITWeb/publish-service/System.Threading.Tasks.Dataflow.dll`
+- `M -> release/kJITWeb/publish-service/System.Threading.Tasks.Extensions.dll`
+- `M -> release/kJITWeb/publish-service/System.Threading.Tasks.Parallel.dll`
+- `M -> release/kJITWeb/publish-service/System.Threading.Tasks.dll`
+- `M -> release/kJITWeb/publish-service/System.Threading.Thread.dll`
+- `M -> release/kJITWeb/publish-service/System.Threading.ThreadPool.dll`
+- `M -> release/kJITWeb/publish-service/System.Threading.Timer.dll`
+- `M -> release/kJITWeb/publish-service/System.Threading.dll`
+- `M -> release/kJITWeb/publish-service/System.Transactions.Local.dll`
+- `M -> release/kJITWeb/publish-service/System.Transactions.dll`
+- `M -> release/kJITWeb/publish-service/System.ValueTuple.dll`
+- `M -> release/kJITWeb/publish-service/System.Web.HttpUtility.dll`
+- `M -> release/kJITWeb/publish-service/System.Web.dll`
+- `M -> release/kJITWeb/publish-service/System.Windows.dll`
+- `M -> release/kJITWeb/publish-service/System.Xml.Linq.dll`
+- `M -> release/kJITWeb/publish-service/System.Xml.ReaderWriter.dll`
+- `M -> release/kJITWeb/publish-service/System.Xml.Serialization.dll`
+- `M -> release/kJITWeb/publish-service/System.Xml.XDocument.dll`
+- `M -> release/kJITWeb/publish-service/System.Xml.XPath.XDocument.dll`
+- `M -> release/kJITWeb/publish-service/System.Xml.XPath.dll`
+- `M -> release/kJITWeb/publish-service/System.Xml.XmlDocument.dll`
+- `M -> release/kJITWeb/publish-service/System.Xml.XmlSerializer.dll`
+- `M -> release/kJITWeb/publish-service/System.Xml.dll`
+- `M -> release/kJITWeb/publish-service/System.dll`
+- `M -> release/kJITWeb/publish-service/WindowsBase.dll`
+- `M -> release/kJITWeb/publish-service/aspnetcorev2_inprocess.dll`
+- `M -> release/kJITWeb/publish-service/clretwrc.dll`
+- `M -> release/kJITWeb/publish-service/clrgc.dll`
+- `M -> release/kJITWeb/publish-service/clrjit.dll`
+- `M -> release/kJITWeb/publish-service/coreclr.dll`
+- `M -> release/kJITWeb/publish-service/createdump.exe`
+- `M -> release/kJITWeb/publish-service/de/KjitWeb.resources.dll`
+- `M -> release/kJITWeb/publish-service/en/KjitWeb.resources.dll`
+- `M -> release/kJITWeb/publish-service/hostfxr.dll`
+- `M -> release/kJITWeb/publish-service/hostpolicy.dll`
+- `M -> release/kJITWeb/publish-service/mscordaccore.dll`
+- `D -> release/kJITWeb/publish-service/mscordaccore_amd64_amd64_8.0.2726.22922.dll`
+- `A -> release/kJITWeb/publish-service/mscordaccore_amd64_amd64_8.0.3126.42015.dll`
+- `M -> release/kJITWeb/publish-service/mscordbi.dll`
+- `M -> release/kJITWeb/publish-service/mscorlib.dll`
+- `M -> release/kJITWeb/publish-service/mscorrc.dll`
+- `M -> release/kJITWeb/publish-service/msquic.dll`
+- `M -> release/kJITWeb/publish-service/netstandard.dll`
+- `M -> release/modules/0.1/KjitCore.dll`
+- `M -> release/modules/Just-In-time.psd1`
+- `M -> src/Powershell/modules/Just-In-time.psd1`
+
 ## 2026-10-04 08:11:40 +02:00 - `main` to `origin/main`
 
 Commits:
@@ -4980,4 +5383,7 @@ Changed files:
 - `A -> tests/PowerShell/Modules.Tests.ps1`
 - `A -> tmp_ps51_test.ps1`
 - `A -> tmp_release_test.ps1`
+
+
+
 

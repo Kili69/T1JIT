@@ -84,6 +84,10 @@ $readmeTitle = "Just-In-Time Solution for Active Directory Member Servers"
     Returns the source branch used for README version labeling.
 #>
 function Get-CurrentBranchName {
+    if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_BASE_REF)) {
+        return $env:GITHUB_BASE_REF.Trim()
+    }
+
     if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_HEAD_REF)) {
         return $env:GITHUB_HEAD_REF.Trim()
     }
@@ -254,7 +258,39 @@ function Get-FileHashValue {
         return $null
     }
 
-    (Get-FileHash -LiteralPath $absolutePath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $objectId = @(& git -C $repoRoot hash-object --path=$RelativePath -w -- $absolutePath)
+    if ($LASTEXITCODE -ne 0 -or $objectId.Count -ne 1) {
+        throw "Unable to create the normalized Git blob for '$RelativePath'."
+    }
+
+    $gitPath = (Get-Command git -ErrorAction Stop).Source
+    $processInfo = New-Object Diagnostics.ProcessStartInfo
+    $processInfo.FileName = $gitPath
+    $processInfo.Arguments = "cat-file blob $($objectId[0].Trim())"
+    $processInfo.WorkingDirectory = $repoRoot
+    $processInfo.UseShellExecute = $false
+    $processInfo.RedirectStandardOutput = $true
+
+    $process = [Diagnostics.Process]::Start($processInfo)
+    try {
+        $sha256 = [Security.Cryptography.SHA256]::Create()
+        try {
+            $hashBytes = $sha256.ComputeHash($process.StandardOutput.BaseStream)
+        }
+        finally {
+            $sha256.Dispose()
+        }
+
+        $process.WaitForExit()
+        if ($process.ExitCode -ne 0) {
+            throw "Unable to read the normalized Git blob for '$RelativePath'."
+        }
+
+        ([BitConverter]::ToString($hashBytes) -replace "-", "").ToLowerInvariant()
+    }
+    finally {
+        $process.Dispose()
+    }
 }
 
 if ($Check) {

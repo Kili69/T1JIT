@@ -11,6 +11,36 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261005.6] - 2026-10-05
+### Changed
+
+- Documented 1 outgoing commit(s) in `History.md` before the GitHub push.
+
+## [0.2.20261005.5] - 2026-10-05
+### Fixed
+
+- File-version hashes now use Git-normalized blob content so version validation is independent of Windows line-ending conversion.
+
+## [0.2.20261005.4] - 2026-10-05
+### Changed
+
+- Documented 1 outgoing commit(s) in `History.md` before the GitHub push.
+
+## [0.2.20261005.3] - 2026-10-05
+### Fixed
+
+- Version-policy validation now uses the pull request target branch for the README heading so the same content remains valid after merging.
+
+## [0.2.20261005.2] - 2026-10-05
+### Changed
+
+- Documented 1 outgoing commit(s) in `History.md` before the GitHub push.
+
+## [0.2.20261005.1] - 2026-10-05
+### Changed
+
+- Redesigned and expanded the README with modern navigation, workflow diagrams, interface screenshots, installation and update guidance, and a complete reference for every exported PowerShell module command.
+
 ## [0.2.20261004.12] - 2026-10-04
 ### Changed
 
