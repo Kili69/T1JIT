@@ -213,6 +213,7 @@ function Get-ChangedFiles {
     @($trackedFiles + $untrackedFiles) |
         ForEach-Object { $_.Replace('\', '/') } |
         Where-Object { $_ -and $_ -notin $metadataFiles } |
+        Where-Object { $_ -notlike 'release/*' } |
         Where-Object { $_ -notmatch '(^|/)(bin|obj)/' } |
         Where-Object { $_ -notmatch '^release/' } |
         Sort-Object -Unique
