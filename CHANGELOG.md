@@ -11,6 +11,16 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261006.2] - 2026-10-06
+### Changed
+
+- Documented 1 outgoing commit in `History.md` before the GitHub push.
+
+## [0.2.20261006.1] - 2026-10-06
+### Fixed
+
+- The README version-policy badge now reports the current `main` branch workflow status instead of the stale failed `dev` run.
+
 ## [0.2.20261005.8] - 2026-10-05
 ### Changed
 

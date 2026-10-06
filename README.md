@@ -1,8 +1,8 @@
-# Just-In-Time Solution for Active Directory Member Servers - Version 0.2.20261005.8
+# Just-In-Time Solution for Active Directory Member Servers - Version 0.2.20261006.2
 
 <p align="center"><img src="./release/kJITWeb/kjitlogo.png" alt="T1JIT logo" width="180"></p>
 <p align="center"><strong>Time-limited local administrator access for Active Directory member servers</strong></p>
-<p align="center"><a href="https://github.com/Kili69/T1JIT/actions/workflows/version-policy.yml"><img src="https://github.com/Kili69/T1JIT/actions/workflows/version-policy.yml/badge.svg?branch=dev" alt="Version policy"></a> <a href="./VERSION"><img src="https://img.shields.io/badge/version-0.2.20261004.12-0A66C2" alt="Version 0.2.20261004.12"></a> <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-2C3E50" alt="Apache License 2.0"></a> <img src="https://img.shields.io/badge/platform-Windows-0078D4?logo=windows" alt="Windows"> <img src="https://img.shields.io/badge/PowerShell-5.1%2B-5391FE?logo=powershell&logoColor=white" alt="PowerShell 5.1 or newer"></p>
+<p align="center"><a href="https://github.com/Kili69/T1JIT/actions/workflows/version-policy.yml"><img src="https://github.com/Kili69/T1JIT/actions/workflows/version-policy.yml/badge.svg?branch=main" alt="Version policy"></a> <a href="./VERSION"><img src="https://img.shields.io/badge/version-0.2.20261004.12-0A66C2" alt="Version 0.2.20261004.12"></a> <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-2C3E50" alt="Apache License 2.0"></a> <img src="https://img.shields.io/badge/platform-Windows-0078D4?logo=windows" alt="Windows"> <img src="https://img.shields.io/badge/PowerShell-5.1%2B-5391FE?logo=powershell&logoColor=white" alt="PowerShell 5.1 or newer"></p>
 <p align="center"><a href="#overview">Overview</a> &bull; <a href="#how-t1jit-works">How it works</a> &bull; <a href="#installation-and-activation">Installation</a> &bull; <a href="#using-the-web-interface">Web interface</a> &bull; <a href="#powershell-command-reference">PowerShell</a> &bull; <a href="#security-considerations">Security</a></p>
 
 ---
