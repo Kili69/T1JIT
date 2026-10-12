@@ -11,6 +11,14 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.3.20261012.3] - 2026-10-12
+### Changed
+
+- Refined the KjitWeb configuration editor with contextual field help, a clearer
+  Advanced layout, and hidden preservation of protected settings.
+- Added navigation from the configuration editor back to JIT while keeping the
+  Configuration link restricted to users with write access to both configuration files.
+
 ## [0.3.20261012.2] - 2026-10-12
 ### Changed
 

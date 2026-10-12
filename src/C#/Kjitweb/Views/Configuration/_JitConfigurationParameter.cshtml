@@ -5,6 +5,7 @@
     var parameter = Model.Parameter;
     var index = Model.Index;
     var inputId = $"jit-parameter-{index}";
+    var helpId = $"jit-parameter-help-{index}";
     var valueName = $"Parameters[{index}].Value";
     var isDomain = parameter.Name.Equals("Domain", StringComparison.OrdinalIgnoreCase);
     var isT1Searchbase = parameter.Name.Equals("T1Searchbase", StringComparison.OrdinalIgnoreCase);
@@ -18,6 +19,7 @@
     var isListEditor = parameter.Kind == JitConfigurationParameterKind.StringList || isDomain;
     var displayName = parameter.Name switch
     {
+        "ConfigScriptVersion" => L["ConfigurationVersionLabel"],
         "T1Searchbase" => L["JitTargetsLabel"],
         "MaxElevatedTime" => L["MaxElevatedTimeLabel"],
         "DefaultElevatedTime" => L["DefaultElevatedTimeLabel"],
@@ -28,7 +30,17 @@
         "LDAPT1Computers" => L["Tier1LdapQueryLabel"],
         "DebugLogPath" => L["DebugLoggingDirectoryLabel"],
         "GroupManagementTaskRerun" => L["JitGroupEvaluationLabel"],
+        "Tier0ServerGroupName" => L["Tier0ServerGroupLabel"],
         _ => parameter.Name
+    };
+    var fieldHelp = parameter.Name switch
+    {
+        "Domain" => L["DomainFieldHelp"],
+        "T1Searchbase" => L["JitTargetsFieldHelp"],
+        "MaxElevatedTime" => L["MaxElevatedTimeFieldHelp"],
+        "DefaultElevatedTime" => L["DefaultElevatedTimeFieldHelp"],
+        "MaxConcurrentServer" => L["MaxConcurrentAccessFieldHelp"],
+        _ => null
     };
     var listValues = isListEditor
         ? (parameter.Value ?? string.Empty).Split(
@@ -37,18 +49,29 @@
         : [];
 }
 
-<div class="configuration-parameter @(parameter.IsReadOnly ? "is-readonly" : "")">
+<div class="configuration-parameter @(parameter.IsReadOnly ? "is-readonly" : "") @(parameter.Name.Equals("ConfigScriptVersion", StringComparison.OrdinalIgnoreCase) ? "is-wide" : "")">
     <input type="hidden" name="Parameters[@index].Name" value="@parameter.Name" />
     <input type="hidden" name="Parameters[@index].Kind" value="@parameter.Kind" />
     @if (parameter.IsReadOnly)
     {
         <input type="hidden" name="@valueName" value="@parameter.Value" />
     }
-    <div class="d-flex justify-content-between align-items-start gap-2">
+    <div class="configuration-label-row">
         <label for="@inputId" class="form-label fw-semibold">@displayName</label>
-        @if (parameter.IsReadOnly)
+        @if (fieldHelp is not null)
         {
-            <span class="configuration-readonly-badge">@L["ConfigurationReadOnly"]</span>
+            <span class="configuration-info"
+                  role="img"
+                  tabindex="0"
+                  aria-label="@fieldHelp"
+                aria-describedby="@helpId">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 11v6" />
+                    <path d="M12 7h.01" />
+                </svg>
+            </span>
+            <span class="configuration-tooltip" id="@helpId" role="tooltip">@fieldHelp</span>
         }
     </div>
 

@@ -17,6 +17,33 @@
         .Where(index => !Model.JitParameters[index].IsAdvanced
             && !globalParameterNames.Contains(Model.JitParameters[index].Name))
         .ToList();
+    var advancedParameterPriority = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["ConfigScriptVersion"] = 0,
+        ["Tier0ServerGroupName"] = 1,
+        ["LDAPT0ComputerPath"] = 2,
+        ["OU"] = 3,
+        ["GroupManagementTaskRerun"] = 4
+    };
+    var hiddenAdvancedParameterNames = new HashSet<string>(
+        [
+            "ElevateEventID",
+            "EventSource",
+            "EventLog",
+            "GroupManagedServiceAccountName",
+            "EnableDelegation",
+            "DomainSeparator",
+            "EnableMultiDomainSupport"
+        ],
+        StringComparer.OrdinalIgnoreCase);
+    var advancedParameterIndexes = Enumerable.Range(0, Model.JitParameters.Count)
+        .Where(index => Model.JitParameters[index].IsAdvanced
+            && !hiddenAdvancedParameterNames.Contains(Model.JitParameters[index].Name))
+        .OrderBy(index => advancedParameterPriority.TryGetValue(
+            Model.JitParameters[index].Name,
+            out var priority) ? priority : int.MaxValue)
+        .ThenBy(index => index)
+        .ToList();
 }
 
 <h1 class="h4 mb-3">@L["ConfigurationHeading"]</h1>
@@ -60,6 +87,16 @@
 
     <form asp-action="SaveJit" method="post">
         <input type="hidden" name="ExpectedHash" value="@Model.JitConfigHash" />
+        @for (var index = 0; index < Model.JitParameters.Count; index++)
+        {
+            var parameter = Model.JitParameters[index];
+            if (hiddenAdvancedParameterNames.Contains(parameter.Name))
+            {
+                <input type="hidden" name="Parameters[@index].Name" value="@parameter.Name" />
+                <input type="hidden" name="Parameters[@index].Kind" value="@parameter.Kind" />
+                <input type="hidden" name="Parameters[@index].Value" value="@parameter.Value" />
+            }
+        }
         <div asp-validation-summary="All" class="text-danger mb-3"></div>
     <section class="configuration-panel @(jitActive ? "" : "d-none")"
              id="jit-panel"
@@ -151,14 +188,11 @@
         <h2 class="configuration-section-heading">@L["AdvancedConfigurationHeading"]</h2>
         <p class="configuration-advanced-description">@L["AdvancedConfigurationDescription"]</p>
         <div class="configuration-parameter-grid mt-3">
-            @for (var index = 0; index < Model.JitParameters.Count; index++)
+            @foreach (var index in advancedParameterIndexes)
             {
                 var parameter = Model.JitParameters[index];
-                if (parameter.IsAdvanced)
-                {
-                    <partial name="_JitConfigurationParameter"
-                             model="@(new JitConfigurationParameterFieldViewModel { Parameter = parameter, Index = index })" />
-                }
+                <partial name="_JitConfigurationParameter"
+                         model="@(new JitConfigurationParameterFieldViewModel { Parameter = parameter, Index = index })" />
             }
         </div>
         <button type="submit" class="btn btn-primary mt-3">@L["SaveJitConfigurationButton"]</button>

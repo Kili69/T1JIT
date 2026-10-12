@@ -74,18 +74,25 @@
   <data name="ConfigurationStringListHelp" xml:space="preserve"><value>Ein Eintrag pro Zeile.</value></data>
   <data name="ConfigurationJsonValueHelp" xml:space="preserve"><value>Der Wert muss gueltiges JSON sein.</value></data>
   <data name="AdvancedConfigurationHeading" xml:space="preserve"><value>Erweiterte Konfiguration</value></data>
-  <data name="AdvancedConfigurationDescription" xml:space="preserve"><value>LDAP-, Ereignisprotokoll-, Dienstkonto- und Delegationseinstellungen.</value></data>
+  <data name="AdvancedConfigurationDescription" xml:space="preserve"><value>LDAP-, Gruppen- und Delegationseinstellungen.</value></data>
   <data name="ConfigurationReadOnly" xml:space="preserve"><value>Schreibgeschuetzt</value></data>
   <data name="JitTargetsLabel" xml:space="preserve"><value>Just-In-Time OU</value></data>
   <data name="MaxElevatedTimeLabel" xml:space="preserve"><value>Maximale Administrator-Berechtigungsanforderung</value></data>
   <data name="DefaultElevatedTimeLabel" xml:space="preserve"><value>Standard Zugriffszeit</value></data>
   <data name="MaxConcurrentAccessLabel" xml:space="preserve"><value>Maximale Anzahl gleichzeitiger Zugriffe</value></data>
+  <data name="DomainFieldHelp" xml:space="preserve"><value>Die in der Just-In-Time-Konfiguration konfigurierten Domains.</value></data>
+  <data name="JitTargetsFieldHelp" xml:space="preserve"><value>Der Distinguished Name der OU, in der die Zielsysteme enthalten sind. Wird der DN ohne Domain angegeben, wird diese OU für alle konfigurierten Domains angewendet.</value></data>
+  <data name="MaxElevatedTimeFieldHelp" xml:space="preserve"><value>Die maximale Dauer, für die Administratorberechtigungen angefordert werden können.</value></data>
+  <data name="DefaultElevatedTimeFieldHelp" xml:space="preserve"><value>Der Standardwert für Administratorberechtigungen, wenn keine andere Dauer angefordert wurde.</value></data>
+  <data name="MaxConcurrentAccessFieldHelp" xml:space="preserve"><value>Die Anzahl der Administrator-Sitzungen, die ein Anwender gleichzeitig anfordern kann.</value></data>
   <data name="JitGroupOuLabel" xml:space="preserve"><value>Just-In-Time Group OU</value></data>
   <data name="Tier0LdapQueryLabel" xml:space="preserve"><value>LDAP query to identify Tier 0 computers</value></data>
   <data name="Tier0ComputerOuLabel" xml:space="preserve"><value>Tier 0 Computer OU</value></data>
   <data name="Tier1LdapQueryLabel" xml:space="preserve"><value>LDAP query to identify Tier 1 computers</value></data>
   <data name="DebugLoggingDirectoryLabel" xml:space="preserve"><value>Debug logging directory</value></data>
   <data name="JitGroupEvaluationLabel" xml:space="preserve"><value>Just-In-Time group evaluation</value></data>
+  <data name="ConfigurationVersionLabel" xml:space="preserve"><value>Configuration version</value></data>
+  <data name="Tier0ServerGroupLabel" xml:space="preserve"><value>Tier 0 Server group</value></data>
   <data name="NewJitTargetPlaceholder" xml:space="preserve"><value>Neues Zielsystem</value></data>
   <data name="NewDomainPlaceholder" xml:space="preserve"><value>Neue Domain</value></data>
   <data name="AddEntryButton" xml:space="preserve"><value>Hinzufuegen</value></data>
@@ -126,7 +133,7 @@
   <data name="DelegationAdObjectDuplicate" xml:space="preserve"><value>Dieses AD-Objekt ist der Delegation bereits zugewiesen.</value></data>
   <data name="DelegationDuplicateOu" xml:space="preserve"><value>Für dieses Ziel existiert bereits eine Delegation.</value></data>
   <data name="DelegationOuNotFound" xml:space="preserve"><value>Die OU oder der Server wurde in Active Directory nicht gefunden.</value></data>
-  <data name="BackToJitButton" xml:space="preserve"><value>Zurueck zu JIT</value></data>
+  <data name="BackToJitButton" xml:space="preserve"><value>Zurück zu JIT</value></data>
   <data name="ConfigurationContentRequired" xml:space="preserve"><value>Der Konfigurationsinhalt ist erforderlich.</value></data>
   <data name="ConfigurationConflict" xml:space="preserve"><value>Die Datei wurde zwischenzeitlich geaendert. Lade die Seite neu und wende deine Aenderungen erneut an.</value></data>
   <data name="ConfigurationInvalidJson" xml:space="preserve"><value>Die Konfiguration ist ungueltig: {0}</value></data>

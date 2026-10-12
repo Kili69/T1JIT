@@ -8,6 +8,10 @@
         .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
         .InformationalVersion;
     var applicationVersion = informationalVersion?.Split('+', 2)[0] ?? "unknown";
+    var isConfigurationPage = string.Equals(
+        ViewContext.RouteData.Values["controller"]?.ToString(),
+        "Configuration",
+        StringComparison.OrdinalIgnoreCase);
 }
 
 <!DOCTYPE html>
@@ -32,6 +36,14 @@
     </header>
     <nav class="kjit-utilitybar mb-4" aria-label="@L["MainMenuLabel"]">
         <div class="container-fluid kjit-utilitybar-actions">
+                @if (isConfigurationPage)
+                {
+                    <a asp-controller="Home"
+                       asp-action="Index"
+                       class="kjit-menu-button">
+                        @L["BackToJitButton"]
+                    </a>
+                }
                 <a asp-controller="Home"
                    asp-action="SwitchUser"
                    class="kjit-menu-button">

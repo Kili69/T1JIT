@@ -74,18 +74,25 @@
   <data name="ConfigurationStringListHelp" xml:space="preserve"><value>One entry per line.</value></data>
   <data name="ConfigurationJsonValueHelp" xml:space="preserve"><value>The value must be valid JSON.</value></data>
   <data name="AdvancedConfigurationHeading" xml:space="preserve"><value>Advanced configuration</value></data>
-  <data name="AdvancedConfigurationDescription" xml:space="preserve"><value>LDAP, event log, service account, and delegation settings.</value></data>
+  <data name="AdvancedConfigurationDescription" xml:space="preserve"><value>LDAP, group, and delegation settings.</value></data>
   <data name="ConfigurationReadOnly" xml:space="preserve"><value>Read only</value></data>
   <data name="JitTargetsLabel" xml:space="preserve"><value>Just-In-Time OU</value></data>
   <data name="MaxElevatedTimeLabel" xml:space="preserve"><value>Maximum administrator privilege request</value></data>
   <data name="DefaultElevatedTimeLabel" xml:space="preserve"><value>Default access duration</value></data>
   <data name="MaxConcurrentAccessLabel" xml:space="preserve"><value>Maximum number of concurrent accesses</value></data>
+  <data name="DomainFieldHelp" xml:space="preserve"><value>The domains configured for Just-In-Time access.</value></data>
+  <data name="JitTargetsFieldHelp" xml:space="preserve"><value>The distinguished name of the OU containing the target systems. If the DN is specified without a domain, this OU applies to all configured domains.</value></data>
+  <data name="MaxElevatedTimeFieldHelp" xml:space="preserve"><value>The maximum duration for which administrator privileges can be requested.</value></data>
+  <data name="DefaultElevatedTimeFieldHelp" xml:space="preserve"><value>The default duration for administrator privileges when no other duration is requested.</value></data>
+  <data name="MaxConcurrentAccessFieldHelp" xml:space="preserve"><value>The number of administrator sessions a user can request concurrently.</value></data>
   <data name="JitGroupOuLabel" xml:space="preserve"><value>Just-In-Time Group OU</value></data>
   <data name="Tier0LdapQueryLabel" xml:space="preserve"><value>LDAP query to identify Tier 0 computers</value></data>
   <data name="Tier0ComputerOuLabel" xml:space="preserve"><value>Tier 0 Computer OU</value></data>
   <data name="Tier1LdapQueryLabel" xml:space="preserve"><value>LDAP query to identify Tier 1 computers</value></data>
   <data name="DebugLoggingDirectoryLabel" xml:space="preserve"><value>Debug logging directory</value></data>
   <data name="JitGroupEvaluationLabel" xml:space="preserve"><value>Just-In-Time group evaluation</value></data>
+  <data name="ConfigurationVersionLabel" xml:space="preserve"><value>Configuration version</value></data>
+  <data name="Tier0ServerGroupLabel" xml:space="preserve"><value>Tier 0 Server group</value></data>
   <data name="NewJitTargetPlaceholder" xml:space="preserve"><value>New target system</value></data>
   <data name="NewDomainPlaceholder" xml:space="preserve"><value>New domain</value></data>
   <data name="AddEntryButton" xml:space="preserve"><value>Add</value></data>
