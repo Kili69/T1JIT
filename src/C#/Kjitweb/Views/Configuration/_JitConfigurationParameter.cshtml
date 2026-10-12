@@ -1,0 +1,210 @@
+@model JitConfigurationParameterFieldViewModel
+@inject Microsoft.Extensions.Localization.IStringLocalizer<KjitWeb.SharedResource> L
+
+@{
+    var parameter = Model.Parameter;
+    var index = Model.Index;
+    var inputId = $"jit-parameter-{index}";
+    var valueName = $"Parameters[{index}].Value";
+    var isDomain = parameter.Name.Equals("Domain", StringComparison.OrdinalIgnoreCase);
+    var isT1Searchbase = parameter.Name.Equals("T1Searchbase", StringComparison.OrdinalIgnoreCase);
+    var pickerKind = isDomain ? "domain" : isT1Searchbase ? "ou" : null;
+    var usesNumberStepper = parameter.Name.Equals(
+            "MaxConcurrentServer",
+            StringComparison.OrdinalIgnoreCase)
+        || parameter.Name.Equals("MaxElevatedTime", StringComparison.OrdinalIgnoreCase)
+        || parameter.Name.Equals("DefaultElevatedTime", StringComparison.OrdinalIgnoreCase)
+        || parameter.Name.Equals("GroupManagementTaskRerun", StringComparison.OrdinalIgnoreCase);
+    var isListEditor = parameter.Kind == JitConfigurationParameterKind.StringList || isDomain;
+    var displayName = parameter.Name switch
+    {
+        "T1Searchbase" => L["JitTargetsLabel"],
+        "MaxElevatedTime" => L["MaxElevatedTimeLabel"],
+        "DefaultElevatedTime" => L["DefaultElevatedTimeLabel"],
+        "MaxConcurrentServer" => L["MaxConcurrentAccessLabel"],
+        "OU" => L["JitGroupOuLabel"],
+        "LDAPT0Computers" => L["Tier0LdapQueryLabel"],
+        "LDAPT0ComputerPath" => L["Tier0ComputerOuLabel"],
+        "LDAPT1Computers" => L["Tier1LdapQueryLabel"],
+        "DebugLogPath" => L["DebugLoggingDirectoryLabel"],
+        "GroupManagementTaskRerun" => L["JitGroupEvaluationLabel"],
+        _ => parameter.Name
+    };
+    var listValues = isListEditor
+        ? (parameter.Value ?? string.Empty).Split(
+            ["\r\n", "\n"],
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        : [];
+}
+
+<div class="configuration-parameter @(parameter.IsReadOnly ? "is-readonly" : "")">
+    <input type="hidden" name="Parameters[@index].Name" value="@parameter.Name" />
+    <input type="hidden" name="Parameters[@index].Kind" value="@parameter.Kind" />
+    @if (parameter.IsReadOnly)
+    {
+        <input type="hidden" name="@valueName" value="@parameter.Value" />
+    }
+    <div class="d-flex justify-content-between align-items-start gap-2">
+        <label for="@inputId" class="form-label fw-semibold">@displayName</label>
+        @if (parameter.IsReadOnly)
+        {
+            <span class="configuration-readonly-badge">@L["ConfigurationReadOnly"]</span>
+        }
+    </div>
+
+    @if (isListEditor && !parameter.IsReadOnly)
+    {
+        <div class="configuration-list-editor"
+             data-configuration-list
+               data-configuration-picker="@pickerKind"
+             data-single-value="@isDomain.ToString().ToLowerInvariant()">
+            <input type="hidden"
+                   name="@valueName"
+                   value="@parameter.Value"
+                   data-configuration-list-value />
+            <select class="form-select configuration-list-select"
+                    id="@inputId"
+                    size="@Math.Max(2, Math.Min(5, listValues.Length))"
+                    aria-label="@displayName"
+                    data-configuration-list-select>
+                @foreach (var value in listValues)
+                {
+                    <option value="@value">@value</option>
+                }
+            </select>
+            @if (pickerKind is not null)
+            {
+                <button class="btn btn-outline-secondary mt-2"
+                        type="button"
+                        aria-haspopup="dialog"
+                        data-open-configuration-picker="@pickerKind">
+                    @L[isDomain ? "SelectForestDomainButton" : "SelectOrganizationalUnitButton"]
+                </button>
+            }
+            else
+            {
+                <div class="input-group mt-2">
+                    <input class="form-control"
+                           type="text"
+                           placeholder="@L["NewJitTargetPlaceholder"]"
+                           aria-label="@L["NewJitTargetPlaceholder"]"
+                           spellcheck="false"
+                           data-configuration-list-new />
+                    <button class="btn btn-outline-secondary"
+                            type="button"
+                            data-configuration-list-add>@L["AddEntryButton"]</button>
+                </div>
+            }
+                <button type="button"
+                    disabled
+                    class="btn btn-outline-danger btn-sm mt-2 d-none"
+                    data-configuration-list-remove>@L["RemoveSelectedEntryButton"]</button>
+        </div>
+    }
+    else
+    {
+        @switch (parameter.Kind)
+        {
+            case JitConfigurationParameterKind.Boolean:
+                <div class="form-check form-switch configuration-boolean">
+                    <input class="form-check-input"
+                           type="checkbox"
+                           role="switch"
+                           id="@inputId"
+                           name="@(parameter.IsReadOnly ? null : valueName)"
+                           value="true"
+                           checked="@(string.Equals(parameter.Value, "true", StringComparison.OrdinalIgnoreCase))"
+                           disabled="@parameter.IsReadOnly" />
+                    @if (!parameter.IsReadOnly)
+                    {
+                        <input type="hidden" name="@valueName" value="false" />
+                    }
+                    <label class="form-check-label" for="@inputId">@L["ConfigurationBooleanEnabled"]</label>
+                </div>
+                break;
+            case JitConfigurationParameterKind.Integer:
+                @if (usesNumberStepper && !parameter.IsReadOnly)
+                {
+                    <div class="input-group configuration-number-stepper" data-configuration-number-stepper>
+                        <button class="btn btn-outline-secondary"
+                                type="button"
+                                title="@L["DecreaseValueButton"]"
+                                aria-label="@L["DecreaseValueButton"]"
+                                data-step-down>&#9660;</button>
+                        <input class="form-control"
+                               type="number"
+                               step="1"
+                               min="@(parameter.Name.Equals("MaxConcurrentServer", StringComparison.OrdinalIgnoreCase) ? 1 : 5)"
+                               max="@(parameter.Name.Equals("GroupManagementTaskRerun", StringComparison.OrdinalIgnoreCase) ? 60 : null)"
+                               id="@inputId"
+                               name="@valueName"
+                               value="@parameter.Value" />
+                        @if (parameter.Name.Equals("MaxElevatedTime", StringComparison.OrdinalIgnoreCase)
+                            || parameter.Name.Equals("GroupManagementTaskRerun", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <span class="input-group-text">@L["MinutesLabel"]</span>
+                        }
+                        <button class="btn btn-outline-secondary"
+                                type="button"
+                                title="@L["IncreaseValueButton"]"
+                                aria-label="@L["IncreaseValueButton"]"
+                                data-step-up>&#9650;</button>
+                    </div>
+                }
+                else
+                {
+                    <input class="form-control"
+                           type="number"
+                           step="1"
+                           id="@inputId"
+                           name="@(parameter.IsReadOnly ? null : valueName)"
+                           value="@parameter.Value"
+                           readonly="@parameter.IsReadOnly" />
+                }
+                break;
+            case JitConfigurationParameterKind.Number:
+                <input class="form-control"
+                       type="number"
+                       step="any"
+                       id="@inputId"
+                       name="@(parameter.IsReadOnly ? null : valueName)"
+                       value="@parameter.Value"
+                       readonly="@parameter.IsReadOnly" />
+                break;
+            case JitConfigurationParameterKind.StringList:
+                <textarea class="form-control configuration-parameter-list"
+                          rows="4"
+                          id="@inputId"
+                          name="@(parameter.IsReadOnly ? null : valueName)"
+                          readonly="@parameter.IsReadOnly"
+                          spellcheck="false">@parameter.Value</textarea>
+                <div class="form-text">@L["ConfigurationStringListHelp"]</div>
+                break;
+            case JitConfigurationParameterKind.Json:
+                <textarea class="form-control configuration-parameter-json"
+                          rows="6"
+                          id="@inputId"
+                          name="@(parameter.IsReadOnly ? null : valueName)"
+                          readonly="@parameter.IsReadOnly"
+                          spellcheck="false">@parameter.Value</textarea>
+                <div class="form-text">@L["ConfigurationJsonValueHelp"]</div>
+                break;
+            case JitConfigurationParameterKind.Null:
+                @if (!parameter.IsReadOnly)
+                {
+                    <input type="hidden" name="@valueName" value="" />
+                }
+                <input class="form-control" id="@inputId" value="null" readonly />
+                break;
+            default:
+                <input class="form-control"
+                       type="text"
+                       id="@inputId"
+                       name="@(parameter.IsReadOnly ? null : valueName)"
+                       value="@parameter.Value"
+                       readonly="@parameter.IsReadOnly"
+                       spellcheck="false" />
+                break;
+        }
+    }
+</div>

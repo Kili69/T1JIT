@@ -11,6 +11,31 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.3.20261012.1] - 2026-10-12
+### Added
+
+- Centralized JIT and delegation configuration parsing, mutation, serialization, and
+  LDAP filter validation in KjitCore for shared use by KjitWeb and PowerShell.
+- Added lazy Active Directory domain, OU, server, and delegation identity pickers to
+  the KjitWeb configuration editor.
+
+### Changed
+
+- Reorganized the configuration editor into Configuration, Delegation, and Advanced
+  tabs with localized field names, protected read-only settings, and minute steppers.
+
+## [0.3.20261011.2] - 2026-10-11
+### Added
+
+- Added a two-tab KjitWeb configuration editor for `JIT.config` and
+  `Tier1delegation.config`, restricted to Windows-authenticated users with write access
+  to both files and protected by JSON validation and concurrent-change detection.
+
+## [0.3.20261011.1] - 2026-10-11
+### Changed
+
+- Started the `0.3` version line for changes developed on the `web-config` branch.
+
 ## [0.2.20261005.5] - 2026-10-05
 ### Changed
 

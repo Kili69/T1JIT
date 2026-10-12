@@ -27,10 +27,26 @@ Add-Type -Path $assemblyPath
 
 # JIT.config laden
 $config = [KjitCore.KjitCore]::LoadJitConfiguration("C:\Repos\T1JIT\docs\config.jit.example")
+
+# Delegationen laden, aendern und kanonisch serialisieren
+$delegations = [KjitCore.KjitCore]::LoadDelegationConfiguration("\\contoso.com\SYSVOL\contoso.com\Just-In-Time\delegation.config")
+$delegations.AddDelegation(
+	"OU=Servers,DC=contoso,DC=com",
+	"S-1-5-21-1000000000-2000000000-3000000000-1234"
+)
+$json = [KjitCore.KjitCore]::SerializeDelegationConfiguration($delegations)
 ```
+
+## Delegationslogik
+
+KjitCore ist die einzige Implementierung fuer das Delegationsschema
+`ComputerOU`/`ADObject`, SID-Normalisierung, JSON-Parsing und -Serialisierung sowie
+Add/Remove-Mutationen. PowerShell und KjitWeb verwenden diese API gemeinsam.
+
+Host-spezifisch bleiben nur Active-Directory-Aufloesung, Berechtigungspruefung,
+Konflikterkennung und atomarer Dateiaustausch.
 
 ## Naechste Migrationskandidaten
 
 - `ConvertFrom-DN2Dns`
 - `Get-UserElevationStatus`
-- `Get-JitDelegation`, `Add-JitDelegation`, `Remove-JitDelegation`

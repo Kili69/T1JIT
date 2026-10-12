@@ -67,7 +67,11 @@ flowchart LR
 - **KjitWeb module** – Provides the browser-based request interface. It authenticates the
   user, reads the permitted servers and current TTL memberships from Active Directory,
   validates the submitted server and duration, and writes the request to the JIT event
-  log. The web service does not modify group membership directly.
+  log. Windows-authenticated users with read/write access to both configuration files can
+  edit `JIT.config` and `Tier1delegation.config` through a two-tab configuration page.
+  Access checks, reads, and writes are impersonated with the request's Windows token;
+  switched-user cookies are intentionally not accepted for configuration editing. The
+  web service does not modify group membership directly.
 
 ### Solution structure
 

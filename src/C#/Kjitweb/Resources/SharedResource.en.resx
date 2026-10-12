@@ -60,4 +60,77 @@
   <data name="ValidationElevationRange" xml:space="preserve"><value>Elevation duration must be between {0} and {1} minutes.</value></data>
   <data name="SuccessUserElevated" xml:space="preserve"><value>User elevated on {0}.</value></data>
   <data name="EventLogWriteError" xml:space="preserve"><value>Could not write to event log. Ensure the application has sufficient permissions.</value></data>
+  <data name="ConfigurationMenuButton" xml:space="preserve"><value>Configuration</value></data>
+  <data name="ConfigurationPageTitle" xml:space="preserve"><value>Configuration</value></data>
+  <data name="ConfigurationHeading" xml:space="preserve"><value>Just-In-Time Configuration</value></data>
+  <data name="ConfigurationTabsLabel" xml:space="preserve"><value>Configuration sections</value></data>
+  <data name="JitConfigurationTab" xml:space="preserve"><value>Configuration</value></data>
+  <data name="DelegationConfigurationTab" xml:space="preserve"><value>Delegation</value></data>
+  <data name="ConfigurationJsonHelp" xml:space="preserve"><value>The content must be valid JSON. A save is rejected when the file changed after it was loaded.</value></data>
+  <data name="GlobalConfigurationHeading" xml:space="preserve"><value>Domains &amp; Organization</value></data>
+  <data name="JitParametersHeading" xml:space="preserve"><value>Just-In-Time configuration</value></data>
+  <data name="AdvancedConfigurationTab" xml:space="preserve"><value>Advanced</value></data>
+  <data name="ConfigurationBooleanEnabled" xml:space="preserve"><value>Enabled</value></data>
+  <data name="ConfigurationStringListHelp" xml:space="preserve"><value>One entry per line.</value></data>
+  <data name="ConfigurationJsonValueHelp" xml:space="preserve"><value>The value must be valid JSON.</value></data>
+  <data name="AdvancedConfigurationHeading" xml:space="preserve"><value>Advanced configuration</value></data>
+  <data name="AdvancedConfigurationDescription" xml:space="preserve"><value>LDAP, event log, service account, and delegation settings.</value></data>
+  <data name="ConfigurationReadOnly" xml:space="preserve"><value>Read only</value></data>
+  <data name="JitTargetsLabel" xml:space="preserve"><value>Just-In-Time OU</value></data>
+  <data name="MaxElevatedTimeLabel" xml:space="preserve"><value>Maximum administrator privilege request</value></data>
+  <data name="DefaultElevatedTimeLabel" xml:space="preserve"><value>Default access duration</value></data>
+  <data name="MaxConcurrentAccessLabel" xml:space="preserve"><value>Maximum number of concurrent accesses</value></data>
+  <data name="JitGroupOuLabel" xml:space="preserve"><value>Just-In-Time Group OU</value></data>
+  <data name="Tier0LdapQueryLabel" xml:space="preserve"><value>LDAP query to identify Tier 0 computers</value></data>
+  <data name="Tier0ComputerOuLabel" xml:space="preserve"><value>Tier 0 Computer OU</value></data>
+  <data name="Tier1LdapQueryLabel" xml:space="preserve"><value>LDAP query to identify Tier 1 computers</value></data>
+  <data name="DebugLoggingDirectoryLabel" xml:space="preserve"><value>Debug logging directory</value></data>
+  <data name="JitGroupEvaluationLabel" xml:space="preserve"><value>Just-In-Time group evaluation</value></data>
+  <data name="NewJitTargetPlaceholder" xml:space="preserve"><value>New target system</value></data>
+  <data name="NewDomainPlaceholder" xml:space="preserve"><value>New domain</value></data>
+  <data name="AddEntryButton" xml:space="preserve"><value>Add</value></data>
+  <data name="SelectForestDomainButton" xml:space="preserve"><value>Select forest domain</value></data>
+  <data name="SelectOrganizationalUnitButton" xml:space="preserve"><value>Select OU</value></data>
+  <data name="DomainPickerTitle" xml:space="preserve"><value>Select forest domain</value></data>
+  <data name="DomainPickerDescription" xml:space="preserve"><value>Select a domain published by the Active Directory forest.</value></data>
+  <data name="OrganizationalUnitPickerTitle" xml:space="preserve"><value>Select organizational unit</value></data>
+  <data name="OrganizationalUnitPickerDescription" xml:space="preserve"><value>Browse from the selected domain root and choose an OU.</value></data>
+  <data name="OrganizationalUnitPickerDomainRequired" xml:space="preserve"><value>Select a domain before browsing organizational units.</value></data>
+  <data name="RemoveSelectedEntryButton" xml:space="preserve"><value>Remove selection</value></data>
+  <data name="DecreaseValueButton" xml:space="preserve"><value>Decrease value</value></data>
+  <data name="IncreaseValueButton" xml:space="preserve"><value>Increase value</value></data>
+  <data name="SaveJitConfigurationButton" xml:space="preserve"><value>Save configuration</value></data>
+  <data name="SaveDelegationConfigurationButton" xml:space="preserve"><value>Save delegation</value></data>
+  <data name="DelegationNoAdObjects" xml:space="preserve"><value>No AD objects assigned.</value></data>
+  <data name="DelegationAdObjectPlaceholder" xml:space="preserve"><value>SAM, DOMAIN\SAM, UPN, canonical name, or SID</value></data>
+  <data name="AddAdObjectButton" xml:space="preserve"><value>Add AD object</value></data>
+  <data name="RemoveAdObjectButton" xml:space="preserve"><value>Remove AD object</value></data>
+  <data name="DeleteDelegationButton" xml:space="preserve"><value>Delete delegation</value></data>
+  <data name="NewDelegationHeading" xml:space="preserve"><value>New delegation</value></data>
+  <data name="DelegationTargetLabel" xml:space="preserve"><value>Target</value></data>
+  <data name="DelegationOuPlaceholder" xml:space="preserve"><value>Search for an OU or server</value></data>
+  <data name="DelegationTargetOu" xml:space="preserve"><value>OU</value></data>
+  <data name="DelegationTargetComputer" xml:space="preserve"><value>Server</value></data>
+  <data name="DelegationTargetNoResults" xml:space="preserve"><value>No matching OUs or servers found.</value></data>
+  <data name="DelegationTargetRequired" xml:space="preserve"><value>Select an OU or server.</value></data>
+  <data name="DelegationPickerTitle" xml:space="preserve"><value>Select AD target</value></data>
+  <data name="DelegationPickerDescription" xml:space="preserve"><value>Select an OU or server as the delegation target.</value></data>
+  <data name="DelegationPickerLoading" xml:space="preserve"><value>Loading Active Directory...</value></data>
+  <data name="DelegationPickerEmpty" xml:space="preserve"><value>This node contains no OUs or servers.</value></data>
+  <data name="DelegationPickerLoadFailed" xml:space="preserve"><value>The AD structure could not be loaded.</value></data>
+  <data name="DelegationPickerExpand" xml:space="preserve"><value>Load child structure</value></data>
+  <data name="DelegationPickerSelect" xml:space="preserve"><value>Select</value></data>
+  <data name="DelegationPickerCancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="AddDelegationButton" xml:space="preserve"><value>Add delegation</value></data>
+  <data name="DelegationAdObjectNotFound" xml:space="preserve"><value>The user or group was not found in Active Directory.</value></data>
+  <data name="DelegationAdObjectDuplicate" xml:space="preserve"><value>This AD object is already assigned to the delegation.</value></data>
+  <data name="DelegationDuplicateOu" xml:space="preserve"><value>A delegation already exists for this target.</value></data>
+  <data name="DelegationOuNotFound" xml:space="preserve"><value>The OU or server was not found in Active Directory.</value></data>
+  <data name="BackToJitButton" xml:space="preserve"><value>Back to JIT</value></data>
+  <data name="ConfigurationContentRequired" xml:space="preserve"><value>Configuration content is required.</value></data>
+  <data name="ConfigurationConflict" xml:space="preserve"><value>The file was changed by another process. Reload the page and apply your changes again.</value></data>
+  <data name="ConfigurationInvalidJson" xml:space="preserve"><value>The configuration is invalid: {0}</value></data>
+  <data name="ConfigurationSaveFailed" xml:space="preserve"><value>The configuration could not be saved. Check the file availability and your permissions.</value></data>
+  <data name="JitConfigurationSaved" xml:space="preserve"><value>JIT configuration saved.</value></data>
+  <data name="DelegationConfigurationSaved" xml:space="preserve"><value>Delegation saved.</value></data>
 </root>

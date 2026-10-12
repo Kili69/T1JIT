@@ -166,26 +166,25 @@ function Get-Sid{
     return $OSID
 }
 
-function Write-JitJsonFileAtomically {
+function Write-JitDelegationFileAtomically {
     <#
     .SYNOPSIS
         Writes an object to a JSON file using an atomic replacement.
     .DESCRIPTION
-        Serializes the supplied object to a uniquely named temporary file beside the
-        destination. If the destination exists, it is atomically replaced; otherwise,
+        Writes canonical delegation JSON to a uniquely named temporary file beside
+        the destination. If the destination exists, it is atomically replaced; otherwise,
         the temporary file is moved into place. Temporary and backup files are removed
         in all cases. This private helper prevents readers from observing a partially
         written delegation configuration.
-    .PARAMETER InputObject
-        Object to serialize as JSON. Serialization uses a maximum depth of 10.
+    .PARAMETER Content
+        Canonical delegation JSON produced by KjitCore.
     .PARAMETER Path
         Destination JSON file path. The path is resolved to an absolute path before
         the temporary and backup file names are created.
     .EXAMPLE
-        Write-JitJsonFileAtomically -InputObject $delegations -Path "C:\JIT\delegation.json"
+        Write-JitDelegationFileAtomically -Content $json -Path "C:\JIT\delegation.json"
 
-        Serializes the delegation collection and atomically replaces the existing
-        delegation file.
+        Atomically replaces the existing delegation file.
     .INPUTS
         None. Pipeline input is not supported.
     .OUTPUTS
@@ -198,7 +197,7 @@ function Write-JitJsonFileAtomically {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [object]$InputObject,
+        [string]$Content,
 
         [Parameter(Mandatory = $true)]
         [string]$Path
@@ -209,8 +208,10 @@ function Write-JitJsonFileAtomically {
     $backupPath = "$temporaryPath.bak"
 
     try {
-        ConvertTo-Json -InputObject $InputObject -Depth 10 |
-            Out-File -LiteralPath $temporaryPath -Confirm:$false
+        [IO.File]::WriteAllText(
+            $temporaryPath,
+            $Content,
+            [Text.UTF8Encoding]::new($false))
 
         if (Test-Path -LiteralPath $resolvedPath -PathType Leaf) {
             [IO.File]::Replace($temporaryPath, $resolvedPath, $backupPath)
@@ -290,7 +291,6 @@ function Update-JitDelegation {
     [string]$configFileName    
 )
     # Resolve the main JIT configuration, optionally from an explicit source.
-    $CurrentDelegation = @()
     if ($null -eq $configFileName){
         $config = Get-JitConfig
     } else {
@@ -306,10 +306,13 @@ function Update-JitDelegation {
         throw "The loaded JIT configuration does not define DelegationConfigPath."
     }
 
-    # Load existing delegation entries; a missing file represents an empty database.
+    # KjitCore owns the delegation JSON schema and normalization for every host.
     if (Test-Path -LiteralPath $delegationConfigPath -PathType Leaf) {
-        $CurrentDelegation += Get-Content -LiteralPath $delegationConfigPath -Raw -ErrorAction Stop | ConvertFrom-Json
-    } 
+        $CurrentDelegation = [KjitCore.KjitCore]::LoadDelegationConfiguration($delegationConfigPath)
+    }
+    else {
+        $CurrentDelegation = [KjitCore.Models.DelegationConfigurationObject]::new()
+    }
 
     # Dispatch the requested read or mutation operation.
     switch ($action) {
@@ -317,79 +320,38 @@ function Update-JitDelegation {
             # Validate both sides of the delegation before changing persisted data.
             $OU= ValidateOU -OU $OU
             $ObjectSId = Get-Sid $ADUserOrGroup
-            $NewEntry = $true
-
-            # Reuse an existing OU entry and append the SID only when it is new.
-            if ($CurrentDelegation.Count -gt 0){
-                for ($i = 0; $i -lt $CurrentDelegation.Count; $i++){
-                    if ($CurrentDelegation[$i].ComputerOU -eq $OU){
-                        $NewEntry = $false 
-                        if (!($CurrentDelegation[$i].ADObject -contains $objectSId)){
-                            $CurrentDelegation[$i].ADObject += $objectSId
-                        }
-                        break
-                    }
-                }
-            }
-
-            # Create the first delegation entry for an OU not yet in the file.
-            if ($NewEntry){
-                $Delegation = New-Object psobject
-                $Delegation | Add-Member NoteProperty "ComputerOU" -Value $OU 
-                $Delegation | Add-Member NoteProperty "ADObject" -Value @($ObjectSID)
-                $CurrentDelegation += $Delegation
-            }
-
-            # Persist the complete delegation collection after the add operation.
-            Write-JitJsonFileAtomically -InputObject $CurrentDelegation -Path $config.DelegationConfigPath
+            $null = $CurrentDelegation.AddDelegation($OU, $ObjectSId)
+            $content = [KjitCore.KjitCore]::SerializeDelegationConfiguration($CurrentDelegation)
+            Write-JitDelegationFileAtomically -Content $content -Path $delegationConfigPath
             return $true
         }
         'RemoveDelegation'{
-            # Rebuild the collection without entries for the requested OU.
-            $tempDelegation = @()
-            for ($i = 0; $i -lt $CurrentDelegation.count; $i++){
-                if ($CurrentDelegation[$i].ComputerOU -ne $OU){
-                    $tempDelegation += $CurrentDelegation[$i]
-                }
-            }
-
-            # Persist the filtered delegation collection.
-            Write-JitJsonFileAtomically -InputObject $tempDelegation -Path $config.DelegationConfigPath
+            $null = $CurrentDelegation.RemoveDelegation($OU)
+            $content = [KjitCore.KjitCore]::SerializeDelegationConfiguration($CurrentDelegation)
+            Write-JitDelegationFileAtomically -Content $content -Path $delegationConfigPath
             return $true
         }
         'RemoveUserOrGroup'{
-            # Resolve the account and locate its OU delegation entry.
             $ObjectSID = Get-Sid $ADUserOrGroup
-            for ($i = 0; $i -lt $CurrentDelegation.count;$i++){
-                if ($CurrentDelegation[$i].ComputerOU -eq $OU){
-                    # Rebuild the OU's SID list without the resolved account SID.
-                    $tempSIDList = @()
-                    Foreach ($SID in $CurrentDelegation[$i].ADObject){
-                        if ($SID -ne $ObjectSId){
-                            $tempSIDList +=  $SID
-                        }
-                    }
-                    $CurrentDelegation[$i].ADObject = $tempSIDList
-
-                    # Persist the modified OU entry and stop after the first match.
-                    Write-JitJsonFileAtomically -InputObject $CurrentDelegation -Path $config.DelegationConfigPath
-                    return $true    
-                }
+            if ($CurrentDelegation.RemoveDelegation($OU, $ObjectSID)) {
+                $content = [KjitCore.KjitCore]::SerializeDelegationConfiguration($CurrentDelegation)
+                Write-JitDelegationFileAtomically -Content $content -Path $delegationConfigPath
+                return $true
             }
         }
         Default {
             # Translate stored SIDs into readable NT account names for callers.
             $retVal = @()
-            For($iOU= 0; $iOU -lt $CurrentDelegation.Count; $iOU++){
+            Foreach ($delegation in $CurrentDelegation.Delegations) {
                 $arySID = @()
-                For($iSID = 0; $iSID -lt $CurrentDelegation[$iOU].ADObject.count;$iSID++){
-                    $SID = New-Object System.Security.Principal.SecurityIdentifier($CurrentDelegation[$iOU].ADObject[$iSID])
+                Foreach ($securityIdentifier in $delegation.ADObject) {
+                    $SID = New-Object System.Security.Principal.SecurityIdentifier($securityIdentifier)
                     $arySID +=$SID.Translate([System.Security.Principal.NTAccount]).Value
                 }
 
                 # Return one presentation object per configured computer OU.
                 $OUdelegation = New-Object PSObject
-                $OUdelegation | Add-Member -MemberType NoteProperty -Name OU -Value $CurrentDelegation[$iOU].ComputerOU
+                $OUdelegation | Add-Member -MemberType NoteProperty -Name OU -Value $delegation.ComputerOU
                 $OUdelegation | Add-Member -MemberType NoteProperty -Name SID -Value $arySID
                 $retVal +=$OUdelegation
             }

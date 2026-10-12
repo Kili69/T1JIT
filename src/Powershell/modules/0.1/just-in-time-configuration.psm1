@@ -76,24 +76,20 @@ function Add-JitDefaultOUDelegation {
         # so resolution never falls back to an interactive prompt.
         $domainAdminsSid = "$((Get-ADDomain -Server $DomainDNS).DomainSID.Value)-512"
 
-        $currentDelegations = @()
+        if (-not ("KjitCore.KjitCore" -as [type])) {
+            $null = Get-JitConfig -configurationFile $env:JustInTimeConfig
+        }
+
         if (Test-Path -LiteralPath $delegationConfigPath -PathType Leaf) {
-            $currentDelegations += @(Get-Content -LiteralPath $delegationConfigPath -Raw | ConvertFrom-Json)
+            $currentDelegations = [KjitCore.KjitCore]::LoadDelegationConfiguration($delegationConfigPath)
+        }
+        else {
+            $currentDelegations = [KjitCore.Models.DelegationConfigurationObject]::new()
         }
 
-        $entry = $currentDelegations | Where-Object { $_.ComputerOU -eq $OU }
-        if ($entry) {
-            if ($entry.ADObject -notcontains $domainAdminsSid) {
-                $entry.ADObject = @($entry.ADObject) + $domainAdminsSid
-            }
-        } else {
-            $currentDelegations += [PSCustomObject]@{
-                ComputerOU = $OU
-                ADObject   = @($domainAdminsSid)
-            }
-        }
-
-        Write-JitConfigurationJsonAtomically -InputObject $currentDelegations -Path $delegationConfigPath
+        $null = $currentDelegations.AddDelegation($OU, $domainAdminsSid)
+        $content = [KjitCore.KjitCore]::SerializeDelegationConfiguration($currentDelegations)
+        Write-JitConfigurationJsonAtomically -Content $content -Path $delegationConfigPath
     } catch {
         Write-Warning "Domain Admins delegation was not added automatically for '$OU': $($_.Exception.Message)"
     }
@@ -147,8 +143,12 @@ function Add-JitServerOU{
         [string]$OU
     )
 
-    # Load the persisted configuration that will receive the additional search base.
-    $config = Get-Content $env:JustInTimeConfig | ConvertFrom-Json
+    # Load the persisted configuration and shared KjitCore mutation API.
+    $configurationContent = Get-Content -LiteralPath $env:JustInTimeConfig -Raw
+    $config = $configurationContent | ConvertFrom-Json
+    if (-not ("KjitCore.KjitCore" -as [type])) {
+        $null = Get-JitConfig -configurationFile $env:JustInTimeConfig
+    }
 
     # Extract the domain DN suffix from the supplied distinguished name.
     $DomainDN = [regex]::Match($OU,"DC=.+",[Text.RegularExpressions.RegexOptions]::IgnoreCase).Value
@@ -166,9 +166,12 @@ function Add-JitServerOU{
             # Keep the operation idempotent and inform interactive callers.
             Write-Host "$OU is already defined" -ForegroundColor Yellow
         } else {
-            # Append the DN and rewrite the configuration with the updated array.
-            $config.T1Searchbase += $OU
-            ConvertTo-Json $config | Out-File $env:JustInTimeConfig -Confirm:$false
+            # Apply the same typed list mutation used by KjitWeb.
+            $content = [KjitCore.KjitCore]::AddJitConfigurationListValue(
+                $configurationContent,
+                "T1Searchbase",
+                $OU)
+            Write-JitConfigurationJsonAtomically -Content $content -Path $env:JustInTimeConfig
         }
 
         # Keep the Domain Admins default delegation in sync with the search base,
@@ -252,10 +255,13 @@ function Write-JitConfigurationJsonAtomically {
         Replaces delegation.json with the JSON representation of $config.
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'Object')]
     param(
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Object')]
         [object]$InputObject,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'Content')]
+        [string]$Content,
 
         [Parameter(Mandatory = $true)]
         [string]$Path
@@ -266,8 +272,16 @@ function Write-JitConfigurationJsonAtomically {
     $backupPath = "$temporaryPath.bak"
 
     try {
-        ConvertTo-Json -InputObject $InputObject -Depth 10 |
-            Out-File -LiteralPath $temporaryPath -Confirm:$false
+        if ($PSCmdlet.ParameterSetName -eq 'Content') {
+            $json = $Content
+        }
+        else {
+            $json = ConvertTo-Json -InputObject $InputObject -Depth 10
+        }
+        [IO.File]::WriteAllText(
+            $temporaryPath,
+            $json,
+            [Text.UTF8Encoding]::new($false))
 
         if (Test-Path -LiteralPath $resolvedPath -PathType Leaf) {
             [IO.File]::Replace($temporaryPath, $resolvedPath, $backupPath)
@@ -323,28 +337,37 @@ function Remove-JITServerOU{
 
     # Load the main configuration and preserve the configured spelling of the OU.
     $config = Get-Content -LiteralPath $env:JustInTimeConfig -Raw | ConvertFrom-Json
+    if (-not ("KjitCore.KjitCore" -as [type])) {
+        $null = Get-JitConfig -configurationFile $env:JustInTimeConfig
+    }
     if ($config.T1Searchbase -contains $OU){
         $removedOU = @($config.T1Searchbase | Where-Object { $_ -eq $OU })[0]
-        $remainingSearchBases = @($config.T1Searchbase | Where-Object { $_ -ne $OU })
         $removedDelegations = @()
         $delegationConfigPath = [string]$config.DelegationConfigPath
 
         # Remove every delegation that targets the removed server search base.
         if (-not [string]::IsNullOrWhiteSpace($delegationConfigPath) -and
             (Test-Path -LiteralPath $delegationConfigPath -PathType Leaf)) {
-            $currentDelegations = @(Get-Content -LiteralPath $delegationConfigPath -Raw | ConvertFrom-Json)
-            $removedDelegations = @($currentDelegations | Where-Object { $_.ComputerOU -eq $OU })
+            if (-not ("KjitCore.KjitCore" -as [type])) {
+                $null = Get-JitConfig -configurationFile $env:JustInTimeConfig
+            }
+            $currentDelegations = [KjitCore.KjitCore]::LoadDelegationConfiguration($delegationConfigPath)
+            $removedDelegations = @($currentDelegations.Delegations |
+                Where-Object { $_.ComputerOU -eq $OU })
 
-            if ($removedDelegations.Count -gt 0) {
-                $remainingDelegations = @($currentDelegations | Where-Object { $_.ComputerOU -ne $OU })
-                Write-JitConfigurationJsonAtomically -InputObject $remainingDelegations -Path $delegationConfigPath
+            if ($currentDelegations.RemoveDelegation($OU)) {
+                $content = [KjitCore.KjitCore]::SerializeDelegationConfiguration($currentDelegations)
+                Write-JitConfigurationJsonAtomically -Content $content -Path $delegationConfigPath
             }
         }
 
         # Persist the server search-base change after stale delegations are removed.
-        $config.T1Searchbase = $remainingSearchBases
-        ConvertTo-Json -InputObject $config -Depth 10 |
-            Out-File -LiteralPath $env:JustInTimeConfig -Confirm:$false
+        $configurationContent = Get-Content -LiteralPath $env:JustInTimeConfig -Raw
+        $content = [KjitCore.KjitCore]::RemoveJitConfigurationListValue(
+            $configurationContent,
+            "T1Searchbase",
+            $OU)
+        Write-JitConfigurationJsonAtomically -Content $content -Path $env:JustInTimeConfig
 
         # Return one object so callers can continue processing the removed data.
         return [PSCustomObject]@{

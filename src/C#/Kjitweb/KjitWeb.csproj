@@ -28,6 +28,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\KjitCore\KjitCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="kjitlogo.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <TargetPath>wwwroot\images\kjitlogo.png</TargetPath>

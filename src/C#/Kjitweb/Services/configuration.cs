@@ -582,236 +582,24 @@ public class DelegationConfiguration
 	/// <remarks>Performs synchronous file I/O and omits malformed individual rule entries.</remarks>
 	private static IReadOnlyList<DelegationRule> ReadRules(string path)
 	{
-		// We check if the specified file exists at the given path. If it does not exist, we throw a FileNotFoundException with a clear error message indicating that the delegation config file was not found, along with the path that was attempted. This provides immediate feedback to users or administrators that the configuration file is missing, allowing them to take corrective action by ensuring that the file is in place at the expected location.
-		if (!File.Exists(path))
-		{
-			throw new FileNotFoundException("Delegation config file was not found.", path);
-		}
-
 		try
 		{
-			using var document = ReadJsonDocumentWithRetry(path);
-			// If there is an issue with reading the file, such as insufficient permissions or an I/O error, we catch the IOException and throw a new InvalidOperationException with a clear error message indicating that there was an error reading the delegation config file, along with the original exception for more details. This ensures that we handle file access issues gracefully and provide clear feedback on what went wrong when attempting to read the configuration file.
-			var rules = ExtractRules(document.RootElement)
+			return global::KjitCore.KjitCore.LoadDelegationConfiguration(path)
+				.Delegations
+				.SelectMany(entry => entry.ADObject.Select(securityIdentifier =>
+				{
+					var searchBase = JitConfiguration.NormalizeLdapPath(entry.ComputerOU)
+						?? throw new InvalidOperationException(
+							$"ComputerOU '{entry.ComputerOU}' is not a valid LDAP path.");
+					return new DelegationRule(securityIdentifier, searchBase);
+				}))
 				.Distinct()
 				.ToList();
-
-			return rules;
 		}
-		// If there is an issue with reading the file, such as insufficient permissions or an I/O error, we catch the IOException and throw a new InvalidOperationException with a clear error message indicating that there was an error reading the delegation config file, along with the original exception for more details. This ensures that we handle file access issues gracefully and provide clear feedback on what went wrong when attempting to read the configuration file.
-		catch (IOException ex)
+		catch (Exception ex) when (ex is IOException or InvalidOperationException or ArgumentException)
 		{
 			throw new InvalidOperationException("Error reading delegation config file.", ex);
 		}
-		// If there is an issue with parsing the file as valid JSON, we catch the JsonException and throw a new InvalidOperationException with a clear error message indicating that the delegation config is not a valid JSON file, along with the original exception for more details. This ensures that we handle JSON parsing issues gracefully and provide clear feedback on what went wrong when attempting to read the configuration file.
-		catch (JsonException ex)
-		{
-			throw new InvalidOperationException("Delegation config is not a valid JSON file.", ex);
-		}
 	}
 
-	/// <summary>Reads and parses a delegation file, retrying transient read or parse failures.</summary>
-	/// <param name="path">The non-null file path to read.</param>
-	/// <returns>An owned JSON document that the caller must dispose.</returns>
-	/// <exception cref="IOException">The final file-read attempt fails.</exception>
-	/// <exception cref="JsonException">The final content is empty or invalid JSON.</exception>
-	/// <remarks>Performs up to three synchronous attempts and blocks for 50 milliseconds between failed attempts.</remarks>
-	private static JsonDocument ReadJsonDocumentWithRetry(string path)
-	{
-		const int maximumReadAttempts = 3;
-
-		for (var attempt = 1; attempt <= maximumReadAttempts; attempt++)
-		{
-			try
-			{
-				var json = File.ReadAllText(path);
-				if (string.IsNullOrWhiteSpace(json))
-				{
-					throw new JsonException("Delegation config is empty.");
-				}
-
-				return JsonDocument.Parse(json);
-			}
-			catch (Exception ex) when (
-				(ex is IOException || ex is JsonException)
-				&& attempt < maximumReadAttempts)
-			{
-				Thread.Sleep(50);
-			}
-		}
-
-		throw new InvalidOperationException("Delegation config could not be read.");
-	}
-
-	// This helper method recursively extracts delegation rules from a JsonElement. 
-	// It checks if the element is an array and, if so, it enumerates the array and recursively calls itself for each item. 
-	// If the element is an object, it looks for the "ComputerOU" property to determine the search base LDAP path and the "ADObject" property to read the security identifiers (SIDs). 
-	// For each valid combination of search base and SID, it yields a new DelegationRule. 
-	// This allows for flexible JSON structures where rules can be defined in arrays or nested objects, while ensuring that only valid rules with both a search base and at least one SID are returned.
-	/// <summary>Recursively extracts valid delegation rules from arrays and rule objects.</summary>
-	/// <param name="element">A JSON array, rule object, or unsupported value.</param>
-	/// <returns>
-	/// A lazy sequence containing one rule per non-blank <c>ADObject</c> SID paired with a valid
-	/// <c>ComputerOU</c>; unsupported and malformed values yield no rules.
-	/// </returns>
-	private static IEnumerable<DelegationRule> ExtractRules(JsonElement element)
-	{
-		// We check if the provided JsonElement is an array. If it is, we enumerate the array and recursively call ExtractRules for each item in the array, yielding any rules that are found. 
-		// This allows for flexible JSON structures where rules can be defined in arrays, and it ensures that we can extract all valid rules from the configuration regardless of how they are structured within the JSON document.
-		if (element.ValueKind == JsonValueKind.Array)
-		{
-			// We enumerate each item in the array and recursively call ExtractRules for each item, yielding any rules that are found.
-			foreach (var item in element.EnumerateArray())
-			{
-				// For each item in the array, we call ExtractRules recursively to extract any delegation rules defined within that item. 
-				// This allows for nested structures in the JSON configuration, where rules can be defined within arrays or objects at various levels of the hierarchy. 
-				// We yield each rule found so that they can be collected into a list of DelegationRule objects for use in the application.
-				foreach (var rule in ExtractRules(item))
-				{
-					yield return rule;
-				}
-			}
-
-			yield break;
-		}
-		// If the element is not an array, we check if it is an object. 
-		// If it is not an object, we cannot extract any rules from it, so we yield break to exit the method.
-		if (element.ValueKind != JsonValueKind.Object)
-		{
-			yield break;
-		}
-		// We check if the object has a "ComputerOU" property that is a string, which will be used as the search base LDAP path for the delegation rule.
-		if (!TryGetPropertyIgnoreCase(element, "ComputerOU", out var computerOuElement)
-			|| computerOuElement.ValueKind != JsonValueKind.String)
-		{
-			yield break;
-		}
-
-		var searchBase = NormalizeLdapPath(computerOuElement.GetString()); // We retrieve the string value of the "ComputerOU" property and normalize it as an LDAP path using the NormalizeLdapPath helper method. This ensures that we have a valid LDAP path for the search base, which is necessary for the delegation rule to function correctly when limiting server discovery based on group membership in Active Directory. If the "ComputerOU" property is not a valid string or cannot be normalized to a valid LDAP path, we yield break to skip this rule, as it would not be valid without a proper search base.
-		// We check if the normalized search base is null, empty, or consists only of whitespace. If it is, we yield break to skip this rule, as a valid search base LDAP path is required for the delegation rule to function correctly when limiting server discovery based on group membership in Active Directory. This ensures that we only return valid delegation rules that have a proper search base defined.
-		if (string.IsNullOrWhiteSpace(searchBase))
-		{
-			yield break;
-		}
-		// We check if the object has an "ADObject" property, which should contain the security identifiers (SIDs) for the delegation rule. 
-		// If it does not exist, we yield break to skip this rule, as a valid SID is required for the delegation rule to function correctly when limiting server discovery based on group membership in Active Directory. This ensures that we only return valid delegation rules that have both a proper search base and at least one valid SID defined.
-		if (!TryGetPropertyIgnoreCase(element, "ADObject", out var adObjectElement))
-		{
-			yield break;
-		}
-		// We read the security identifiers (SIDs) from the "ADObject" property using the ReadSecurityIdentifiers helper method, which can handle both string and array formats for SIDs. 
-		// For each valid SID that we read, we yield a new DelegationRule with the SID and the search base LDAP path. 
-		// This allows us to create a delegation rule for each SID that is associated with the specified search base, enabling the application to apply these rules when determining which servers to include in the results of server discovery queries based on group membership in Active Directory.
-		foreach (var sid in ReadSecurityIdentifiers(adObjectElement))
-		{
-			yield return new DelegationRule(sid, searchBase);
-		}
-	}
-
-	// This helper method reads security identifiers (SIDs) from a JsonElement, which can be either a string or an array of strings. 
-	// If the element is a string, it normalizes the string as a SID and yields it. If the element is an array, it enumerates the array and yields each string item as a normalized SID. 
-	// If the element is neither a string nor an array, it yields nothing.
-	/// <summary>Reads one or more security identifier strings from a JSON value.</summary>
-	/// <param name="element">A string, an array of strings, or an unsupported value.</param>
-	/// <returns>A lazy sequence of trimmed, unquoted, uppercase non-blank values; unsupported values yield none.</returns>
-	/// <remarks>The returned text is normalized but is not validated as a structurally valid Windows SID.</remarks>
-	private static IEnumerable<string> ReadSecurityIdentifiers(JsonElement element)
-	{
-		// We check if the provided JsonElement is a string. If it is, we retrieve the string value, normalize it as a SID using the NormalizeSecurityIdentifier helper method, and yield it if it is not null, empty, or whitespace. 
-		 // This allows for a simple case where the "ADObject" property contains a single SID as a string, and we can directly return that as a delegation rule.
-		if (element.ValueKind == JsonValueKind.String)
-		{
-			var value = element.GetString(); // We retrieve the string value of the element, which should represent a security identifier (SID) in this case.
-			// We check if the retrieved string value is null, empty, or consists only of whitespace. If it is not, we normalize it as a SID using the NormalizeSecurityIdentifier helper method and yield it. 
-			// This ensures that we only return valid SIDs that are properly specified in the configuration, while ignoring any invalid or empty values.
-			if (!string.IsNullOrWhiteSpace(value))
-			{
-				yield return NormalizeSecurityIdentifier(value);
-			}
-
-			yield break;
-		}
-
-		// We check if the provided JsonElement is an array. If it is not, we yield break to exit the method, as we cannot read SIDs from a non-string, non-array element. 
-		// This ensures that we only attempt to read SIDs from valid formats in the configuration.
-		if (element.ValueKind != JsonValueKind.Array)
-		{
-			yield break;
-		}
-		// If the element is an array, we enumerate the array and for each item, we check if it is a string. 
-		// If it is a string, we retrieve the string value, normalize it as a SID, and yield it if it is not null, empty, or whitespace. 
-		// This allows for a case where the "ADObject" property contains multiple SIDs as an array of strings, and we can return a delegation rule for each valid SID in the array.
-		foreach (var item in element.EnumerateArray())
-		{
-			// We check if the current item in the array is a string. 
-			// If it is, we retrieve the string value, normalize it as a SID using the NormalizeSecurityIdentifier helper method, and yield it if it is not null, empty, or whitespace. 
-			// This ensures that we only return valid SIDs that are properly specified in the configuration, while ignoring any invalid or empty values in the array.
-			if (item.ValueKind == JsonValueKind.String)
-			{
-				var value = item.GetString();
-				if (!string.IsNullOrWhiteSpace(value))
-				{
-					yield return NormalizeSecurityIdentifier(value);
-				}
-			}
-		}
-	}
-
-	// This helper method attempts to retrieve a property from a JsonElement, ignoring case sensitivity for the property name. 
-	// It checks if the JsonElement is an object, and if so, it enumerates the properties of the object to find a match for the specified property name, ignoring case. 
-	// If a matching property is found, it returns true and outputs the value of the property. 
-	// If no matching property is found, it returns false and outputs a default JsonElement value.	
-	/// <summary>Attempts to retrieve an object property by case-insensitive name.</summary>
-	/// <param name="root">The element to inspect; non-object values never match.</param>
-	/// <param name="propertyName">The non-null property name to match.</param>
-	/// <param name="value">Receives the matched value, or the default JSON element when not found.</param>
-	/// <returns><see langword="true"/> when a match is found; otherwise <see langword="false"/>.</returns>
-	private static bool TryGetPropertyIgnoreCase(JsonElement root, string propertyName, out JsonElement value)
-	{
-		// We check if the provided JsonElement is an object, as only objects can have properties. 
-		// If it is not an object, we cannot find any properties, so we return false and output a default JsonElement value.
-		if (root.ValueKind == JsonValueKind.Object)
-		{
-			// We enumerate the properties of the JsonElement object, and for each property, we check if its name matches the specified property name, ignoring case sensitivity. 
-			// If we find a matching property, we output its value and return true, indicating that we successfully retrieved the property. 
-			// This allows us to access properties in the JSON configuration without requiring exact case matches, providing flexibility in how the configuration can be written while still allowing us to retrieve the necessary values for processing the delegation rules.
-			foreach (var property in root.EnumerateObject())
-			{
-				// We check if the name of the current property matches the specified property name, ignoring case sensitivity.
-				if (property.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase))
-				{
-					value = property.Value;
-					return true;
-				}
-			}
-		}
-		
-		// If no matching property is found, we output a default JsonElement value and return false, indicating that we did not retrieve the property. 
-		// This allows the calling code to handle the case where the property is not present in the JSON configuration, and it provides a clear way to check for the existence of properties without throwing exceptions when they are missing.	
-		value = default;
-		return false;
-	}
-
-	// This helper method normalizes a string value as a security identifier (SID). 
-	// It trims the value, removes any surrounding quotes, and converts it to uppercase invariant.
-	/// <summary>Normalizes configured SID text for ordinal comparisons.</summary>
-	/// <param name="value">The non-null value to normalize.</param>
-	/// <returns>The value with surrounding whitespace and quotes removed and letters converted to uppercase.</returns>
-	/// <remarks>This does not validate SID syntax.</remarks>
-	private static string NormalizeSecurityIdentifier(string value)
-	{
-		return value.Trim().Trim('"', '\'').ToUpperInvariant(); // We trim the input value to remove any leading or trailing whitespace, as well as any surrounding quotes (both double and single quotes).
-	}
-	// This helper method normalizes a string value as an LDAP path. 
-	// It checks if the value is null, empty, or consists only of whitespace, and if so, it returns null. 
-	// It then trims the value and any surrounding quotes, and checks if it starts with "LDAP://", "OU=", "CN=", or "DC=", ignoring case. 
-	// If it starts with "LDAP://", it returns the trimmed value as is. If it starts with "OU=", "CN=", or "DC=", it prepends "LDAP://" to construct a full LDAP path.
-
-	/// <summary>Delegates LDAP path normalization to <see cref="JitConfiguration.NormalizeLdapPath(string?)"/>.</summary>
-	/// <param name="value">A possibly null LDAP path or distinguished name.</param>
-	/// <returns>A normalized LDAP URL, or <see langword="null"/> for blank or unsupported input.</returns>
-	private static string? NormalizeLdapPath(string? value)
-	{
-		return JitConfiguration.NormalizeLdapPath(value); // We call the NormalizeLdapPath method from the JitConfiguration class to perform the normalization of the LDAP path. This allows us to reuse the same logic for normalizing LDAP paths across different parts of the application, ensuring consistency in how LDAP paths are handled and allowing for any future updates to the normalization logic to be applied in one place.
-	}
 }

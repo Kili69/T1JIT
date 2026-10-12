@@ -213,18 +213,43 @@ public class ActiveDirectoryService : IActiveDirectoryService
     }
 
     /// <summary>
-    /// Gets the domain encoded in the configured domain LDAP path.
+    /// Gets the Active Directory domain DNS names published by the current forest.
     /// </summary>
-    /// <returns>A new list containing one FQDN, or an empty list when it cannot be parsed.</returns>
-    /// <remarks>Performs no forest discovery or network request.</remarks>
+    /// <returns>A distinct ordered list, falling back to the configured domain when discovery fails.</returns>
     public List<string> GetAvailableDomains()
     {
-        // System.DirectoryServices.ActiveDirectory.Forest is not available when running as a
-        // Windows Service under SYSTEM. Return the domain derived from the configured LDAP path.
         var fallbackDomain = ParseDomainFqdnFromLdapPath(_domainLdapPath);
-        return string.IsNullOrWhiteSpace(fallbackDomain)
-            ? new List<string>()
-            : new List<string> { fallbackDomain };
+        try
+        {
+            var configurationNamingContext = ReadRootDseAttribute("configurationNamingContext");
+            if (string.IsNullOrWhiteSpace(configurationNamingContext))
+            {
+                throw new InvalidOperationException("RootDSE did not return configurationNamingContext.");
+            }
+
+            var domains = LdapSearchPaged(
+                    $"CN=Partitions,{configurationNamingContext}",
+                    "(&(objectClass=crossRef)(dnsRoot=*)(systemFlags:1.2.840.113556.1.4.803:=3))",
+                    SearchScope.OneLevel,
+                    "dnsRoot")
+                .Select(entry => ReadEntryAttribute(entry, "dnsRoot"))
+                .Where(domain => !string.IsNullOrWhiteSpace(domain))
+                .Select(domain => domain!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(domain => domain, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (domains.Count > 0)
+            {
+                return domains;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Unable to discover domains from the Active Directory forest.");
+        }
+
+        return string.IsNullOrWhiteSpace(fallbackDomain) ? [] : [fallbackDomain];
     }
 
     /// <summary>
@@ -601,6 +626,310 @@ public class ActiveDirectoryService : IActiveDirectoryService
             return identityName;
         }
     }
+
+    /// <summary>Resolves a SID, SAM account name, Windows account name, UPN, or canonical name to a delegation object.</summary>
+    /// <param name="identity">The Active Directory user or group identity to resolve.</param>
+    /// <returns>The resolved SID, display name, and object type, or <see langword="null"/> when no user or group matches.</returns>
+    public DelegationAdObjectEditModel? ResolveDelegationAdObject(string? identity)
+    {
+        if (string.IsNullOrWhiteSpace(identity))
+        {
+            return null;
+        }
+
+        try
+        {
+            var filter = BuildDelegationObjectLookupFilter(identity);
+            var entries = LdapSearchPaged(
+                    _domainLdapPath,
+                    filter,
+                    SearchScope.Subtree,
+                    "objectSid",
+                    "objectClass",
+                    "sAMAccountName",
+                    "displayName",
+                    "cn",
+                    "canonicalName");
+            var canonicalIdentity = TryGetCanonicalLeafName(identity, out _)
+                ? identity.Trim()
+                : null;
+            var entry = canonicalIdentity is null
+                ? entries.FirstOrDefault()
+                : entries.FirstOrDefault(candidate => string.Equals(
+                    ReadEntryAttribute(candidate, "canonicalName"),
+                    canonicalIdentity,
+                    StringComparison.OrdinalIgnoreCase));
+
+            if (entry?.Attributes["objectSid"]?.FirstOrDefault() is not byte[] sidBytes)
+            {
+                return null;
+            }
+
+            var objectClasses = entry.Attributes["objectClass"];
+            var kind = objectClasses?.Any(value =>
+                    string.Equals(value.ToString(), "group", StringComparison.OrdinalIgnoreCase)) == true
+                ? DelegationAdObjectKind.Group
+                : objectClasses?.Any(value =>
+                    string.Equals(value.ToString(), "user", StringComparison.OrdinalIgnoreCase)) == true
+                    ? DelegationAdObjectKind.User
+                    : DelegationAdObjectKind.Unknown;
+
+            if (kind == DelegationAdObjectKind.Unknown)
+            {
+                return null;
+            }
+
+            var securityIdentifier = new SecurityIdentifier(sidBytes, 0).Value.ToUpperInvariant();
+            var displayName = ReadEntryAttribute(entry, "sAMAccountName")
+                ?? ReadEntryAttribute(entry, "displayName")
+                ?? ReadEntryAttribute(entry, "cn")
+                ?? securityIdentifier;
+
+            return new DelegationAdObjectEditModel
+            {
+                SecurityIdentifier = securityIdentifier,
+                DisplayName = displayName,
+                Kind = kind
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Unable to resolve delegation object {Identity}.", identity);
+            return null;
+        }
+    }
+
+    /// <summary>Resolves an organizational-unit or computer distinguished name for a delegation.</summary>
+    /// <param name="identity">The organizational-unit or computer distinguished name to resolve.</param>
+    /// <returns>The canonical distinguished name, or <see langword="null"/> when the target does not exist.</returns>
+    public string? ResolveDelegationOrganizationalUnit(string? identity)
+    {
+        if (string.IsNullOrWhiteSpace(identity))
+        {
+            return null;
+        }
+
+        try
+        {
+            return LdapSearchPaged(
+                    identity.Trim(),
+                    "(|(objectClass=organizationalUnit)(objectCategory=computer))",
+                    SearchScope.Base,
+                    "distinguishedName")
+                .FirstOrDefault()
+                ?.DistinguishedName;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Unable to resolve delegation target {Identity}.", identity);
+            return null;
+        }
+    }
+
+    /// <summary>Browses configured T1 search bases or one direct level of their OU trees.</summary>
+    /// <param name="parentDistinguishedName">The parent OU distinguished name, or null for configured roots.</param>
+    /// <returns>Configured root OUs or distinct direct child OUs and computers ordered by display name.</returns>
+    public IReadOnlyList<DelegationTargetEditModel> BrowseDelegationTargets(string? parentDistinguishedName)
+    {
+        if (string.IsNullOrWhiteSpace(parentDistinguishedName))
+        {
+            return _serverSearchBaseLdapPaths
+                .SelectMany(searchBase => ReadDelegationTargets(searchBase, SearchScope.Base, 1))
+                .DistinctBy(target => target.DistinguishedName, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(target => target.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        var normalizedParent = NormalizeLdapPath(parentDistinguishedName);
+        if (normalizedParent is null || !IsSearchBaseAllowed(normalizedParent))
+        {
+            _logger.LogWarning(
+                "Rejected delegation tree browse outside configured T1 search bases: {ParentDistinguishedName}.",
+                parentDistinguishedName);
+            return Array.Empty<DelegationTargetEditModel>();
+        }
+
+        return ReadDelegationTargets(normalizedParent, SearchScope.OneLevel, 500)
+            .OrderBy(target => target.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    /// <summary>Browses a forest domain's OU tree one direct level at a time.</summary>
+    public IReadOnlyList<DelegationTargetEditModel> BrowseConfigurationOrganizationalUnits(
+        string? domainFqdn,
+        string? parentDistinguishedName)
+    {
+        var normalizedDomain = domainFqdn?.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedDomain)
+            || !GetAvailableDomains().Contains(normalizedDomain, StringComparer.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning("Rejected OU browse for unknown forest domain {DomainFqdn}.", domainFqdn);
+            return [];
+        }
+
+        var domainLdapPath = BuildDomainLdapPath(normalizedDomain);
+        var domainDistinguishedName = RemoveLdapPrefix(domainLdapPath);
+        if (string.IsNullOrWhiteSpace(parentDistinguishedName))
+        {
+            return
+            [
+                new DelegationTargetEditModel
+                {
+                    DistinguishedName = domainDistinguishedName,
+                    DisplayName = normalizedDomain,
+                    Kind = DelegationTargetKind.OrganizationalUnit,
+                    CanSelect = false
+                }
+            ];
+        }
+
+        var normalizedParent = NormalizeLdapPath(parentDistinguishedName);
+        if (normalizedParent is null || !IsWithinLdapRoot(normalizedParent, domainLdapPath))
+        {
+            _logger.LogWarning(
+                "Rejected OU browse outside domain {DomainFqdn}: {ParentDistinguishedName}.",
+                normalizedDomain,
+                parentDistinguishedName);
+            return [];
+        }
+
+        try
+        {
+            return LdapSearchPaged(
+                    normalizedParent,
+                    "(objectClass=organizationalUnit)",
+                    SearchScope.OneLevel,
+                    false,
+                    500,
+                    normalizedDomain,
+                    "name")
+                .Where(entry => !string.IsNullOrWhiteSpace(entry.DistinguishedName))
+                .Select(entry => new DelegationTargetEditModel
+                {
+                    DistinguishedName = entry.DistinguishedName,
+                    DisplayName = ReadEntryAttribute(entry, "name") ?? entry.DistinguishedName,
+                    Kind = DelegationTargetKind.OrganizationalUnit
+                })
+                .OrderBy(target => target.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Unable to browse organizational units in {SearchBase}.", normalizedParent);
+            return [];
+        }
+    }
+
+    private IReadOnlyList<DelegationTargetEditModel> ReadDelegationTargets(
+        string searchBase,
+        int scope,
+        int maximumResults)
+    {
+        var targets = new Dictionary<string, DelegationTargetEditModel>(StringComparer.OrdinalIgnoreCase);
+        var filter = scope == SearchScope.Base
+            ? "(objectClass=organizationalUnit)"
+            : "(|(objectClass=organizationalUnit)(objectCategory=computer))";
+
+        try
+        {
+            foreach (var entry in LdapSearchLimited(
+                         searchBase,
+                         filter,
+                         scope,
+                         maximumResults,
+                         "objectClass",
+                         "name",
+                         "dNSHostName"))
+            {
+                if (string.IsNullOrWhiteSpace(entry.DistinguishedName))
+                {
+                    continue;
+                }
+
+                var isComputer = entry.Attributes["objectClass"].Any(value =>
+                    string.Equals(value.ToString(), "computer", StringComparison.OrdinalIgnoreCase));
+                var displayName = isComputer
+                    ? ReadEntryAttribute(entry, "dNSHostName") ?? ReadEntryAttribute(entry, "name")
+                    : ReadEntryAttribute(entry, "name");
+
+                targets[entry.DistinguishedName] = new DelegationTargetEditModel
+                {
+                    DistinguishedName = entry.DistinguishedName,
+                    DisplayName = displayName ?? entry.DistinguishedName,
+                    Kind = isComputer
+                        ? DelegationTargetKind.Computer
+                        : DelegationTargetKind.OrganizationalUnit
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Unable to browse delegation targets in {SearchBase}.", searchBase);
+        }
+
+        return targets.Values.ToList();
+    }
+
+    private static string BuildDelegationObjectLookupFilter(string identity)
+    {
+        var trimmedIdentity = identity.Trim();
+        try
+        {
+            var securityIdentifier = new SecurityIdentifier(trimmedIdentity);
+            var sidBytes = new byte[securityIdentifier.BinaryLength];
+            securityIdentifier.GetBinaryForm(sidBytes, 0);
+            return $"(objectSid={string.Concat(sidBytes.Select(value => $"\\{value:x2}"))})";
+        }
+        catch (ArgumentException)
+        {
+            if (TryGetCanonicalLeafName(trimmedIdentity, out var canonicalLeafName))
+            {
+                var escapedCanonicalLeafName = EscapeLdapFilter(canonicalLeafName);
+                return $"(|(&(objectCategory=person)(objectClass=user)(|(name={escapedCanonicalLeafName})(sAMAccountName={escapedCanonicalLeafName})))(&(objectCategory=group)(|(name={escapedCanonicalLeafName})(sAMAccountName={escapedCanonicalLeafName}))))";
+            }
+
+            var accountName = trimmedIdentity.Contains('\\')
+                ? trimmedIdentity[(trimmedIdentity.LastIndexOf('\\') + 1)..]
+                : trimmedIdentity;
+            var escapedAccountName = EscapeLdapFilter(accountName);
+            var escapedIdentity = EscapeLdapFilter(trimmedIdentity);
+            return $"(|(&(objectCategory=person)(objectClass=user)(|(sAMAccountName={escapedAccountName})(userPrincipalName={escapedIdentity})))(&(objectCategory=group)(sAMAccountName={escapedAccountName})))";
+        }
+    }
+
+    private static bool TryGetCanonicalLeafName(string identity, out string leafName)
+    {
+        var trimmedIdentity = identity.Trim();
+        for (var index = trimmedIdentity.Length - 1; index >= 0; index--)
+        {
+            if (trimmedIdentity[index] != '/')
+            {
+                continue;
+            }
+
+            var precedingBackslashes = 0;
+            for (var backslashIndex = index - 1;
+                 backslashIndex >= 0 && trimmedIdentity[backslashIndex] == '\\';
+                 backslashIndex--)
+            {
+                precedingBackslashes++;
+            }
+
+            if (precedingBackslashes % 2 != 0 || index == trimmedIdentity.Length - 1)
+            {
+                continue;
+            }
+
+            leafName = trimmedIdentity[(index + 1)..]
+                .Replace("\\/", "/", StringComparison.Ordinal)
+                .Replace("\\\\", "\\", StringComparison.Ordinal);
+            return leafName.Length > 0;
+        }
+
+        leafName = string.Empty;
+        return false;
+    }
+
     // This helper method escapes special characters in a string for use in an LDAP filter. This is important to prevent LDAP injection vulnerabilities and to ensure that the filter syntax is correct when the input value contains characters that have special meaning in LDAP filters.
     /// <summary>
     /// Escapes LDAP filter metacharacters according to RFC 4515.
@@ -773,8 +1102,6 @@ public class ActiveDirectoryService : IActiveDirectoryService
                 RemainingSeconds = remainingSeconds
             };
     }
-    // This helper method checks if a given LDAP search base is allowed based on the configured server search base LDAP paths.
-    // It compares the search base to each of the configured base paths, allowing for case-insensitive matches and also allowing for the search base to end with the configured base path (ignoring the "LDAP://" prefix).  
     /// <summary>
     /// Checks whether a delegated search base is within configured server bases.
     /// </summary>
@@ -783,10 +1110,23 @@ public class ActiveDirectoryService : IActiveDirectoryService
     /// <remarks>This allow-list prevents delegation rules from expanding directory visibility.</remarks>
     private bool IsSearchBaseAllowed(string searchBase)
     {
-        // We check if the search base matches any of the configured server search base LDAP paths. We allow for case-insensitive matches, and we also allow for the search base to end with the configured base path (ignoring the "LDAP://" prefix) to provide flexibility in how the search bases are specified in the configuration. This allows administrators to specify search bases in a way that is convenient for them while still ensuring that only allowed search bases are used by the service.
-        return _serverSearchBaseLdapPaths.Any(basePath =>
-            searchBase.Equals(basePath, StringComparison.OrdinalIgnoreCase)
-            || searchBase.EndsWith(basePath["LDAP://".Length..], StringComparison.OrdinalIgnoreCase));
+        return _serverSearchBaseLdapPaths.Any(basePath => IsWithinLdapRoot(searchBase, basePath));
+    }
+
+    private static bool IsWithinLdapRoot(string searchBase, string root)
+    {
+        var searchBaseDn = RemoveLdapPrefix(searchBase);
+        var rootDn = RemoveLdapPrefix(root);
+        return searchBaseDn.Equals(rootDn, StringComparison.OrdinalIgnoreCase)
+            || searchBaseDn.EndsWith("," + rootDn, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string RemoveLdapPrefix(string value)
+    {
+        const string ldapPrefix = "LDAP://";
+        return value.StartsWith(ldapPrefix, StringComparison.OrdinalIgnoreCase)
+            ? value[ldapPrefix.Length..]
+            : value;
     }
 
     // This helper method resolves the domain LDAP path to be used for Active Directory queries. 
@@ -1298,10 +1638,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
     /// <returns>A bound connection owned by the caller.</returns>
     /// <remarks>Uses Negotiate/default credentials, signing, sealing, port 389, LDAP v3, and no referral chasing. Binding authenticates but does not modify directory data.</remarks>
     /// <exception cref="Sds.LdapException">The endpoint is unavailable or authentication fails.</exception>
-    private Sds.LdapConnection CreateLdapConnection()
+    private Sds.LdapConnection CreateLdapConnection(string? ldapServer = null)
     {
-        _logger.LogInformation("Creating LDAP connection to {DomainFqdn}", _domainFqdn);
-        var identifier = new Sds.LdapDirectoryIdentifier(_domainFqdn, 389, false, false);
+        var targetServer = string.IsNullOrWhiteSpace(ldapServer) ? _domainFqdn : ldapServer;
+        _logger.LogInformation("Creating LDAP connection to {DomainFqdn}", targetServer);
+        var identifier = new Sds.LdapDirectoryIdentifier(targetServer, 389, false, false);
         var conn = new Sds.LdapConnection(identifier)
         {
             AuthType = Sds.AuthType.Negotiate,
@@ -1337,7 +1678,20 @@ public class ActiveDirectoryService : IActiveDirectoryService
     /// <remarks>Binds with the service context, pages by 500, logs metadata, and skips malformed entries.</remarks>
     private IList<SearchResultEntry> LdapSearchPaged(string baseLdapPath, string filter, int scope, params string[] attributes)
     {
-        return LdapSearchPaged(baseLdapPath, filter, scope, false, attributes);
+        return LdapSearchPaged(baseLdapPath, filter, scope, false, null, null, attributes);
+    }
+
+    /// <summary>Executes an LDAP search capped at the requested number of entries.</summary>
+    private IList<SearchResultEntry> LdapSearchLimited(
+        string baseLdapPath,
+        string filter,
+        int scope,
+        int maximumResults,
+        params string[] attributes)
+    {
+        return maximumResults <= 0
+            ? Array.Empty<SearchResultEntry>()
+            : LdapSearchPaged(baseLdapPath, filter, scope, false, maximumResults, null, attributes);
     }
 
     /// <summary>
@@ -1351,7 +1705,22 @@ public class ActiveDirectoryService : IActiveDirectoryService
     /// <remarks>Adds the show-link-TTL control; other security and paging behavior matches the normal search.</remarks>
     private IList<SearchResultEntry> LdapSearchPagedWithLinkTtl(string baseLdapPath, string filter, int scope, params string[] attributes)
     {
-        return LdapSearchPaged(baseLdapPath, filter, scope, true, attributes);
+        return LdapSearchPaged(baseLdapPath, filter, scope, true, null, null, attributes);
+    }
+
+    private string? ReadRootDseAttribute(string attributeName)
+    {
+        using var connection = CreateLdapConnection();
+        var request = new Sds.SearchRequest(
+            string.Empty,
+            "(objectClass=*)",
+            Sds.SearchScope.Base,
+            attributeName);
+        var response = (Sds.SearchResponse)connection.SendRequest(request);
+        var attribute = response.Entries.Count == 0
+            ? null
+            : response.Entries[0].Attributes[attributeName];
+        return attribute?.Count > 0 ? attribute[0]?.ToString() : null;
     }
 
     /// <summary>
@@ -1361,6 +1730,8 @@ public class ActiveDirectoryService : IActiveDirectoryService
     /// <param name="filter">LDAP filter; untrusted values must already be escaped.</param>
     /// <param name="scope">Numeric SearchScope value.</param>
     /// <param name="showLinkTimeToLive">Whether to request Active Directory link TTL metadata.</param>
+    /// <param name="maximumResults">Optional maximum result count across all pages.</param>
+    /// <param name="ldapServer">Optional domain or server to query instead of the configured domain.</param>
     /// <param name="attributes">LDAP attributes to request.</param>
     /// <returns>A mutable list of successfully converted entries.</returns>
     /// <remarks>Creates and disposes a bound connection and issues read-only searches; transport failures propagate.</remarks>
@@ -1369,6 +1740,8 @@ public class ActiveDirectoryService : IActiveDirectoryService
         string filter,
         int scope,
         bool showLinkTimeToLive,
+        int? maximumResults,
+        string? ldapServer,
         params string[] attributes)
     {
         var baseDn = LdapPathToDn(baseLdapPath);
@@ -1376,11 +1749,11 @@ public class ActiveDirectoryService : IActiveDirectoryService
         _logger.LogInformation("LDAP Search: BaseDN={BaseDn}, Filter={Filter}, Scope={Scope}, Attributes={Attributes}", 
             baseDn, filter, scope, string.Join(",", attributes));
         
-        using var conn = CreateLdapConnection();
+        using var conn = CreateLdapConnection(ldapServer);
         var entries = new List<SearchResultEntry>();
 
         // AD commonly enforces a max result size per request; use RFC2696 paging.
-        var pageRequest = new Sds.PageResultRequestControl(500);
+        var pageRequest = new Sds.PageResultRequestControl(Math.Min(500, maximumResults ?? 500));
         byte[]? nextCookie = null;
 
         do
@@ -1429,6 +1802,10 @@ public class ActiveDirectoryService : IActiveDirectoryService
                     }
 
                     entries.Add(entry);
+                    if (entries.Count >= maximumResults)
+                    {
+                        break;
+                    }
                 }
                 catch
                 {
@@ -1437,10 +1814,12 @@ public class ActiveDirectoryService : IActiveDirectoryService
                 }
             }
 
-            nextCookie = response.Controls
-                .OfType<Sds.PageResultResponseControl>()
-                .FirstOrDefault()
-                ?.Cookie;
+            nextCookie = entries.Count >= maximumResults
+                ? null
+                : response.Controls
+                    .OfType<Sds.PageResultResponseControl>()
+                    .FirstOrDefault()
+                    ?.Cookie;
         }
         while (nextCookie is { Length: > 0 });
         

@@ -1,4 +1,4 @@
-# Just-In-Time Solution for Active Directory Member Servers - Version 0.2.20261005.5 (dev)
+# Just-In-Time Solution for Active Directory Member Servers - Version 0.3.20261012.1 (web-config)
 
 <p align="center"><img src="./release/kJITWeb/kjitlogo.png" alt="T1JIT logo" width="180"></p>
 <p align="center"><strong>Time-limited local administrator access for Active Directory member servers</strong></p>
@@ -115,6 +115,15 @@ flowchart TD
 > Terminate TLS at a trusted reverse proxy, Microsoft Entra Application Proxy, or another organization-approved HTTPS endpoint, and block direct client access to the internal HTTP URL so that users cannot bypass TLS and access controls. If HTTP must be retained, limit it to a trusted, isolated management network and do not use **Switch User** over that connection.
 
 KjitWeb provides a browser interface for requesting temporary administrator access. Open `http://<server>.<domain>:5240`, select a target server and elevation duration, and submit the request. The server list contains only delegated computers with a matching JIT administrator group and displays each server by its fully qualified DNS name. The interface also shows active elevations and their remaining time.
+
+Users authenticated with Windows who have read and write access to both `JIT.config`
+and the configured `Tier1delegation.config` can open **Configuration** from the utility
+bar. The page provides separate **JIT configuration** and **Delegation configuration**
+tabs. Each tab validates JSON before saving and rejects stale submissions when another
+process changed the file after it was loaded. Configuration file access and writes run
+under the authenticated Windows token; sessions created through **Switch User** cannot
+open the editor because their authentication cookie does not contain a reusable Windows
+access token.
 
 <p align="center">
   <img src="./docs/images/kjitweb-server-selection.png" alt="KjitWeb server selection and elevation request interface" width="100%">

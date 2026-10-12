@@ -101,7 +101,12 @@ internal static class JitConfigurationReader
             throw new FileNotFoundException("JIT configuration file was not found.", path);
         }
 
-        var json = File.ReadAllText(path);
+        return ParseJson(File.ReadAllText(path));
+    }
+
+    /// <summary>Parses and validates a JIT configuration JSON document.</summary>
+    internal static JitConfigurationObject ParseJson(string json)
+    {
         var configuration = new JitConfigurationObject();
 
 #if NET48

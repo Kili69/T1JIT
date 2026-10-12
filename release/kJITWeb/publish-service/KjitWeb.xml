@@ -4,6 +4,51 @@
         <name>KjitWeb</name>
     </assembly>
     <members>
+        <member name="T:KjitWeb.Controllers.ConfigurationController">
+            <summary>Provides authorized editing of the JIT and delegation configuration files.</summary>
+        </member>
+        <member name="M:KjitWeb.Controllers.ConfigurationController.#ctor(KjitWeb.Services.ConfigurationEditorService,KjitWeb.Services.IActiveDirectoryService,Microsoft.Extensions.Logging.ILogger{KjitWeb.Controllers.ConfigurationController},Microsoft.Extensions.Localization.IStringLocalizer{KjitWeb.SharedResource})">
+            <summary>Initializes the configuration controller.</summary>
+            <param name="configurationEditor">Loads, authorizes, validates, and saves configuration files.</param>
+            <param name="activeDirectory">Resolves delegation users, groups, and SIDs.</param>
+            <param name="logger">Records configuration editing failures and successful operations.</param>
+            <param name="localizer">Provides localized UI messages.</param>
+        </member>
+        <member name="M:KjitWeb.Controllers.ConfigurationController.Index">
+            <summary>Displays both configuration documents when the Windows user can write both files.</summary>
+            <returns>The editor view, or HTTP 403 when the required file access is unavailable.</returns>
+        </member>
+        <member name="M:KjitWeb.Controllers.ConfigurationController.SaveJit(KjitWeb.Models.JitConfigurationEditModel)">
+            <summary>Validates and saves the submitted JIT configuration.</summary>
+            <param name="model">The edited JSON and hash of the originally loaded file.</param>
+            <returns>The refreshed editor, or HTTP 403 when file access is unavailable.</returns>
+        </member>
+        <member name="M:KjitWeb.Controllers.ConfigurationController.SaveDelegation(KjitWeb.Models.DelegationConfigurationEditModel)">
+            <summary>Validates and saves the submitted delegation configuration.</summary>
+            <param name="model">The edited delegations and hash of the originally loaded file.</param>
+            <returns>The refreshed editor, or HTTP 403 when file access is unavailable.</returns>
+        </member>
+        <member name="M:KjitWeb.Controllers.ConfigurationController.ResolveDelegationObject(System.String)">
+            <summary>Resolves one Active Directory identity for the delegation editor.</summary>
+            <param name="identity">A SID, SAM account name, Windows account name, or UPN.</param>
+            <returns>The resolved delegation object, HTTP 404 when it is unknown, or HTTP 403 without file access.</returns>
+        </member>
+        <member name="M:KjitWeb.Controllers.ConfigurationController.ResolveDelegationOrganizationalUnit(System.String)">
+            <summary>Resolves an organizational unit for the delegation editor.</summary>
+            <param name="identity">The organizational-unit distinguished name.</param>
+            <returns>The canonical distinguished name, HTTP 404 when it is unknown, or HTTP 403 without file access.</returns>
+        </member>
+        <member name="M:KjitWeb.Controllers.ConfigurationController.BrowseDelegationTargets(System.String)">
+            <summary>Browses configured Active Directory delegation targets one level at a time.</summary>
+            <param name="parentDistinguishedName">The parent OU to expand, or null for T1 search-base roots.</param>
+            <returns>Configured root OUs or direct child OUs and computers, or HTTP 403 without file access.</returns>
+        </member>
+        <member name="M:KjitWeb.Controllers.ConfigurationController.GetConfigurationDomains">
+            <summary>Returns Active Directory domains available in the current forest.</summary>
+        </member>
+        <member name="M:KjitWeb.Controllers.ConfigurationController.BrowseConfigurationOrganizationalUnits(System.String,System.String)">
+            <summary>Browses an allowed forest domain's organizational units one level at a time.</summary>
+        </member>
         <member name="T:KjitWeb.Controllers.HomeController">
             <summary>
             Handles the authenticated JIT elevation workflow, status polling, localization, and switched-user sign-in.
@@ -109,6 +154,174 @@
             <exception cref="T:System.ArgumentException">The configured explicit JIT configuration path is blank.</exception>
             <exception cref="T:System.IO.FileNotFoundException">The resolved JIT configuration file does not exist.</exception>
             <exception cref="T:System.InvalidOperationException">The domain cannot be resolved or the configuration cannot be read or parsed.</exception>
+        </member>
+        <member name="T:KjitWeb.Models.ConfigurationEditorViewModel">
+            <summary>Contains both editable configuration documents and their concurrency tokens.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.ConfigurationEditorViewModel.JitConfigPath">
+            <summary>Gets or sets the JIT configuration file path.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.ConfigurationEditorViewModel.JitConfigContent">
+            <summary>Gets or sets the editable JIT configuration JSON.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.ConfigurationEditorViewModel.JitConfigHash">
+            <summary>Gets or sets the hash of the loaded JIT configuration.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.ConfigurationEditorViewModel.JitParameters">
+            <summary>Gets or sets the individually editable JIT configuration parameters.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.ConfigurationEditorViewModel.DelegationConfigPath">
+            <summary>Gets or sets the delegation configuration file path.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.ConfigurationEditorViewModel.DelegationConfigContent">
+            <summary>Gets or sets the editable delegation configuration JSON.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.ConfigurationEditorViewModel.DelegationConfigHash">
+            <summary>Gets or sets the hash of the loaded delegation configuration.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.ConfigurationEditorViewModel.Delegations">
+            <summary>Gets or sets the individually editable delegation entries.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.ConfigurationEditorViewModel.ActiveTab">
+            <summary>Gets or sets the tab selected when the page is rendered.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.ConfigurationEditorViewModel.SuccessMessage">
+            <summary>Gets or sets the localized success message shown after saving.</summary>
+        </member>
+        <member name="T:KjitWeb.Models.ConfigurationFileEditModel">
+            <summary>Contains one submitted configuration document and its concurrency token.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.ConfigurationFileEditModel.Content">
+            <summary>Gets or sets the submitted JSON content.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.ConfigurationFileEditModel.ExpectedHash">
+            <summary>Gets or sets the hash of the file version that was edited.</summary>
+        </member>
+        <member name="T:KjitWeb.Models.DelegationAdObjectKind">
+            <summary>Identifies the Active Directory object type shown in the delegation editor.</summary>
+        </member>
+        <member name="F:KjitWeb.Models.DelegationAdObjectKind.Unknown">
+            <summary>The object could not be resolved in Active Directory.</summary>
+        </member>
+        <member name="F:KjitWeb.Models.DelegationAdObjectKind.User">
+            <summary>An Active Directory user.</summary>
+        </member>
+        <member name="F:KjitWeb.Models.DelegationAdObjectKind.Group">
+            <summary>An Active Directory group.</summary>
+        </member>
+        <member name="T:KjitWeb.Models.DelegationAdObjectEditModel">
+            <summary>Contains one Active Directory object assigned to a delegation.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.DelegationAdObjectEditModel.SecurityIdentifier">
+            <summary>Gets or sets the security identifier persisted in the delegation file.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.DelegationAdObjectEditModel.DisplayName">
+            <summary>Gets or sets the directory-derived display name.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.DelegationAdObjectEditModel.Kind">
+            <summary>Gets or sets the directory-derived object type.</summary>
+        </member>
+        <member name="T:KjitWeb.Models.DelegationTargetKind">
+            <summary>Identifies a directory target available for a delegation.</summary>
+        </member>
+        <member name="F:KjitWeb.Models.DelegationTargetKind.OrganizationalUnit">
+            <summary>An Active Directory organizational unit.</summary>
+        </member>
+        <member name="F:KjitWeb.Models.DelegationTargetKind.Computer">
+            <summary>An Active Directory computer.</summary>
+        </member>
+        <member name="T:KjitWeb.Models.DelegationTargetEditModel">
+            <summary>Contains one Active Directory target offered by the delegation picker.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.DelegationTargetEditModel.DistinguishedName">
+            <summary>Gets or sets the target distinguished name persisted in the delegation file.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.DelegationTargetEditModel.DisplayName">
+            <summary>Gets or sets the directory-derived display name.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.DelegationTargetEditModel.Kind">
+            <summary>Gets or sets the directory target type.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.DelegationTargetEditModel.CanSelect">
+            <summary>Gets or sets whether the target can be selected rather than only expanded.</summary>
+        </member>
+        <member name="T:KjitWeb.Models.DelegationEditModel">
+            <summary>Contains one editable OU delegation and its assigned Active Directory objects.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.DelegationEditModel.ComputerOu">
+            <summary>Gets or sets the distinguished name of the delegated computer OU.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.DelegationEditModel.AdObjects">
+            <summary>Gets or sets the Active Directory objects assigned to the OU.</summary>
+        </member>
+        <member name="T:KjitWeb.Models.DelegationConfigurationEditModel">
+            <summary>Contains all submitted delegation entries and the concurrency token.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.DelegationConfigurationEditModel.Delegations">
+            <summary>Gets or sets the submitted OU delegations.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.DelegationConfigurationEditModel.ExpectedHash">
+            <summary>Gets or sets the hash of the file version that was edited.</summary>
+        </member>
+        <member name="T:KjitWeb.Models.JitConfigurationParameterKind">
+            <summary>Identifies the editor control and JSON type used for a JIT parameter.</summary>
+        </member>
+        <member name="F:KjitWeb.Models.JitConfigurationParameterKind.String">
+            <summary>A JSON string edited as text.</summary>
+        </member>
+        <member name="F:KjitWeb.Models.JitConfigurationParameterKind.Integer">
+            <summary>A JSON integer edited as a whole number.</summary>
+        </member>
+        <member name="F:KjitWeb.Models.JitConfigurationParameterKind.Number">
+            <summary>A JSON number that may contain a fractional component.</summary>
+        </member>
+        <member name="F:KjitWeb.Models.JitConfigurationParameterKind.Boolean">
+            <summary>A JSON Boolean edited as true or false.</summary>
+        </member>
+        <member name="F:KjitWeb.Models.JitConfigurationParameterKind.StringList">
+            <summary>An array of JSON strings edited one item per line.</summary>
+        </member>
+        <member name="F:KjitWeb.Models.JitConfigurationParameterKind.Json">
+            <summary>A nested JSON object or non-string array edited as JSON text.</summary>
+        </member>
+        <member name="F:KjitWeb.Models.JitConfigurationParameterKind.Null">
+            <summary>A JSON null value that remains null.</summary>
+        </member>
+        <member name="T:KjitWeb.Models.JitConfigurationParameterEditModel">
+            <summary>Contains one editable top-level parameter from JIT.config.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.JitConfigurationParameterEditModel.Name">
+            <summary>Gets or sets the JSON property name.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.JitConfigurationParameterEditModel.Kind">
+            <summary>Gets or sets the parameter's original JSON type.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.JitConfigurationParameterEditModel.Value">
+            <summary>Gets or sets the value represented as form text.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.JitConfigurationParameterEditModel.IsReadOnly">
+            <summary>Gets or sets whether the parameter is displayed but cannot be changed.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.JitConfigurationParameterEditModel.IsAdvanced">
+            <summary>Gets or sets whether the parameter belongs to the advanced configuration section.</summary>
+        </member>
+        <member name="T:KjitWeb.Models.JitConfigurationEditModel">
+            <summary>Contains all individually submitted JIT parameters and the concurrency token.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.JitConfigurationEditModel.Parameters">
+            <summary>Gets or sets the submitted parameters in source-file order.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.JitConfigurationEditModel.ExpectedHash">
+            <summary>Gets or sets the hash of the file version that was edited.</summary>
+        </member>
+        <member name="T:KjitWeb.Models.JitConfigurationParameterFieldViewModel">
+            <summary>Provides one JIT parameter and its stable form collection index to the field partial.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.JitConfigurationParameterFieldViewModel.Parameter">
+            <summary>Gets or sets the parameter rendered by the field partial.</summary>
+        </member>
+        <member name="P:KjitWeb.Models.JitConfigurationParameterFieldViewModel.Index">
+            <summary>Gets or sets the parameter's index in the submitted collection.</summary>
         </member>
         <member name="T:KjitWeb.Models.ElevatedComputerViewModel">
             <summary>
@@ -304,10 +517,9 @@
         </member>
         <member name="M:KjitWeb.Services.ActiveDirectoryService.GetAvailableDomains">
             <summary>
-            Gets the domain encoded in the configured domain LDAP path.
+            Gets the Active Directory domain DNS names published by the current forest.
             </summary>
-            <returns>A new list containing one FQDN, or an empty list when it cannot be parsed.</returns>
-            <remarks>Performs no forest discovery or network request.</remarks>
+            <returns>A distinct ordered list, falling back to the configured domain when discovery fails.</returns>
         </member>
         <member name="M:KjitWeb.Services.ActiveDirectoryService.GetDefaultDomainForUser(System.Security.Claims.ClaimsPrincipal)">
             <summary>
@@ -405,6 +617,24 @@
             <param name="identityName">SAM name, DOMAIN\account, or UPN; nullable where declared.</param>
             <returns>The directory UPN, original identity fallback, or an empty string for missing input.</returns>
             <remarks>Input is escaped against LDAP injection. Failures are logged and suppressed.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.ResolveDelegationAdObject(System.String)">
+            <summary>Resolves a SID, SAM account name, Windows account name, UPN, or canonical name to a delegation object.</summary>
+            <param name="identity">The Active Directory user or group identity to resolve.</param>
+            <returns>The resolved SID, display name, and object type, or <see langword="null"/> when no user or group matches.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.ResolveDelegationOrganizationalUnit(System.String)">
+            <summary>Resolves an organizational-unit or computer distinguished name for a delegation.</summary>
+            <param name="identity">The organizational-unit or computer distinguished name to resolve.</param>
+            <returns>The canonical distinguished name, or <see langword="null"/> when the target does not exist.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.BrowseDelegationTargets(System.String)">
+            <summary>Browses configured T1 search bases or one direct level of their OU trees.</summary>
+            <param name="parentDistinguishedName">The parent OU distinguished name, or null for configured roots.</param>
+            <returns>Configured root OUs or distinct direct child OUs and computers ordered by display name.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.BrowseConfigurationOrganizationalUnits(System.String,System.String)">
+            <summary>Browses a forest domain's OU tree one direct level at a time.</summary>
         </member>
         <member name="M:KjitWeb.Services.ActiveDirectoryService.EscapeLdapFilter(System.String)">
             <summary>
@@ -576,7 +806,7 @@
             <param name="value">Value to process; expected non-null unless declared nullable.</param>
             <returns>A trimmed LDAP path with LDAP:// prefix, or null when unrecognized.</returns>
         </member>
-        <member name="M:KjitWeb.Services.ActiveDirectoryService.CreateLdapConnection">
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.CreateLdapConnection(System.String)">
             <summary>
             Creates and binds an LDAP connection using the process security context.
             </summary>
@@ -595,6 +825,9 @@
             <returns>All successfully parsed entries across pages.</returns>
             <remarks>Binds with the service context, pages by 500, logs metadata, and skips malformed entries.</remarks>
         </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.LdapSearchLimited(System.String,System.String,System.Int32,System.Int32,System.String[])">
+            <summary>Executes an LDAP search capped at the requested number of entries.</summary>
+        </member>
         <member name="M:KjitWeb.Services.ActiveDirectoryService.LdapSearchPagedWithLinkTtl(System.String,System.String,System.Int32,System.String[])">
             <summary>
             Executes a paged LDAP search requesting Active Directory link TTL metadata.
@@ -606,7 +839,7 @@
             <returns>All successfully parsed entries across pages.</returns>
             <remarks>Adds the show-link-TTL control; other security and paging behavior matches the normal search.</remarks>
         </member>
-        <member name="M:KjitWeb.Services.ActiveDirectoryService.LdapSearchPaged(System.String,System.String,System.Int32,System.Boolean,System.String[])">
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.LdapSearchPaged(System.String,System.String,System.Int32,System.Boolean,System.Nullable{System.Int32},System.String,System.String[])">
             <summary>
             Implements LDAP paging and optional Active Directory link TTL retrieval.
             </summary>
@@ -614,6 +847,8 @@
             <param name="filter">LDAP filter; untrusted values must already be escaped.</param>
             <param name="scope">Numeric SearchScope value.</param>
             <param name="showLinkTimeToLive">Whether to request Active Directory link TTL metadata.</param>
+            <param name="maximumResults">Optional maximum result count across all pages.</param>
+            <param name="ldapServer">Optional domain or server to query instead of the configured domain.</param>
             <param name="attributes">LDAP attributes to request.</param>
             <returns>A mutable list of successfully converted entries.</returns>
             <remarks>Creates and disposes a bound connection and issues read-only searches; transport failures propagate.</remarks>
@@ -1002,45 +1237,13 @@
             <exception cref="T:System.InvalidOperationException">The file remains unreadable or invalid after retry attempts.</exception>
             <remarks>Performs synchronous file I/O and omits malformed individual rule entries.</remarks>
         </member>
-        <member name="M:KjitWeb.Services.DelegationConfiguration.ReadJsonDocumentWithRetry(System.String)">
-            <summary>Reads and parses a delegation file, retrying transient read or parse failures.</summary>
-            <param name="path">The non-null file path to read.</param>
-            <returns>An owned JSON document that the caller must dispose.</returns>
-            <exception cref="T:System.IO.IOException">The final file-read attempt fails.</exception>
-            <exception cref="T:System.Text.Json.JsonException">The final content is empty or invalid JSON.</exception>
-            <remarks>Performs up to three synchronous attempts and blocks for 50 milliseconds between failed attempts.</remarks>
+        <member name="T:KjitWeb.Services.ConfigurationEditorService">
+            <summary>Authorizes and edits the JIT configuration files under the current Windows user token.</summary>
         </member>
-        <member name="M:KjitWeb.Services.DelegationConfiguration.ExtractRules(System.Text.Json.JsonElement)">
-            <summary>Recursively extracts valid delegation rules from arrays and rule objects.</summary>
-            <param name="element">A JSON array, rule object, or unsupported value.</param>
-            <returns>
-            A lazy sequence containing one rule per non-blank <c>ADObject</c> SID paired with a valid
-            <c>ComputerOU</c>; unsupported and malformed values yield no rules.
-            </returns>
-        </member>
-        <member name="M:KjitWeb.Services.DelegationConfiguration.ReadSecurityIdentifiers(System.Text.Json.JsonElement)">
-            <summary>Reads one or more security identifier strings from a JSON value.</summary>
-            <param name="element">A string, an array of strings, or an unsupported value.</param>
-            <returns>A lazy sequence of trimmed, unquoted, uppercase non-blank values; unsupported values yield none.</returns>
-            <remarks>The returned text is normalized but is not validated as a structurally valid Windows SID.</remarks>
-        </member>
-        <member name="M:KjitWeb.Services.DelegationConfiguration.TryGetPropertyIgnoreCase(System.Text.Json.JsonElement,System.String,System.Text.Json.JsonElement@)">
-            <summary>Attempts to retrieve an object property by case-insensitive name.</summary>
-            <param name="root">The element to inspect; non-object values never match.</param>
-            <param name="propertyName">The non-null property name to match.</param>
-            <param name="value">Receives the matched value, or the default JSON element when not found.</param>
-            <returns><see langword="true"/> when a match is found; otherwise <see langword="false"/>.</returns>
-        </member>
-        <member name="M:KjitWeb.Services.DelegationConfiguration.NormalizeSecurityIdentifier(System.String)">
-            <summary>Normalizes configured SID text for ordinal comparisons.</summary>
-            <param name="value">The non-null value to normalize.</param>
-            <returns>The value with surrounding whitespace and quotes removed and letters converted to uppercase.</returns>
-            <remarks>This does not validate SID syntax.</remarks>
-        </member>
-        <member name="M:KjitWeb.Services.DelegationConfiguration.NormalizeLdapPath(System.String)">
-            <summary>Delegates LDAP path normalization to <see cref="M:KjitWeb.Services.JitConfiguration.NormalizeLdapPath(System.String)"/>.</summary>
-            <param name="value">A possibly null LDAP path or distinguished name.</param>
-            <returns>A normalized LDAP URL, or <see langword="null"/> for blank or unsupported input.</returns>
+        <member name="M:KjitWeb.Services.ConfigurationEditorService.#ctor(Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{KjitWeb.Services.ConfigurationEditorService})">
+            <summary>Initializes the configuration editor service.</summary>
+            <param name="configuration">Provides the configured JIT configuration path.</param>
+            <param name="logger">Records access-check and save outcomes.</param>
         </member>
         <member name="T:KjitWeb.Services.ConnectionAuditLogger">
             <summary>
@@ -1272,6 +1475,9 @@
             <exception cref="T:System.IO.IOException">File inspection, deletion, or movement fails.</exception>
             <exception cref="T:System.UnauthorizedAccessException">The process cannot access either log file.</exception>
         </member>
+        <member name="T:KjitWeb.Services.DelegationConfigurationFormMapper">
+            <summary>Maps delegation configuration entries to typed form fields and back.</summary>
+        </member>
         <member name="T:KjitWeb.Services.EventLogHealthMonitor">
             <summary>
             Periodically scans the configured Windows Event Log and publishes a cached health snapshot.
@@ -1481,6 +1687,12 @@
             </summary>
             <returns>A non-null, potentially empty list of domain DNS names.</returns>
         </member>
+        <member name="M:KjitWeb.Services.IActiveDirectoryService.BrowseConfigurationOrganizationalUnits(System.String,System.String)">
+            <summary>Browses one level of organizational units within an allowed forest domain.</summary>
+            <param name="domainFqdn">The selected forest domain DNS name.</param>
+            <param name="parentDistinguishedName">The parent OU, or null for the domain root.</param>
+            <returns>The non-selectable domain root or direct child organizational units.</returns>
+        </member>
         <member name="M:KjitWeb.Services.IActiveDirectoryService.GetDefaultDomainForUser(System.Security.Claims.ClaimsPrincipal)">
             <summary>
             Determines the default domain for a user.
@@ -1563,6 +1775,21 @@
             </returns>
             <remarks>Implementations may query LDAP and log failures.</remarks>
         </member>
+        <member name="M:KjitWeb.Services.IActiveDirectoryService.ResolveDelegationAdObject(System.String)">
+            <summary>Resolves a SID, SAM account name, Windows account name, UPN, or canonical name to a delegation object.</summary>
+            <param name="identity">The Active Directory user or group identity to resolve.</param>
+            <returns>The resolved SID, display name, and object type, or <see langword="null"/> when no user or group matches.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.IActiveDirectoryService.ResolveDelegationOrganizationalUnit(System.String)">
+            <summary>Resolves an organizational-unit distinguished name for a delegation.</summary>
+            <param name="identity">The organizational-unit or computer distinguished name to resolve.</param>
+            <returns>The canonical distinguished name, or <see langword="null"/> when the target does not exist.</returns>
+        </member>
+        <member name="M:KjitWeb.Services.IActiveDirectoryService.BrowseDelegationTargets(System.String)">
+            <summary>Browses one level of the configured delegation target tree.</summary>
+            <param name="parentDistinguishedName">The OU whose direct children should be returned, or null for configured roots.</param>
+            <returns>Configured root targets or direct child organizational units and computers.</returns>
+        </member>
         <member name="T:KjitWeb.Services.IConnectionAuditLogger">
             <summary>Defines a sink for recording incoming connection audit events.</summary>
         </member>
@@ -1635,6 +1862,9 @@
             <exception cref="T:System.NullReferenceException">
             Thrown when <paramref name="configuration"/> is <see langword="null"/>.
             </exception>
+        </member>
+        <member name="T:KjitWeb.Services.JitConfigurationFormMapper">
+            <summary>Maps top-level JIT configuration properties to typed form fields and back.</summary>
         </member>
         <member name="T:KjitWeb.Services.MutualTlsCertificateValidator">
             <summary>Provides stateless validation of mutual-TLS client certificate policy and EKUs.</summary>

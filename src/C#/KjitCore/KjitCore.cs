@@ -81,6 +81,83 @@ public static class KjitCore
 			: JitConfigurationReader.LoadFromActiveDirectory(source);
 	}
 
+	/// <summary>Parses the editable top-level parameters of a JIT configuration document.</summary>
+	public static IReadOnlyList<JitConfigurationParameter> ParseJitConfigurationParameters(string content)
+	{
+		return JitConfigurationCodec.ParseParameters(content);
+	}
+
+	/// <summary>Updates every top-level parameter while preserving the source schema and JSON types.</summary>
+	public static string UpdateJitConfigurationParameters(
+		string content,
+		IReadOnlyCollection<JitConfigurationParameter> parameters,
+		IReadOnlyCollection<string>? readOnlyNames = null)
+	{
+		return JitConfigurationCodec.UpdateParameters(content, parameters, readOnlyNames);
+	}
+
+	/// <summary>Adds a unique value to a top-level string-array parameter.</summary>
+	public static string AddJitConfigurationListValue(string content, string parameterName, string value)
+	{
+		return JitConfigurationCodec.AddStringListValue(content, parameterName, value);
+	}
+
+	/// <summary>Removes a value from a top-level string-array parameter.</summary>
+	public static string RemoveJitConfigurationListValue(string content, string parameterName, string value)
+	{
+		return JitConfigurationCodec.RemoveStringListValue(content, parameterName, value);
+	}
+
+	/// <summary>Parses delegation configuration JSON into the shared model.</summary>
+	/// <param name="content">The delegation configuration JSON.</param>
+	/// <returns>The parsed and validated delegation configuration.</returns>
+	public static DelegationConfigurationObject ParseDelegationConfiguration(string content)
+	{
+		return DelegationConfigurationCodec.Parse(content);
+	}
+
+	/// <summary>Loads delegation configuration JSON from a file.</summary>
+	/// <param name="path">The local or network file path to read.</param>
+	/// <returns>The parsed and validated delegation configuration.</returns>
+	public static DelegationConfigurationObject LoadDelegationConfiguration(string path)
+	{
+		if (string.IsNullOrWhiteSpace(path))
+		{
+			throw new ArgumentException("A delegation configuration file path is required.", nameof(path));
+		}
+
+		if (!File.Exists(path))
+		{
+			throw new FileNotFoundException("Delegation configuration file was not found.", path);
+		}
+
+		const int maximumReadAttempts = 3;
+		for (var attempt = 1; attempt <= maximumReadAttempts; attempt++)
+		{
+			try
+			{
+				return DelegationConfigurationCodec.Parse(File.ReadAllText(path));
+			}
+			catch (Exception ex) when (
+				(ex is IOException || ex is InvalidOperationException || ex is ArgumentException)
+				&& attempt < maximumReadAttempts)
+			{
+				Thread.Sleep(50);
+			}
+		}
+
+		throw new InvalidOperationException("Delegation configuration could not be read.");
+	}
+
+	/// <summary>Serializes a shared delegation configuration using the canonical JSON schema.</summary>
+	/// <param name="configuration">The delegation configuration to serialize.</param>
+	/// <returns>Canonical JSON containing ComputerOU and ADObject values.</returns>
+	public static string SerializeDelegationConfiguration(
+		DelegationConfigurationObject configuration)
+	{
+		return DelegationConfigurationCodec.Serialize(configuration);
+	}
+
 	/// <summary>
 	/// Determines whether a configuration source represents an absolute file location.
 	/// </summary>

@@ -125,6 +125,7 @@ try
     builder.Services.AddSingleton<DebugLogFileWriter>();
     builder.Services.AddSingleton<IConnectionAuditLogger, ConnectionAuditLogger>();
     builder.Services.AddSingleton<WindowsCredentialValidator>();
+    builder.Services.AddScoped<ConfigurationEditorService>();
     // The event log health monitor is registered once as a singleton so that the background scan
     // loop (IHostedService) and the HTTP-facing IEventLogHealthMonitor share the same instance/state.
     builder.Services.AddSingleton<EventLogHealthMonitor>();

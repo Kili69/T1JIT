@@ -11,6 +11,7 @@
 
 using System.Net.NetworkInformation;
 using System.Text.RegularExpressions;
+using KjitCore.Services;
 
 namespace KjitCore.Models;
 
@@ -50,12 +51,6 @@ public sealed class JitConfigurationObject
     /// </summary>
     private static readonly Regex DistinguishedNameRegex =
         new("^[A-Za-z]+=[^,]+(,[A-Za-z]+=[^,]+)*$", RegexOptions.Compiled);
-
-    /// <summary>
-    /// Gets the regular expression used to validate LDAP search strings.   
-    /// </summary>
-    private static readonly Regex LdapFilterRegex =
-        new("^\\(.+\\)$", RegexOptions.Compiled);
 
     /// <summary>
     /// Gets the regular expression used to validate DNS names.
@@ -839,7 +834,7 @@ public sealed class JitConfigurationObject
     }
 
     /// <summary>
-    /// Trims and validates the outer form of an LDAP filter.
+    /// Trims and validates the structure of an LDAP filter.
     /// </summary>
     /// <param name="value">The filter to validate.</param>
     /// <param name="propertyName">The property name associated with validation failures.</param>
@@ -853,7 +848,7 @@ public sealed class JitConfigurationObject
         }
 
         var normalized = value.Trim();
-        if (!LdapFilterRegex.IsMatch(normalized))
+        if (!LdapFilterValidator.IsValid(normalized))
         {
             throw new ArgumentException("The value is not a valid LDAP search string.", propertyName);
         }

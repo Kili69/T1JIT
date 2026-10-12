@@ -4,17 +4,18 @@
     "includedFrameworks": [
       {
         "name": "Microsoft.NETCore.App",
-        "version": "8.0.31"
+        "version": "8.0.27"
       },
       {
         "name": "Microsoft.AspNetCore.App",
-        "version": "8.0.31"
+        "version": "8.0.27"
       }
     ],
     "configProperties": {
       "System.GC.Server": true,
       "System.Reflection.Metadata.MetadataUpdater.IsSupported": false,
-      "System.Runtime.Serialization.EnableUnsafeBinaryFormatterSerialization": false
+      "System.Runtime.Serialization.EnableUnsafeBinaryFormatterSerialization": false,
+      "CSWINRT_USE_WINDOWS_UI_XAML_PROJECTIONS": false
     }
   }
 }

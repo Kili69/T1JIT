@@ -1,5 +1,6 @@
 ﻿@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @inject Microsoft.Extensions.Localization.IStringLocalizer<KjitWeb.SharedResource> L
+@inject KjitWeb.Services.ConfigurationEditorService ConfigurationEditor
 @using System.Globalization
 @using System.Reflection
 @{
@@ -36,6 +37,14 @@
                    class="kjit-menu-button">
                     @L["SwitchUserButton"]
                 </a>
+                @if (ConfigurationEditor.CanEdit(User))
+                {
+                    <a asp-controller="Configuration"
+                       asp-action="Index"
+                       class="kjit-menu-button">
+                        @L["ConfigurationMenuButton"]
+                    </a>
+                }
                 <form asp-controller="Home" asp-action="SetLanguage" method="post" class="btn-group btn-group-sm" aria-label="@L["LanguageSelectorLabel"]">
                     <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
                     <button type="submit"
