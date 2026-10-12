@@ -1,165 +1,25 @@
 {
-  "version": "0.3.20261012.1",
+  "version": "0.3.20261012.2",
   "files": [
     {
-      "path": "build/Update-Version.ps1",
-      "version": "0.3.20261012.1",
-      "sha256": "752cb93d2e5daf63f7b13d3808256b8ef0769a58f416221d172df6e55a350a37"
-    },
-    {
       "path": "CHANGELOG.md",
-      "version": "0.3.20261012.1",
-      "sha256": "1529a88abc0851fd79b3ca81c5afa08334ee38e90fe4709fd65c761bc33db437"
+      "version": "0.3.20261012.2",
+      "sha256": "fb730b86885e203c83774ca11f8fe111db0243beffed31ddb89cded96453aac4"
     },
     {
-      "path": "Developer.md",
-      "version": "0.3.20261012.1",
-      "sha256": "56a1c2fa6f8d9c424a2b465ae3deab551523ac2944bdfb0e45606f580f7d50c5"
-    },
-    {
-      "path": "README.md",
-      "version": "0.3.20261012.1",
-      "sha256": "8d6b777bc707d0680ca647f38d23a40205a79341c22e2f504dd5fa695dc6189b"
-    },
-    {
-      "path": "src/C#/KjitCore/KjitCore.cs",
-      "version": "0.3.20261012.1",
-      "sha256": "473a1a4ec2683ea91cf59d4d9c05f877343466144ad36ac90e71d3953c09fc53"
-    },
-    {
-      "path": "src/C#/KjitCore/Models/DelegationConfigurationObject.cs",
-      "version": "0.3.20261012.1",
-      "sha256": "fb2dbbded0f8cb30b415bf2eb527834ac1cc6caf8262ca6ca67916458d2208d9"
-    },
-    {
-      "path": "src/C#/KjitCore/Models/JitConfigurationObject.cs",
-      "version": "0.3.20261012.1",
-      "sha256": "55b533229f0ff7e9fce77ee006c305404234c7a11b42d1b07e5253f10513a81a"
-    },
-    {
-      "path": "src/C#/KjitCore/Models/JitConfigurationParameter.cs",
-      "version": "0.3.20261012.1",
-      "sha256": "c3490fecd4614d4da5ecdca91df1a744964915b026ad12b9948f037e1c956bbc"
-    },
-    {
-      "path": "src/C#/KjitCore/README.md",
-      "version": "0.3.20261012.1",
-      "sha256": "5f57e31471d1bd6285e5a4e2dc3105aea3e89eb76a59476db8a0af0d314487b2"
-    },
-    {
-      "path": "src/C#/KjitCore/Services/DelegationConfigurationCodec.cs",
-      "version": "0.3.20261012.1",
-      "sha256": "80f8d552fd04ceabae794767e7afa2476be64cdfdd71bac1c7cf06bd3df9c3bd"
-    },
-    {
-      "path": "src/C#/KjitCore/Services/JitConfigurationCodec.cs",
-      "version": "0.3.20261012.1",
-      "sha256": "aafa7924240faef7791e0b5924bf2a5b807937c9f96dbfcfb6f39f85f4d4aed1"
-    },
-    {
-      "path": "src/C#/KjitCore/Services/JitConfigurationReader.cs",
-      "version": "0.3.20261012.1",
-      "sha256": "2d4e3d9b21f92720838b1bc87ad563063190b361dee315e039236f2d76b64691"
-    },
-    {
-      "path": "src/C#/KjitCore/Services/LdapFilterValidator.cs",
-      "version": "0.3.20261012.1",
-      "sha256": "b778a5a827ed503ad5584dc90bee2a8760f8a68e223eb3c641172e08146609cf"
-    },
-    {
-      "path": "src/C#/Kjitweb/Controllers/ConfigurationController.cs",
-      "version": "0.3.20261012.1",
-      "sha256": "fccb7e004e06ab90efe663363576017de3e18958d563729cc9c3ae0586a63432"
-    },
-    {
-      "path": "src/C#/Kjitweb/KjitWeb.csproj",
-      "version": "0.3.20261012.1",
-      "sha256": "5987bd1c6e6f10eda997511c0372bda602a8f28ce27a0720f2327b68b27c7997"
-    },
-    {
-      "path": "src/C#/Kjitweb/Models/ConfigurationEditorViewModel.cs",
-      "version": "0.3.20261012.1",
-      "sha256": "f0a0b69f88fc360a78186136be2c133308b41de7c4881109d4ef4efb8ba9de3f"
-    },
-    {
-      "path": "src/C#/Kjitweb/Program.cs",
-      "version": "0.3.20261012.1",
-      "sha256": "3048cb0d11e8df3fa37debb9d62b869824125d704dad14601975ad41b7792bdd"
-    },
-    {
-      "path": "src/C#/Kjitweb/Resources/SharedResource.de.resx",
-      "version": "0.3.20261012.1",
-      "sha256": "f62da37482843185245071417ea1f996cdaf30b47c09294bd76c206f961628e2"
-    },
-    {
-      "path": "src/C#/Kjitweb/Resources/SharedResource.en.resx",
-      "version": "0.3.20261012.1",
-      "sha256": "f014d644b0b0bed07ec1b9ed33bce92cd34c86e7d82df03fbb6dc0ce95e32682"
-    },
-    {
-      "path": "src/C#/Kjitweb/Services/ActiveDirectoryService.cs",
-      "version": "0.3.20261012.1",
-      "sha256": "e82af88d91b1075bc2d14f5b03ec56cab9edc9b0ef5a9116c24a9b8b3b963ad2"
-    },
-    {
-      "path": "src/C#/Kjitweb/Services/configuration.cs",
-      "version": "0.3.20261012.1",
-      "sha256": "535217a9ed4808eb20fe2b2778eed9dd5458bbf415e42adb7a1ddbd9d92b2635"
-    },
-    {
-      "path": "src/C#/Kjitweb/Services/ConfigurationEditorService.cs",
-      "version": "0.3.20261012.1",
-      "sha256": "56366c553423eb042fc4d8f176c44670731a64da3e1c06dbf3922f16edda36fc"
-    },
-    {
-      "path": "src/C#/Kjitweb/Services/DelegationConfigurationFormMapper.cs",
-      "version": "0.3.20261012.1",
-      "sha256": "c2a414954a2041ca96b91660a4db8ff943784ef11e52d9c2af420c49019e77c5"
-    },
-    {
-      "path": "src/C#/Kjitweb/Services/IActiveDirectoryService.cs",
-      "version": "0.3.20261012.1",
-      "sha256": "d8ad6bd13c15f189b0f302cfb038434599f939ea327253db13a661f417984608"
-    },
-    {
-      "path": "src/C#/Kjitweb/Services/JitConfigurationFormMapper.cs",
-      "version": "0.3.20261012.1",
-      "sha256": "09b95a1db1f9c1e1c5e92190c3d356ff80b4edd277fe1f52b2b52c5019909014"
-    },
-    {
-      "path": "src/C#/Kjitweb/Views/Configuration/_JitConfigurationParameter.cshtml",
-      "version": "0.3.20261012.1",
-      "sha256": "789659b0c2c83b86f7d01747cee6d0c3a511c08a7ebc2780449721e3ef92a117"
-    },
-    {
-      "path": "src/C#/Kjitweb/Views/Configuration/Index.cshtml",
-      "version": "0.3.20261012.1",
-      "sha256": "d70e91a7651da8eaf6a5199c68b94914de47657e2baa37e70422fc8255c35203"
-    },
-    {
-      "path": "src/C#/Kjitweb/Views/Shared/_Layout.cshtml",
-      "version": "0.3.20261012.1",
-      "sha256": "c577aaeb9af346157c5a90392c7da28c65b3fcd3de09406aeb8acc635616de0f"
-    },
-    {
-      "path": "src/C#/Kjitweb/wwwroot/css/site.css",
-      "version": "0.3.20261012.1",
-      "sha256": "db44f49d0908b3b70ea5bacf9a3561832b75eca75eb212aa8008980daa60997f"
-    },
-    {
-      "path": "src/Powershell/modules/0.1/just-in-time-configuration.psm1",
-      "version": "0.3.20261012.1",
-      "sha256": "38d5ba0cc7068ac74015ff94588b96d8790155269a67085a9485f93a3d677a83"
-    },
-    {
-      "path": "src/Powershell/modules/0.1/just-in-Time-DelegationConfig.psm1",
-      "version": "0.3.20261012.1",
-      "sha256": "65d9d59a52c483c764aebbe7bf6e78dd6e79e8facac226c9bae5846c53d943cf"
+      "path": "History.md",
+      "version": "0.3.20261012.2",
+      "sha256": "2f6be54d882f2ce2aad7cdfd679db78db5bca611e870b454bc3573223b7ce631"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.3.20261012.1",
-      "sha256": "4d81873d50b6e56e2f4d6db253ca444cd961a28b619f7ec720dbd5d010027eaa"
+      "version": "0.3.20261012.2",
+      "sha256": "8823b85e7789e02275dadee5bee62781f881301201b51d3f589ec22f153d7ee1"
+    },
+    {
+      "path": "README.md",
+      "version": "0.3.20261012.2",
+      "sha256": "505a8f7a4254469f02d50c268c7dddd4fd175f9d3bb8c90f96273d8148d6f338"
     }
   ]
 }
