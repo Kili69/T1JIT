@@ -1,50 +1,25 @@
 {
-  "version": "0.3.20261012.3",
+  "version": "0.3.20261012.4",
   "files": [
     {
       "path": "CHANGELOG.md",
-      "version": "0.3.20261012.3",
-      "sha256": "5e1a996483af202a1e277131566e14fa6b2f17ba13c46634477077c0f24a0fe1"
+      "version": "0.3.20261012.4",
+      "sha256": "c8b7974e9a634bc2bcda4626f843a67e05c7942af63c7474dafbe311d551ba59"
     },
     {
-      "path": "src/C#/Kjitweb/Resources/SharedResource.de.resx",
-      "version": "0.3.20261012.3",
-      "sha256": "349c03f93de59b6cfd9a5e37d687aefb9c32b6cdad0f2ea9c40b4f86058c8a75"
-    },
-    {
-      "path": "src/C#/Kjitweb/Resources/SharedResource.en.resx",
-      "version": "0.3.20261012.3",
-      "sha256": "95a3fd481d0c9116f48f55a7a042a5154f37548227ed5c067b4b77a6c7440874"
-    },
-    {
-      "path": "src/C#/Kjitweb/Views/Configuration/_JitConfigurationParameter.cshtml",
-      "version": "0.3.20261012.3",
-      "sha256": "ed309d8c0143be1dc64df1b63e7a4872eff2d2ddf64b82990898c8311db2f426"
-    },
-    {
-      "path": "src/C#/Kjitweb/Views/Configuration/Index.cshtml",
-      "version": "0.3.20261012.3",
-      "sha256": "8341c9ff34266d470d377929d874c1483ac02c16b131e91470d480168a2c4a57"
-    },
-    {
-      "path": "src/C#/Kjitweb/Views/Shared/_Layout.cshtml",
-      "version": "0.3.20261012.3",
-      "sha256": "78ff3122573cb0b1e2a9d05fe53fb397ed2f381e9ef08df624bddfbbab99dcbf"
-    },
-    {
-      "path": "src/C#/Kjitweb/wwwroot/css/site.css",
-      "version": "0.3.20261012.3",
-      "sha256": "a5604604e02751b0606419d5b39da94167fc857b6a2fc7cab38aad761febc45e"
+      "path": "History.md",
+      "version": "0.3.20261012.4",
+      "sha256": "09728b03318517b794016fe8cec17ef0ed3781b73eb16b6affba4faa93aeb8ba"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.3.20261012.3",
-      "sha256": "600a4294af1e1ab9dcdb414b10569bab7237973651ecb0889cd6f5db7b461a5b"
+      "version": "0.3.20261012.4",
+      "sha256": "ef74d7891ebcf1473d2b241956a14bc98fb0a0692aa21f1e107e6d95e5465df5"
     },
     {
       "path": "README.md",
-      "version": "0.3.20261012.3",
-      "sha256": "5e2dc4a4ab8e7967d36f9d78123e382dfe76c735183a42e61c8dac7b7bfa8f19"
+      "version": "0.3.20261012.4",
+      "sha256": "c8c03b6efd66ce6527ec264004980754f630edcd2ada213d719ed1caa3fbd98b"
     }
   ]
 }

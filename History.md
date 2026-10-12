@@ -6,6 +6,40 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-10-12 22:01:03 +02:00 - `web-config` to `origin/web-config`
+
+Commits:
+
+<!-- commit:38080959065d06d0d5c130d98bbc5326588c5752 -->
+- `3808095` Refine configuration editor navigation
+
+Changed files:
+
+- `M -> CHANGELOG.md`
+- `M -> README.md`
+- `M -> VERSION`
+- `M -> file-versions.json`
+- `M -> release/VERSION`
+- `M -> release/file-versions.json`
+- `M -> release/kJITWeb/publish-service/KjitCore.dll`
+- `M -> release/kJITWeb/publish-service/KjitCore.pdb`
+- `M -> release/kJITWeb/publish-service/KjitWeb.dll`
+- `M -> release/kJITWeb/publish-service/KjitWeb.exe`
+- `M -> release/kJITWeb/publish-service/KjitWeb.pdb`
+- `M -> release/kJITWeb/publish-service/KjitWeb.staticwebassets.endpoints.json`
+- `M -> release/kJITWeb/publish-service/de/KjitWeb.resources.dll`
+- `M -> release/kJITWeb/publish-service/en/KjitWeb.resources.dll`
+- `M -> release/kJITWeb/publish-service/wwwroot/css/site.css`
+- `M -> release/modules/0.1/KjitCore.dll`
+- `M -> release/modules/Just-In-time.psd1`
+- `M -> src/C#/Kjitweb/Resources/SharedResource.de.resx`
+- `M -> src/C#/Kjitweb/Resources/SharedResource.en.resx`
+- `M -> src/C#/Kjitweb/Views/Configuration/Index.cshtml`
+- `M -> src/C#/Kjitweb/Views/Configuration/_JitConfigurationParameter.cshtml`
+- `M -> src/C#/Kjitweb/Views/Shared/_Layout.cshtml`
+- `M -> src/C#/Kjitweb/wwwroot/css/site.css`
+- `M -> src/Powershell/modules/Just-In-time.psd1`
+
 ## 2026-10-12 15:34:25 +02:00 - `web-config` to `origin/web-config`
 
 Commits:
@@ -5439,6 +5473,7 @@ Changed files:
 - `A -> tests/PowerShell/Modules.Tests.ps1`
 - `A -> tmp_ps51_test.ps1`
 - `A -> tmp_release_test.ps1`
+
 
 
 
