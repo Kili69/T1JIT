@@ -11,6 +11,11 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261021.2] - 2026-10-21
+### Changed
+
+- Documented the KjitWeb HTTPS migration commit in `History.md` before the GitHub push.
+
 ## [0.2.20261021.1] - 2026-10-21
 ### Added
 

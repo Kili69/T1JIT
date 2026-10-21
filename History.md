@@ -6,6 +6,33 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-10-21 - `dev` to `origin/dev`
+
+Commits:
+
+<!-- commit:64681e750185da677304788901e56aebd090954d -->
+- `64681e7` Add KjitWeb HTTPS migration and PowerShell tests
+
+Changed files:
+
+- `M -> CHANGELOG.md`
+- `M -> README.md`
+- `M -> VERSION`
+- `M -> build/New-InstallationPackage.ps1`
+- `M -> build/Test-PowerShellModules.ps1`
+- `M -> build/release_build.ps1`
+- `M -> file-versions.json`
+- `M -> src/C#/Kjitweb/README.md`
+- `A -> src/C#/Kjitweb/enable-kjitweb-https.ps1`
+- `M -> src/C#/Kjitweb/get-kjitweb-allowedclient.ps1`
+- `M -> src/C#/Kjitweb/install-kjitweb.ps1`
+- `M -> src/C#/Kjitweb/set-kjitweb-allowedclient.ps1`
+- `M -> src/C#/Kjitweb/update-kjitweb.ps1`
+- `M -> src/Powershell/modules/Just-In-time.psd1`
+- `A -> tests/PowerShell/KjitWebHttps.Tests.ps1`
+- `M -> tests/PowerShell/Modules.Tests.ps1`
+- 341 generated or refreshed files under `release/`, including HTTPS scripts, version metadata, packaged modules, and the published service.
+
 ## 2026-10-05 11:12:37 +02:00 - `dev` to `origin/dev`
 
 Commits:
@@ -5052,7 +5079,6 @@ Changed files:
 - `A -> tests/PowerShell/Modules.Tests.ps1`
 - `A -> tmp_ps51_test.ps1`
 - `A -> tmp_release_test.ps1`
-
 
 
 
