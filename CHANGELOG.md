@@ -11,6 +11,11 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261021.4] - 2026-10-21
+### Changed
+
+- Documented the smartcard sign-in and HTTPS migration fix commit in `History.md` before the GitHub push.
+
 ## [0.2.20261021.3] - 2026-10-21
 ### Added
 

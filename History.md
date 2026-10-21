@@ -6,6 +6,51 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-10-21 - `dev` to `origin/dev` - Smartcard sign-in and HTTPS migration fix
+
+Commits:
+
+<!-- commit:3590182cf3c068090f4cb8b79240864c4f41cdf1 -->
+- `3590182` Add smartcard user switching and fix HTTPS reservation migration
+
+Changed files:
+
+- `M -> .github/workflows/version-policy.yml`
+- `M -> CHANGELOG.md`
+- `M -> README.md`
+- `M -> VERSION`
+- `M -> file-versions.json`
+- `M -> release/VERSION`
+- `M -> release/file-versions.json`
+- `M -> release/kJITWeb/appsettings.json`
+- `M -> release/kJITWeb/enable-kjitweb-https.ps1`
+- `M -> release/kJITWeb/publish-service/KjitWeb.dll`
+- `M -> release/kJITWeb/publish-service/KjitWeb.exe`
+- `M -> release/kJITWeb/publish-service/KjitWeb.pdb`
+- `M -> release/kJITWeb/publish-service/KjitWeb.xml`
+- `M -> release/kJITWeb/publish-service/appsettings.json`
+- `M -> release/kJITWeb/publish-service/de/KjitWeb.resources.dll`
+- `M -> release/kJITWeb/publish-service/en/KjitWeb.resources.dll`
+- `M -> release/modules/0.1/KjitCore.dll`
+- `M -> release/modules/Just-In-time.psd1`
+- `M -> src/C#/Kjitweb/Controllers/HomeController.cs`
+- `M -> src/C#/Kjitweb/KjitWeb.csproj`
+- `M -> src/C#/Kjitweb/Program.cs`
+- `M -> src/C#/Kjitweb/README.md`
+- `M -> src/C#/Kjitweb/Resources/SharedResource.de.resx`
+- `M -> src/C#/Kjitweb/Resources/SharedResource.en.resx`
+- `M -> src/C#/Kjitweb/Services/ActiveDirectoryService.cs`
+- `M -> src/C#/Kjitweb/Services/IActiveDirectoryService.cs`
+- `A -> src/C#/Kjitweb/Services/SmartCardAuthenticationService.cs`
+- `M -> src/C#/Kjitweb/Views/Home/SwitchUser.cshtml`
+- `M -> src/C#/Kjitweb/appsettings.json`
+- `M -> src/C#/Kjitweb/enable-kjitweb-https.ps1`
+- `M -> src/Powershell/modules/Just-In-time.psd1`
+- `A -> tests/KjitWeb.Tests/KjitWeb.Tests.csproj`
+- `A -> tests/KjitWeb.Tests/SmartCardAuthenticationTests.cs`
+- `A -> tests/KjitWeb.Tests/SwitchUserTests.cs`
+- `M -> tests/PowerShell/KjitWebHttps.Tests.ps1`
+
 ## 2026-10-21 - `dev` to `origin/dev`
 
 Commits:
@@ -5079,6 +5124,5 @@ Changed files:
 - `A -> tests/PowerShell/Modules.Tests.ps1`
 - `A -> tmp_ps51_test.ps1`
 - `A -> tmp_release_test.ps1`
-
 
 

@@ -1,105 +1,25 @@
 {
-  "version": "0.2.20261021.3",
+  "version": "0.2.20261021.4",
   "files": [
     {
-      "path": ".github/workflows/version-policy.yml",
-      "version": "0.2.20261021.3",
-      "sha256": "be275a8788223f764f6c56f3a0bc051f0c3083c67276af9f1c5ae178169a41bd"
-    },
-    {
       "path": "CHANGELOG.md",
-      "version": "0.2.20261021.3",
-      "sha256": "1bcd5a95c9b6f66cc14ad51dffdd94cfe43b5fc25bbc09cbc436189c65aa8dfe"
+      "version": "0.2.20261021.4",
+      "sha256": "3e36ab5a1332e9611259a66dfa4ac7ffca7549907579b84923e75e5c44b3dda2"
     },
     {
-      "path": "src/C#/Kjitweb/appsettings.json",
-      "version": "0.2.20261021.3",
-      "sha256": "4bdf2fe86a28378420149d79b7f3992ed38002b628800d6a0001536689352738"
-    },
-    {
-      "path": "src/C#/Kjitweb/Controllers/HomeController.cs",
-      "version": "0.2.20261021.3",
-      "sha256": "17d67c38f66298a03a2d44c2095e308b04315082b356f0b07eb9602855bfe73d"
-    },
-    {
-      "path": "src/C#/Kjitweb/enable-kjitweb-https.ps1",
-      "version": "0.2.20261021.3",
-      "sha256": "837c1aaafde9ae9510f467f0dd766ffe3971a9fa4c50c54c557c9023dea25e02"
-    },
-    {
-      "path": "src/C#/Kjitweb/KjitWeb.csproj",
-      "version": "0.2.20261021.3",
-      "sha256": "dc5bd56fa5f79ba1bb6798eb34559c2ad5d36d1ee2be8acac1b53cce9ab3042f"
-    },
-    {
-      "path": "src/C#/Kjitweb/Program.cs",
-      "version": "0.2.20261021.3",
-      "sha256": "c5b4df755c8f36b8c73dcbda7aa6b2fead331a7496a694dc3ad042dada156499"
-    },
-    {
-      "path": "src/C#/Kjitweb/README.md",
-      "version": "0.2.20261021.3",
-      "sha256": "22022ea376d6c9bd6104f31813f3965c6d7789f68ad56acc9a529ae76261621f"
-    },
-    {
-      "path": "src/C#/Kjitweb/Resources/SharedResource.de.resx",
-      "version": "0.2.20261021.3",
-      "sha256": "c7abb4fec935c09c42764265b7aa64edc909209d3cd2148ed4134abd034dbcea"
-    },
-    {
-      "path": "src/C#/Kjitweb/Resources/SharedResource.en.resx",
-      "version": "0.2.20261021.3",
-      "sha256": "03713ba659eb0496193320350447fdb8458c785475ea6204154b2693656927a4"
-    },
-    {
-      "path": "src/C#/Kjitweb/Services/ActiveDirectoryService.cs",
-      "version": "0.2.20261021.3",
-      "sha256": "046fed7c50bad6de2c0ace957d4eeabeecda4fcbe28fd9b3ba5e3539b135b835"
-    },
-    {
-      "path": "src/C#/Kjitweb/Services/IActiveDirectoryService.cs",
-      "version": "0.2.20261021.3",
-      "sha256": "5c587dfcacfd5fb2f2fd1597fd781d52e408fe9a2a73d6c711d6715b325cc4fa"
-    },
-    {
-      "path": "src/C#/Kjitweb/Services/SmartCardAuthenticationService.cs",
-      "version": "0.2.20261021.3",
-      "sha256": "c609521090273f08a948e72bff6de8e8930411d04eb9aa7d105bab1ad6c47341"
-    },
-    {
-      "path": "src/C#/Kjitweb/Views/Home/SwitchUser.cshtml",
-      "version": "0.2.20261021.3",
-      "sha256": "75318a01d4778192523cee03e67d29e989244920100e073d32deea5e1b1ee7c2"
-    },
-    {
-      "path": "tests/KjitWeb.Tests/KjitWeb.Tests.csproj",
-      "version": "0.2.20261021.3",
-      "sha256": "16342c9598c7b31be40fe88ff640b4f51a70c3c9e44e8114b50f4148dd9ec13a"
-    },
-    {
-      "path": "tests/KjitWeb.Tests/SmartCardAuthenticationTests.cs",
-      "version": "0.2.20261021.3",
-      "sha256": "a39d88c1769104d2ef54d1a256df47822f26919e5dc769985698f976e50d5de2"
-    },
-    {
-      "path": "tests/KjitWeb.Tests/SwitchUserTests.cs",
-      "version": "0.2.20261021.3",
-      "sha256": "dfa44420caefde7564e3dd917a3a2f4463f6f0c232de4e66f84cfe6b3ec50d5a"
-    },
-    {
-      "path": "tests/PowerShell/KjitWebHttps.Tests.ps1",
-      "version": "0.2.20261021.3",
-      "sha256": "168cbd8f5ab512d0641094360e5f1a707f5f2a6ebad04f5368d800ec23ea7eb9"
+      "path": "History.md",
+      "version": "0.2.20261021.4",
+      "sha256": "25a3d35acf6d6645c8097367a3ab3d4745a8544d18b877d204e860dbb689bb24"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20261021.3",
-      "sha256": "9051e1827965b5ff3ede36d1f98f4df79eb2711494015eb7130177544705c47c"
+      "version": "0.2.20261021.4",
+      "sha256": "c311687f33671d23e8686d53a5d13c4bba4d3e33ec69e14864f4ef291fb11de6"
     },
     {
       "path": "README.md",
-      "version": "0.2.20261021.3",
-      "sha256": "11ef1b22aca4bf1a4df03e025ab0c1011f516f742c1c8f3ebd79e648c11d8cd4"
+      "version": "0.2.20261021.4",
+      "sha256": "8440f6ab9c89ac91528fce60edfbcfada00322f8f6909a278aeec1d241d5f9a8"
     }
   ]
 }
