@@ -13,6 +13,7 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Security.Claims;
 using System.Security.Principal;
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace KjitWeb.Services;
@@ -83,6 +84,64 @@ internal class DirectoryAttribute : List<object>
 /// <remarks>LDAP uses default Windows credentials with Negotiate, signing, sealing, LDAP v3, and no referral chasing. Delegated server visibility fails closed when authorization data is unavailable.</remarks>
 public class ActiveDirectoryService : IActiveDirectoryService
 {
+    /// <summary>Resolves an explicit public-key mapping without trusting certificate subject or UPN claims.</summary>
+    public ClaimsPrincipal? GetSmartCardPrincipal(string publicKeyMapping)
+    {
+        if (!Regex.IsMatch(publicKeyMapping, @"\AX509:<SHA1-PUKEY>[0-9A-F]{40}\z", RegexOptions.CultureInvariant))
+        {
+            throw new ArgumentException("A strong AD public-key mapping is required.", nameof(publicKeyMapping));
+        }
+
+        var entries = LdapSearchPaged(
+            _domainLdapPath,
+            $"(&(objectCategory=person)(objectClass=user)(altSecurityIdentities={EscapeLdapFilter(publicKeyMapping)}))",
+            SearchScope.Subtree,
+            "userPrincipalName", "objectSid", "userAccountControl",
+            "msDS-User-Account-Control-Computed", "accountExpires");
+        var principal = CreateSmartCardPrincipal(entries);
+        if (principal is null)
+        {
+            _logger.LogWarning("Rejected smartcard mapping: found {Count} AD matches; exactly one complete, enabled, unlocked and unexpired user is required.", entries.Count);
+        }
+        return principal;
+    }
+
+    internal static ClaimsPrincipal? CreateSmartCardPrincipal(IList<SearchResultEntry> entries)
+    {
+        if (entries.Count != 1)
+        {
+            return null;
+        }
+        var entry = entries[0];
+        var upn = ReadEntryAttribute(entry, "userPrincipalName");
+        if (string.IsNullOrWhiteSpace(upn)
+            || !long.TryParse(ReadEntryAttribute(entry, "userAccountControl"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var flags)
+            || !long.TryParse(ReadEntryAttribute(entry, "msDS-User-Account-Control-Computed"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var computedFlags)
+            || !long.TryParse(ReadEntryAttribute(entry, "accountExpires"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var expires)
+            || !IsSmartCardAccountUsable(flags, computedFlags, expires, DateTime.UtcNow.ToFileTimeUtc())
+            || !entry.Attributes.TryGetValue("objectSid", out var sidAttribute)
+            || sidAttribute.Count != 1
+            || sidAttribute[0] is not byte[] sidBytes)
+        {
+            return null;
+        }
+
+        var sid = new SecurityIdentifier(sidBytes, 0).Value;
+        return new ClaimsPrincipal(new ClaimsIdentity(new[]
+        {
+            new Claim(ClaimTypes.Name, upn),
+            new Claim(ClaimTypes.PrimarySid, sid),
+            new Claim(ClaimTypes.AuthenticationMethod, "SmartCard")
+        }, "SmartCard", ClaimTypes.Name, ClaimTypes.Role));
+    }
+
+    internal static bool IsSmartCardAccountUsable(long flags, long computedFlags, long expires, long now)
+    {
+        return (flags & 2) == 0
+            && ((flags | computedFlags) & 16) == 0
+            && (expires == 0 || expires == long.MaxValue || expires > now);
+    }
+
     private const int LdapReferralErrorCode = 10; // LDAP error code 10 = LDAP_REFERRAL
     private readonly IConfiguration _configuration; // The configuration instance is used to access application settings, particularly those related to JIT configuration and Active Directory parameters. It is injected into the service through the constructor and stored in a private readonly field for use in the service methods when performing LDAP queries and resolving configuration values.
     private readonly ILogger<ActiveDirectoryService> _logger; // The logger instance is used for logging information, warnings, and errors within the ActiveDirectoryService. It is injected through the constructor and stored in a private readonly field, allowing the service methods to log relevant information about their operations, such as LDAP query results, configuration issues, and any exceptions that may occur during processing. This logging is crucial for troubleshooting and understanding the behavior of the service in different environments and scenarios.
@@ -442,8 +501,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
     /// <returns>The first value converted to text, or null when missing, empty, or null.</returns>
     private static string? ReadEntryAttribute(SearchResultEntry entry, string attributeName)
     {
-        var attr = entry.Attributes[attributeName];
-        if (attr == null || attr.Count == 0)
+        if (!entry.Attributes.TryGetValue(attributeName, out var attr) || attr.Count == 0)
             return null;
         return attr[0]?.ToString();
     }

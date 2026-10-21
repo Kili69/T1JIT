@@ -13,6 +13,7 @@ using Microsoft.Extensions.Localization;
 using System.Globalization;
 using System.Security.Claims;
 using System.Text.Json;
+using System.DirectoryServices.Protocols;
 
 namespace KjitWeb.Controllers;
 
@@ -34,6 +35,7 @@ public class HomeController : Controller
     private readonly ILogger<HomeController> _logger;
     private readonly IStringLocalizer<SharedResource> _localizer;
     private readonly WindowsCredentialValidator _credentialValidator;
+    private readonly ISmartCardAuthenticationService _smartCardAuthentication;
 
     /// <summary>Initializes the controller with its directory, configuration, logging, localization, and credential services.</summary>
     /// <param name="activeDirectoryService">Provides directory lookup and current-elevation data.</param>
@@ -43,6 +45,7 @@ public class HomeController : Controller
     /// <param name="logger">Records operational and failure information; credentials are never intentionally logged.</param>
     /// <param name="localizer">Resolves localized UI and validation messages.</param>
     /// <param name="credentialValidator">Validates switched-user Windows credentials.</param>
+    /// <param name="smartCardAuthentication">Validates TLS client certificates and explicit AD mappings.</param>
     /// <remarks>The dependencies are stored as supplied; passing <see langword="null"/> causes later action execution to fail.</remarks>
     public HomeController(
         IActiveDirectoryService activeDirectoryService,
@@ -51,7 +54,8 @@ public class HomeController : Controller
         IEventLogHealthMonitor eventLogHealthMonitor,
         ILogger<HomeController> logger,
         IStringLocalizer<SharedResource> localizer,
-        WindowsCredentialValidator credentialValidator)
+        WindowsCredentialValidator credentialValidator,
+        ISmartCardAuthenticationService smartCardAuthentication)
     {
         _activeDirectoryService = activeDirectoryService;
         _configuration = configuration;
@@ -60,6 +64,7 @@ public class HomeController : Controller
         _logger = logger;
         _localizer = localizer;
         _credentialValidator = credentialValidator;
+        _smartCardAuthentication = smartCardAuthentication;
     }
 
     /// <summary>Displays the server-selection page for the current principal.</summary>
@@ -143,6 +148,7 @@ public class HomeController : Controller
     /// </remarks>
     [HttpGet]
     [AllowAnonymous]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public IActionResult SwitchUser()
     {
         // Do NOT sign out here. The antiforgery token is bound to the currently
@@ -151,6 +157,80 @@ public class HomeController : Controller
         // POST antiforgery check to fail (HTTP 400) or crash (HTTP 404).
         // The cookie is cleared in the POST action after credential validation.
         return View(new SwitchUserViewModel());
+    }
+
+    /// <summary>Clears the application override and returns to integrated Windows authentication.</summary>
+    [HttpPost]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UseWindowsIdentity()
+    {
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        _logger.LogInformation("Switched-user session cleared; returning to integrated Windows authentication.");
+        return RedirectToAction(nameof(Index));
+    }
+
+    /// <summary>Signs in an explicitly mapped AD user using the certificate proved during the TLS handshake.</summary>
+    [HttpPost]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public async Task<IActionResult> SmartCardSignIn()
+    {
+        if (!_smartCardAuthentication.Enabled)
+        {
+            _logger.LogWarning("Rejected smartcard sign-in because it is disabled.");
+            return NotFound();
+        }
+
+        if (!Request.IsHttps)
+        {
+            return SmartCardSignInFailed("SmartCardHttpsRequired", StatusCodes.Status400BadRequest);
+        }
+
+        var certificate = await HttpContext.Connection.GetClientCertificateAsync(HttpContext.RequestAborted);
+        if (certificate is null)
+        {
+            return SmartCardSignInFailed("SmartCardCertificateMissing", StatusCodes.Status403Forbidden);
+        }
+
+        ClaimsPrincipal? principal;
+        try
+        {
+            principal = _smartCardAuthentication.Authenticate(certificate);
+        }
+        catch (Exception exception) when (exception is LdapException or DirectoryOperationException)
+        {
+            _logger.LogError(exception, "Smartcard sign-in failed because the directory could not be queried.");
+            return SmartCardSignInFailed("SmartCardDirectoryUnavailable", StatusCodes.Status503ServiceUnavailable);
+        }
+
+        if (principal is null)
+        {
+            return SmartCardSignInFailed("SmartCardSignInRejected", StatusCodes.Status403Forbidden);
+        }
+
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        var expires = DateTimeOffset.UtcNow.AddMinutes(30);
+        var certificateExpiry = new DateTimeOffset(certificate.NotAfter.ToUniversalTime());
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            principal,
+            new AuthenticationProperties
+            {
+                IsPersistent = false,
+                AllowRefresh = false,
+                ExpiresUtc = expires < certificateExpiry ? expires : certificateExpiry
+            });
+        _logger.LogInformation("User switched by smartcard to {Identity}", principal.Identity?.Name);
+        return RedirectToAction(nameof(Index));
+    }
+
+    private IActionResult SmartCardSignInFailed(string resourceKey, int statusCode)
+    {
+        _logger.LogWarning("Smartcard sign-in rejected: {Reason}", resourceKey);
+        Response.StatusCode = statusCode;
+        return View(nameof(SwitchUser), new SwitchUserViewModel { ErrorMessage = _localizer[resourceKey] });
     }
 
     /// <summary>Validates supplied Windows credentials and establishes a switched-user cookie.</summary>

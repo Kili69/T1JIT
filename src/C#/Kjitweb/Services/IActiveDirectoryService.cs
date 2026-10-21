@@ -17,6 +17,10 @@ namespace KjitWeb.Services;
 /// </remarks>
 public interface IActiveDirectoryService
 {
+    /// <summary>Resolves one enabled, unexpired AD user by an explicit strong certificate public-key mapping.</summary>
+    /// <returns>The directory-backed principal, or null for missing, ambiguous or unusable accounts.</returns>
+    ClaimsPrincipal? GetSmartCardPrincipal(string publicKeyMapping);
+
     /// <summary>
     /// Retrieves the configured Active Directory domains available to the application.
     /// </summary>

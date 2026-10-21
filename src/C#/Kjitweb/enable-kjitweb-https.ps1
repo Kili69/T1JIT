@@ -7,7 +7,8 @@
     URLs for the current service account and binds the certificate in HTTP.sys for
     IPv4 and IPv6. Preserves URL hosts, other service environment values, and all
     firewall rules. Verifies TLS and an HTTP response before reporting success.
-    On failure, restores the previous environment and service state and removes
+    Replaces matching HTTP URL reservations, preserving their SDDL for rollback.
+    On failure, restores the previous environment, HTTP reservations and service state and removes
     only resources created by this invocation. Existing certificates are never deleted,
     and existing HTTPS bindings are never replaced.
     Run locally on the service host in an elevated Windows PowerShell.
@@ -85,15 +86,18 @@ function Get-KjitWebHttpsPlan {
         Array of environment variable strings, typically from the service configuration.
     .PARAMETER Port
         The port number to use for HTTPS.
-    .PARAMETER HttpSysDump
-        Array of lines from the HTTP.sys configuration dump.
+    .PARAMETER UrlAclOutput
+        Output of netsh http show urlacl.
+    .PARAMETER SslCertOutput
+        Output of netsh http show sslcert.
     .OUTPUTS
         A custom object containing the new URLs, updated environment variables, and IP:port bindings.
     #>
     param(
         [string[]]$EnvironmentValues,
         [int]$Port,
-        [string[]]$HttpSysDump
+        [string[]]$UrlAclOutput,
+        [string[]]$SslCertOutput
     )
 
     # Extract the existing ASPNETCORE_URLS entry from the environment values.
@@ -118,20 +122,39 @@ function Get-KjitWebHttpsPlan {
         }
     ) | Select-Object -Unique
 
-    # dump emits replayable commands with invariant option names, unlike localized show output.
-    foreach ($line in $HttpSysDump) {
-        # Check each line of the HTTP.sys dump for existing SSL bindings or URL reservations.
-        if ($line -match '^\s*add sslcert\b' -and
-            ($line -match "(?:ipport|hostnameport)=`"?[^\s`"]+:$Port(?:`"|\s|$)" -or
-             $line -match "\bccs=`"?$Port(?:`"|\s|$)")) {
+    # Match endpoint values, not localized field labels (IPv4, IPv6, SNI and CCS).
+    foreach ($line in $SslCertOutput) {
+        if ($line -match '^\s*.+?:\s+(?:(?:\[[^\]]+\]|[^\s:]+):)?(?<port>\d+)\s*$' -and
+            [int]$Matches.port -eq $Port) {
             throw "An HTTP.sys TLS binding already uses port $Port. No binding was changed."
         }
-        # Check each HTTPS URL against the HTTP.sys dump for existing URL reservations.
-        foreach ($url in $httpsUrls) {
-            # Check if the current line contains a URL reservation for the HTTPS URL.
-            if ($line -match ('^\s*add urlacl\s+url="?{0}"?(?:\s|$)' -f [regex]::Escape($url))) {
+    }
+    # Ensure that the HTTP.sys configuration query returned output.
+    $httpUrls = @($httpsUrls | ForEach-Object { $_ -replace '^https:', 'http:' })
+    $httpReservations = @()
+    $reservation = $null
+    # Throw an error if either the URL ACL output or SSL certificate output is empty.
+    foreach ($line in $UrlAclOutput) {
+        if ($line -match '^\s*[^:]+:\s*(?<url>https?://\S+)\s*$') {
+            $url = $Matches.url
+            if ($url -in $httpsUrls) {
                 throw "The HTTPS URL reservation '$url' already exists. No reservation was changed."
             }
+            $reservation = $null
+            # Check if the URL is an HTTP URL that needs to be tracked for reservation.
+            if ($url -in $httpUrls) {
+                $reservation = [pscustomobject]@{ Url = $url; Sddl = $null }
+                $httpReservations += $reservation
+            }
+        }
+        elseif ($null -ne $reservation -and $line -match '^\s*SDDL\s*:\s*(?<sddl>\S+)\s*$') {
+            $reservation.Sddl = $Matches.sddl
+        }
+    }
+    # Ensure that all HTTP URL reservations have valid SDDLs.
+    foreach ($reservation in $httpReservations) {
+        if ([string]::IsNullOrWhiteSpace($reservation.Sddl)) {
+            throw "Cannot read the original SDDL for HTTP URL reservation '$($reservation.Url)'. No reservation was changed."
         }
     }
 
@@ -153,6 +176,7 @@ function Get-KjitWebHttpsPlan {
         Urls = @($httpsUrls)
         Environment = $newEnvironment
         IpPorts = @("0.0.0.0:$Port", "[::]:$Port")
+        HttpReservations = $httpReservations
     }
 }
 
@@ -397,10 +421,17 @@ function Enable-KjitWebHttps {
     $oldEnvironment = @(
         (Get-ItemProperty -LiteralPath $environmentPath -Name Environment -ErrorAction Stop).Environment
     )
-    # Dump the current HTTP.SYS configuration for analysis.
-    $dump = @(Invoke-KjitWebNetsh -Arguments @("http", "dump"))
-    # Generate a plan for enabling HTTPS based on the current environment and HTTP.SYS dump.
-    $plan = Get-KjitWebHttpsPlan -EnvironmentValues $oldEnvironment -Port $Port -HttpSysDump $dump
+    # Ensure that the environment values for the service are retrieved successfully.
+    $urlAclOutput = @(Invoke-KjitWebNetsh -Arguments @("http", "show", "urlacl"))
+    # Ensure that the URL ACL and SSL certificate outputs are captured successfully.
+    $sslCertOutput = @(Invoke-KjitWebNetsh -Arguments @("http", "show", "sslcert"))
+    # Ensure that the HTTP.sys configuration query returned output.
+    if ($urlAclOutput.Count -eq 0 -or $sslCertOutput.Count -eq 0) {
+        throw "HTTP.sys configuration query returned no output. No configuration was changed."
+    }
+    # Generate the plan for configuring HTTPS based on the current environment and HTTP.sys settings.
+    $plan = Get-KjitWebHttpsPlan -EnvironmentValues $oldEnvironment -Port $Port `
+        -UrlAclOutput $urlAclOutput -SslCertOutput $sslCertOutput
     # Retrieve the service and ensure it is in a valid state for configuration.
     $service = Get-Service -Name $ServiceName -ErrorAction Stop
     # Ensure the service is either running or stopped before proceeding.
@@ -477,6 +508,7 @@ function Enable-KjitWebHttps {
     $createdCertificate = $false
     $createdUrls = @()
     $createdBindings = @()
+    $removedHttpReservations = @()
     $serviceTouched = $false
     $environmentChanged = $false
     $exportCreated = $false
@@ -493,6 +525,19 @@ function Enable-KjitWebHttps {
                 -HashAlgorithm SHA256 -KeyExportPolicy NonExportable `
                 -NotAfter (Get-Date).AddMonths(3) -ErrorAction Stop
             $createdCertificate = $true
+        }
+        # Ensure that the plan contains the necessary HTTP reservations, URLs, and IP:Port bindings before proceeding.
+        if ($plan.HttpReservations.Count -gt 0) {
+            # If there are HTTP reservations to be removed, mark the service as touched and stop it for modification.
+            $serviceTouched = $true
+            # Stop the service to safely remove the HTTP reservations.
+            Stop-Service -Name $ServiceName -ErrorAction Stop
+            Wait-KjitWebService -Name $ServiceName -Status Stopped
+            # Remove each HTTP reservation specified in the plan.
+            foreach ($reservation in $plan.HttpReservations) {
+                Invoke-KjitWebNetsh -Arguments @("http", "delete", "urlacl", "url=$($reservation.Url)") | Out-Null
+                $removedHttpReservations += $reservation
+            }
         }
         # Add URL ACLs for each URL in the plan.
         foreach ($url in $plan.Urls) {
@@ -511,9 +556,11 @@ function Enable-KjitWebHttps {
         }
 
         # Restart the service to apply the new environment settings.
-        $serviceTouched = $true
-        Stop-Service -Name $ServiceName -ErrorAction Stop
-        Wait-KjitWebService -Name $ServiceName -Status Stopped
+        if (-not $serviceTouched) {
+            $serviceTouched = $true
+            Stop-Service -Name $ServiceName -ErrorAction Stop
+            Wait-KjitWebService -Name $ServiceName -Status Stopped
+        }
         Set-ItemProperty -LiteralPath $environmentPath -Name Environment -Value $plan.Environment -ErrorAction Stop
         $environmentChanged = $true
         Start-Service -Name $ServiceName -ErrorAction Stop
@@ -562,6 +609,10 @@ function Enable-KjitWebHttps {
             foreach ($url in $createdUrls) {
                 @{ Kind = "Url"; Value = $url }
             }
+            # If any HTTP reservations were removed, prepare to restore them.
+            foreach ($reservation in $removedHttpReservations) {
+                @{ Kind = "HttpUrl"; Value = $reservation }
+            }
             # If the certificate was exported, prepare to delete the export.
             if ($exportCreated) {
                 @{ Kind = "Export" }
@@ -598,6 +649,12 @@ function Enable-KjitWebHttps {
                         "Url" {
                             # Remove the URL ACL for the specified URL.
                             Invoke-KjitWebNetsh -Arguments @("http", "delete", "urlacl", "url=$($step.Value)") | Out-Null
+                        }
+                        "HttpUrl" {
+                            # Restore the HTTP URL reservation with the original SDDL.
+                            Invoke-KjitWebNetsh -Arguments @(
+                                "http", "add", "urlacl", "url=$($step.Value.Url)", "sddl=$($step.Value.Sddl)"
+                            ) | Out-Null
                         }
                         "Export" {
                             # Remove the exported certificate file.

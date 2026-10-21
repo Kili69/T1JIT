@@ -14,7 +14,7 @@
             Credentials are accepted only by the switch-user POST action and are cleared from the returned model.
             </remarks>
         </member>
-        <member name="M:KjitWeb.Controllers.HomeController.#ctor(KjitWeb.Services.IActiveDirectoryService,Microsoft.Extensions.Configuration.IConfiguration,KjitWeb.Services.IEventLogWriter,KjitWeb.Services.IEventLogHealthMonitor,Microsoft.Extensions.Logging.ILogger{KjitWeb.Controllers.HomeController},Microsoft.Extensions.Localization.IStringLocalizer{KjitWeb.SharedResource},KjitWeb.Services.WindowsCredentialValidator)">
+        <member name="M:KjitWeb.Controllers.HomeController.#ctor(KjitWeb.Services.IActiveDirectoryService,Microsoft.Extensions.Configuration.IConfiguration,KjitWeb.Services.IEventLogWriter,KjitWeb.Services.IEventLogHealthMonitor,Microsoft.Extensions.Logging.ILogger{KjitWeb.Controllers.HomeController},Microsoft.Extensions.Localization.IStringLocalizer{KjitWeb.SharedResource},KjitWeb.Services.WindowsCredentialValidator,KjitWeb.Services.ISmartCardAuthenticationService)">
             <summary>Initializes the controller with its directory, configuration, logging, localization, and credential services.</summary>
             <param name="activeDirectoryService">Provides directory lookup and current-elevation data.</param>
             <param name="configuration">Provides the configured JIT configuration path.</param>
@@ -23,6 +23,7 @@
             <param name="logger">Records operational and failure information; credentials are never intentionally logged.</param>
             <param name="localizer">Resolves localized UI and validation messages.</param>
             <param name="credentialValidator">Validates switched-user Windows credentials.</param>
+            <param name="smartCardAuthentication">Validates TLS client certificates and explicit AD mappings.</param>
             <remarks>The dependencies are stored as supplied; passing <see langword="null"/> causes later action execution to fail.</remarks>
         </member>
         <member name="M:KjitWeb.Controllers.HomeController.Index(System.String)">
@@ -62,6 +63,12 @@
             This anonymous GET intentionally preserves any existing authentication cookie so the antiforgery token
             remains bound to the same identity between form rendering and submission.
             </remarks>
+        </member>
+        <member name="M:KjitWeb.Controllers.HomeController.UseWindowsIdentity">
+            <summary>Clears the application override and returns to integrated Windows authentication.</summary>
+        </member>
+        <member name="M:KjitWeb.Controllers.HomeController.SmartCardSignIn">
+            <summary>Signs in an explicitly mapped AD user using the certificate proved during the TLS handshake.</summary>
         </member>
         <member name="M:KjitWeb.Controllers.HomeController.SwitchUser(KjitWeb.Models.SwitchUserViewModel)">
             <summary>Validates supplied Windows credentials and establishes a switched-user cookie.</summary>
@@ -281,6 +288,9 @@
             Queries Active Directory for users, elevations, domains, and visible servers.
             </summary>
             <remarks>LDAP uses default Windows credentials with Negotiate, signing, sealing, LDAP v3, and no referral chasing. Delegated server visibility fails closed when authorization data is unavailable.</remarks>
+        </member>
+        <member name="M:KjitWeb.Services.ActiveDirectoryService.GetSmartCardPrincipal(System.String)">
+            <summary>Resolves an explicit public-key mapping without trusting certificate subject or UPN claims.</summary>
         </member>
         <member name="M:KjitWeb.Services.ActiveDirectoryService.#ctor(Microsoft.Extensions.Configuration.IConfiguration,Microsoft.Extensions.Logging.ILogger{KjitWeb.Services.ActiveDirectoryService})">
             <summary>
@@ -1475,6 +1485,10 @@
             distinguished names, UPNs, computer names, and domain names as directory-derived security data.
             </remarks>
         </member>
+        <member name="M:KjitWeb.Services.IActiveDirectoryService.GetSmartCardPrincipal(System.String)">
+            <summary>Resolves one enabled, unexpired AD user by an explicit strong certificate public-key mapping.</summary>
+            <returns>The directory-backed principal, or null for missing, ambiguous or unusable accounts.</returns>
+        </member>
         <member name="M:KjitWeb.Services.IActiveDirectoryService.GetAvailableDomains">
             <summary>
             Retrieves the configured Active Directory domains available to the application.
@@ -1694,6 +1708,27 @@
             property is settable and can therefore be assigned <see langword="null"/> despite its
             non-nullable annotation; consumers do not necessarily tolerate that value.
             </value>
+        </member>
+        <member name="T:KjitWeb.Services.ISmartCardAuthenticationService">
+            <summary>Provides explicitly enabled, directory-backed TLS certificate authentication.</summary>
+        </member>
+        <member name="P:KjitWeb.Services.ISmartCardAuthenticationService.Enabled">
+            <summary>Indicates whether certificate sign-in is explicitly enabled.</summary>
+        </member>
+        <member name="M:KjitWeb.Services.ISmartCardAuthenticationService.Authenticate(System.Security.Cryptography.X509Certificates.X509Certificate2)">
+            <summary>Returns the strongly mapped user only after certificate validation succeeds.</summary>
+        </member>
+        <member name="T:KjitWeb.Services.SmartCardAuthenticationService">
+            <summary>Validates TLS client certificates before resolving an explicitly mapped AD user.</summary>
+        </member>
+        <member name="M:KjitWeb.Services.SmartCardAuthenticationService.#ctor(Microsoft.Extensions.Configuration.IConfiguration,KjitWeb.Services.IActiveDirectoryService,Microsoft.Extensions.Logging.ILogger{KjitWeb.Services.SmartCardAuthenticationService})">
+            <summary>Creates a validator using the configured directory and Windows certificate trust.</summary>
+        </member>
+        <member name="P:KjitWeb.Services.SmartCardAuthenticationService.Enabled">
+            <summary>Indicates whether certificate sign-in is explicitly enabled.</summary>
+        </member>
+        <member name="M:KjitWeb.Services.SmartCardAuthenticationService.Authenticate(System.Security.Cryptography.X509Certificates.X509Certificate2)">
+            <summary>Validates certificate trust, revocation and usage, then resolves its strong AD mapping.</summary>
         </member>
         <member name="T:KjitWeb.Services.WindowsCredentialValidator">
             <summary>Validates supplied credentials against the Windows security authority.</summary>

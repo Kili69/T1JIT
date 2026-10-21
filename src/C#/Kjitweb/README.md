@@ -107,6 +107,10 @@ nicht gleichzeitig denselben Port verwenden.
 Das Skript:
 
 - uebernimmt die Hosts aus `ASPNETCORE_URLS`, ohne den Zugriff auszuweiten;
+- liest Reservierungen und TLS-Bindungen mit `netsh http show urlacl` und
+  `netsh http show sslcert` (nicht mit dem wirkungslosen `netsh http dump`);
+- stoppt den Dienst vor dem Ersetzen seiner passenden HTTP-Reservierungen
+  und sichert deren urspruengliche SDDL-Berechtigungen fuer die Wiederherstellung;
 - reserviert die HTTPS-URLs fuer das aktuelle Dienstkonto und bindet das
   Zertifikat fuer IPv4 und IPv6 im lokalen Computerspeicher;
 - behaelt alle anderen Dienst-Umgebungsvariablen und Firewallregeln bei;
@@ -114,7 +118,8 @@ Das Skript:
 - prueft das gebundene Zertifikat, den DNS-Namen und eine HTTPS-Antwort
   (auch 401/403 sind bei Windows-Authentifizierung erwartete Antworten);
 - stellt bei einem Fehler die vorherigen Einstellungen und den Dienstzustand
-  wieder her und meldet auch etwaige Fehler der Wiederherstellung;
+  einschliesslich entfernter HTTP-Reservierungen mit ihren urspruenglichen
+  Berechtigungen wieder her und meldet auch etwaige Fehler der Wiederherstellung;
 - bricht bei vorhandenen TLS-Bindungen auf dem Port oder vorhandenen Ziel-URL-
   Reservierungen ab, statt diese zu ersetzen. Es ist kein Zertifikatswechsel-Skript.
 
@@ -157,6 +162,119 @@ Die Option allein erstellt weder ein Zertifikat noch eine HTTPS-Bindung.
 ```
 
 ## Verhalten
+
+### Benutzerwechsel und Smartcard-Anmeldung
+
+Unter **Benutzer wechseln** gibt es drei getrennte Wege:
+
+- **Zur Windows-Identitaet zurueckkehren** entfernt nur das KjitWeb-Sitzungscookie.
+  Danach verwendet die Anwendung wieder die vom Browser ausgehandelte
+  Windows-Authentifizierung. Es wird kein Windows-Benutzer abgemeldet; ein
+  anderer Windows-Kontext wird dadurch nicht erzwungen.
+- **Mit Kennwort anmelden** behaelt die bisherige Kennwortpruefung bei.
+  Eine Smartcard-PIN ist kein AD-Kennwort und darf hier nicht eingegeben werden.
+- **Mit Smartcard anmelden** verwendet das im TLS-Handshake vorgelegte
+  Clientzertifikat. Diese Option ist standardmaessig deaktiviert.
+  Die PIN verarbeitet ausschliesslich das Betriebssystem bzw. die Kartenmiddleware.
+
+#### Voraussetzungen fuer direkte Smartcard-Anmeldung
+
+1. Direkte HTTPS-Verbindung zum KjitWeb-Dienst; Zertifikatweiterleitungsheader von
+   Reverse-Proxys werden nicht als Identitaetsnachweis akzeptiert.
+2. Smartcard-Leser und Kartenmiddleware auf dem Client sowie ein Browser, der
+   das Karten-Zertifikat fuer TLS-Clientauthentifizierung verwenden kann.
+3. Das Clientzertifikat muss gueltig sein, zu einer auf dem Server vertrauenswuerdigen
+   CA verketten und beide EKUs enthalten: Client Authentication
+   (`1.3.6.1.5.5.7.3.2`) und Smart Card Logon (`1.3.6.1.4.1.311.20.2.2`).
+   Der Server muss die Sperrinformationen der CA erreichen koennen.
+   Sperrpruefung ist fuer diese Anmeldung immer aktiv; die Einstellung
+   `MutualTls:CheckCertificateRevocation` schaltet sie nicht ab.
+4. In der bestehenden HTTP.sys-TLS-Bindung muss `clientcertnegotiation=enable`
+   eingerichtet sein, fuer IPv4 und IPv6 bzw. die verwendete SNI-Bindung.
+   Zuerst `netsh http show sslcert` verwenden und die vorhandenen Bindungswerte
+   sichern. Ein Administrator muss die passende Bindung mit `netsh http update sslcert`
+   aktualisieren und dabei Zertifikathash, App-ID und weitere bestehende Optionen
+   erhalten. Die Anwendung veraendert keine TLS-Bindung automatisch.
+   Clientzertifikate werden beim Verbindungsaufbau angefragt, nicht erst beim
+   Anklicken des Buttons; TLS-Renegotiation wird nicht verwendet.
+5. Genau ein aktives, nicht gesperrtes und nicht abgelaufenes Benutzerkonto in der
+   konfigurierten AD-Domain muss unter `altSecurityIdentities` die starke
+   Public-Key-Zuordnung `X509:<SHA1-PUKEY>...` besitzen.
+   Eine UPN, ein Anzeigename oder der Subject des Zertifikats allein wird
+   ausdruecklich **nicht** zur Anmeldung verwendet.
+   Ein SID-Zertifikat allein ersetzt diese explizite Zuordnung in KjitWeb nicht.
+
+Der folgende Befehl berechnet die Zuordnung aus einem **oeffentlichen**
+Karten-Zertifikat; er aendert keine AD-Eigenschaften:
+
+```powershell
+$certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
+    (Resolve-Path ".\smartcard-user.cer").Path)
+$sha1 = [System.Security.Cryptography.SHA1]::Create()
+try {
+    $keyHash = $sha1.ComputeHash($certificate.GetPublicKey())
+    $mapping = "X509:<SHA1-PUKEY>" + [BitConverter]::ToString($keyHash).Replace("-", "")
+    $mapping
+}
+finally {
+    $sha1.Dispose()
+    $certificate.Dispose()
+}
+```
+
+`SHA1-PUKEY` bezeichnet hier das standardisierte AD-Mapping eines oeffentlichen
+Schluessels, keine Freigabe SHA-1-signierter Zertifikate.
+Ein AD-Administrator muss Zertifikat, Kontoinhaber und Zielkonto unabhaengig
+pruefen und diese Zuordnung zum richtigen Konto **hinzufuegen**, ohne bestehende
+Zuordnungen zu ueberschreiben. Fehlende oder mehrdeutige Zuordnungen fuehren
+zur Ablehnung. Das Dienstkonto benoetigt nur Lesezugriff; die Anwendung schreibt
+keine Zertifikatszuordnungen ins AD.
+
+Erst nach Erfuellen dieser Voraussetzungen in der Konfiguration des
+installierten Dienstes aktivieren und den Dienst neu starten:
+
+```json
+{
+  "SmartCardAuthentication": {
+    "Enabled": true
+  }
+}
+```
+
+Die separate Option `MutualTls:Enabled` muss dafuer nicht eingeschaltet werden.
+Sie erzwingt weiterhin ein Clientzertifikat fuer **alle** Anfragen und ist kein
+Schalter fuer die AD-Kontozuordnung.
+
+Nach erfolgreicher Anmeldung zeigt die Anwendung den aus dem AD gelesenen
+Benutzernamen an. Die Smartcard-Sitzung ist ein nicht persistentes Cookie,
+maximal 30 Minuten gueltig, nicht gleitend verlaengerbar und nie laenger gueltig
+als das Zertifikat. Kartenentnahme oder eine spaetere Zertifikatssperrung beendet
+ein bereits ausgestelltes Sitzungscookie nicht sofort. Vor Verlassen des Clients
+zur Windows-Identitaet zurueckkehren bzw. die Sitzung beenden.
+
+Die Anwendung kann weder die Karten-PIN lesen noch eine neue Zertifikatsauswahl
+erzwingen. Browser koennen Zertifikate und TLS-Verbindungen zwischenspeichern.
+Fuer ein anderes Kartenkonto gegebenenfalls alle Browserprozesse schliessen oder
+eine separate Browserinstanz mit eigenem Profil verwenden; ein Inkognito-Fenster
+allein garantiert keinen Wechsel. Danach die angezeigte Identitaet kontrollieren.
+Die App prueft Zertifikate, nicht die physische Speicherung des Schluessels:
+Hardwarebindung muss die PKI mit passender Kartenvorlage und nicht exportierbaren
+Schluesseln sicherstellen.
+
+#### Automatisierte Tests
+
+Im Repository-Stamm unter Windows:
+
+```powershell
+dotnet test .\tests\KjitWeb.Tests\KjitWeb.Tests.csproj
+```
+
+Die Tests pruefen Zertifikatsverwendung, Vertrauensketten, Ablauf,
+Kontostatus, eindeutige Zuordnung und die Sitzungswechsel einschliesslich
+Fehlerfaellen. Ein echter Karten-/PIN-/Browser-Test gegen die eigene PKI bleibt
+fuer die Inbetriebnahme erforderlich.
+
+### Elevation
 
 1. Benutzer authentifiziert sich mit seinem Windows-Account.
 2. Dropdown wird mit Computernamen aus den in JIT.config konfigurierten `T1Searchbase`-LDAP-Pfaden gefuellt.

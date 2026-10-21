@@ -15,7 +15,7 @@ BeforeAll {
 
 Describe "KjitWeb HTTPS conversion plan" {
     It "changes only the scheme and retains other environment values and port 5240" {
-        $plan = Get-KjitWebHttpsPlan -Port 5240 -HttpSysDump @() -EnvironmentValues @(
+        $plan = Get-KjitWebHttpsPlan -Port 5240 -EnvironmentValues @(
             "ASPNETCORE_ENVIRONMENT=Production",
             "ASPNETCORE_URLS=http://*:5240",
             "JustInTimeConfig=C:\Configs\JIT.config",
@@ -32,7 +32,7 @@ Describe "KjitWeb HTTPS conversion plan" {
     }
 
     It "preserves loopback-only IPv4/IPv6 prefixes" {
-        $plan = Get-KjitWebHttpsPlan -Port 5240 -HttpSysDump @() -EnvironmentValues @(
+        $plan = Get-KjitWebHttpsPlan -Port 5240 -EnvironmentValues @(
             "ASPNETCORE_URLS=http://127.0.0.1:5240;http://[::1]:5240"
         )
         $plan.Urls | Should -Be @("https://127.0.0.1:5240/", "https://[::1]:5240/")
@@ -45,7 +45,7 @@ Describe "KjitWeb HTTPS conversion plan" {
         @{ Entry = "ASPNETCORE_URLS=http://*:5240/path" }
         @{ Entry = "ASPNETCORE_URLS=" }
     ) {
-        { Get-KjitWebHttpsPlan -Port 5240 -HttpSysDump @() -EnvironmentValues @($Entry) } |
+        { Get-KjitWebHttpsPlan -Port 5240 -EnvironmentValues @($Entry) } |
             Should -Throw
     }
 
@@ -56,37 +56,58 @@ Describe "KjitWeb HTTPS conversion plan" {
         ) } | Should -Throw
     }
 
-    It "refuses existing HTTP.sys resources: <Command>" -ForEach @(
-        @{ Command = 'add sslcert ipport=0.0.0.0:5240 certhash=abc appid={123}' }
-        @{ Command = 'add sslcert ipport="[::]:5240" certhash=abc appid={123}' }
-        @{ Command = 'add sslcert hostnameport=server.contoso.local:5240 certhash=abc appid={123}' }
-        @{ Command = 'add sslcert ccs=5240 appid={123}' }
-        @{ Command = 'add urlacl url=https://*:5240/ sddl=D:(A;;GX;;;NS)' }
-        @{ Command = 'add urlacl url="https://*:5240/" sddl="D:(A;;GX;;;NS)"' }
+    It "refuses existing TLS bindings: <Line>" -ForEach @(
+        @{ Line = '    IP:port                      : 0.0.0.0:5240' }
+        @{ Line = '    IP:Port                      : [::]:5240' }
+        @{ Line = '    Hostname:port                : server.contoso.local:5240' }
+        @{ Line = '    Port                         : 5240' }
+        @{ Line = '    Hostname:Port                : server.contoso.local:5240' }
     ) {
-        { Get-KjitWebHttpsPlan -Port 5240 -HttpSysDump @($Command) -EnvironmentValues @(
+        { Get-KjitWebHttpsPlan -Port 5240 -SslCertOutput @($Line) -EnvironmentValues @(
             "ASPNETCORE_URLS=http://*:5240"
         ) } | Should -Throw
     }
 
     It "does not confuse other ports or the old HTTP ACL with target resources" {
-        $plan = Get-KjitWebHttpsPlan -Port 5240 -HttpSysDump @(
-            'add sslcert ipport=0.0.0.0:52400 certhash=abc',
-            'add urlacl url="http://*:5240/" sddl="D:(A;;GX;;;NS)"'
+        $plan = Get-KjitWebHttpsPlan -Port 5240 -SslCertOutput @(
+            '    IP:port : 0.0.0.0:52400'
+        ) -UrlAclOutput @(
+            '    Reserved URL : http://*:5240/',
+            '        SDDL: D:(A;;GX;;;NS)'
         ) -EnvironmentValues @("ASPNETCORE_URLS=http://*:5240")
         $plan.Urls | Should -Be @("https://*:5240/")
+        $plan.HttpReservations.Count | Should -Be 1
+        $plan.HttpReservations[0].Sddl | Should -Be "D:(A;;GX;;;NS)"
+    }
+
+    It "refuses existing HTTPS reservations independently of localized labels" -ForEach @(
+        @{ Label = "Reserved URL" }
+        @{ Label = "Reservierte URL" }
+    ) {
+        { Get-KjitWebHttpsPlan -Port 5240 -UrlAclOutput @(
+            "    $Label : https://*:5240/"
+        ) -EnvironmentValues @("ASPNETCORE_URLS=http://*:5240") } | Should -Throw '*already exists*'
+    }
+
+    It "refuses to remove HTTP reservations without a readable original SDDL" {
+        { Get-KjitWebHttpsPlan -Port 5240 -UrlAclOutput @(
+            '    Reserved URL : http://*:5240/'
+        ) -EnvironmentValues @("ASPNETCORE_URLS=http://*:5240") } | Should -Throw '*original SDDL*'
     }
 }
 
 Describe "KjitWeb HTTPS service migration" {
     BeforeEach {
         $script:originalEnvironment = @("ASPNETCORE_URLS=http://*:5240", "JustInTimeConfig=C:\JIT.config")
-        $script:dump = @()
+        $script:urlAclOutput = @("URL Reservations:", "-----------------")
+        $script:sslCertOutput = @("SSL Certificate bindings:", "-------------------------")
         $script:netshCalls = [System.Collections.Generic.List[string]]::new()
         $script:writtenEnvironments = [System.Collections.Generic.List[object]]::new()
         $script:failBinding = $false
         $script:failProbe = $false
         $script:failRollback = $false
+        $script:failUrl = $false
+        $script:failHttpDelete = $false
         $script:initialStatus = "Running"
         $parameters = @{
             DnsName = @("server.contoso.local")
@@ -109,7 +130,14 @@ Describe "KjitWeb HTTPS service migration" {
         Mock Invoke-KjitWebNetsh {
             $command = $Arguments -join ' '
             $script:netshCalls.Add($command)
-            if ($command -eq "http dump") { return $script:dump }
+            if ($command -eq "http show urlacl") { return $script:urlAclOutput }
+            if ($command -eq "http show sslcert") { return $script:sslCertOutput }
+            if ($script:failUrl -and $command -match '^http add urlacl url=https:') {
+                throw "HTTPS reservation failed"
+            }
+            if ($script:failHttpDelete -and $command -match '^http delete urlacl url=http:') {
+                throw "HTTP reservation removal failed"
+            }
             if ($script:failBinding -and $command -match '^http add sslcert ipport=\[::\]') {
                 throw "IPv6 binding failed"
             }
@@ -144,11 +172,22 @@ Describe "KjitWeb HTTPS service migration" {
     }
 
     It "refuses existing bindings without stopping the service or creating a certificate" {
-        $script:dump = @('add sslcert ipport=0.0.0.0:5240 certhash=old')
+        $script:sslCertOutput = @('    IP:port : 0.0.0.0:5240')
         { Enable-KjitWebHttps @parameters } | Should -Throw '*already uses port*'
         Should -Invoke New-SelfSignedCertificate -Times 0 -Exactly
         Should -Invoke Stop-Service -Times 0 -Exactly
         Should -Invoke Set-ItemProperty -Times 0 -Exactly
+    }
+
+    It "rejects empty HTTP.sys query output before changing anything" -ForEach @(
+        @{ Query = "urlacl" }
+        @{ Query = "sslcert" }
+    ) {
+        if ($Query -eq "urlacl") { $script:urlAclOutput = @() }
+        else { $script:sslCertOutput = @() }
+        { Enable-KjitWebHttps @parameters } | Should -Throw '*query returned no output*'
+        Should -Invoke New-SelfSignedCertificate -Times 0 -Exactly
+        Should -Invoke Stop-Service -Times 0 -Exactly
     }
 
     It "rejects an existing export file without changing anything" {
@@ -156,6 +195,81 @@ Describe "KjitWeb HTTPS service migration" {
         { Enable-KjitWebHttps @parameters } | Should -Throw '*export already exists*'
         Should -Invoke New-SelfSignedCertificate -Times 0 -Exactly
         Should -Invoke Stop-Service -Times 0 -Exactly
+    }
+
+    Context "existing HTTP reservation on the migration port" {
+        BeforeEach {
+            Mock Get-CimInstance { [pscustomobject]@{ StartName = "NT AUTHORITY\NETWORK SERVICE" } }
+            $script:originalSddl = "D:(A;;GX;;;NS)(A;;GX;;;BA)"
+            $script:urlAclOutput = @(
+                "URL Reservations:",
+                "-----------------",
+                "    Reserved URL : http://*:5240/",
+                "        User: NT AUTHORITY\NETWORK SERVICE",
+                "            SDDL: $script:originalSddl",
+                "    Reserved URL : http://*:5357/",
+                "            SDDL: D:(A;;GX;;;BU)"
+            )
+        }
+
+        It "stops the service and removes only its HTTP reservation before reserving HTTPS" {
+            Enable-KjitWebHttps @parameters
+            $script:netshCalls | Should -Not -Contain "http dump"
+            $script:netshCalls | Should -Contain "http show urlacl"
+            $script:netshCalls | Should -Contain "http show sslcert"
+            $deleteIndex = $script:netshCalls.IndexOf("http delete urlacl url=http://*:5240/")
+            $addIndex = $script:netshCalls.IndexOf("http add urlacl url=https://*:5240/ sddl=D:(A;;GX;;;S-1-5-20)")
+            $deleteIndex | Should -BeGreaterOrEqual 0
+            $addIndex | Should -BeGreaterThan $deleteIndex
+            $script:netshCalls | Should -Not -Contain "http delete urlacl url=http://*:5357/"
+            $script:netshCalls | Should -Not -Contain "http add urlacl url=http://*:5240/ sddl=$script:originalSddl"
+            Should -Invoke Stop-Service -Times 1 -Exactly
+            Should -Invoke Start-Service -Times 1 -Exactly
+        }
+
+        It "restores the original HTTP SDDL when reserving HTTPS fails" {
+            $script:failUrl = $true
+            { Enable-KjitWebHttps @parameters } | Should -Throw '*HTTPS reservation failed*'
+            $script:netshCalls | Should -Contain "http add urlacl url=http://*:5240/ sddl=$script:originalSddl"
+            $script:netshCalls | Should -Not -Contain "http delete urlacl url=https://*:5240/"
+            Should -Invoke Set-ItemProperty -Times 0 -Exactly
+            Should -Invoke Start-Service -Times 1 -Exactly
+        }
+
+        It "restores HTTP only after removing newly created HTTPS reservations on failed verification" {
+            $script:failProbe = $true
+            { Enable-KjitWebHttps @parameters } | Should -Throw '*HTTPS verification failed*'
+            $deleteIndex = $script:netshCalls.IndexOf("http delete urlacl url=https://*:5240/")
+            $restoreIndex = $script:netshCalls.IndexOf("http add urlacl url=http://*:5240/ sddl=$script:originalSddl")
+            $deleteIndex | Should -BeGreaterOrEqual 0
+            $restoreIndex | Should -BeGreaterThan $deleteIndex
+            $script:writtenEnvironments[-1] | Should -Be $script:originalEnvironment
+            Should -Invoke Start-Service -Times 2 -Exactly
+        }
+
+        It "does not recreate an HTTP reservation whose removal failed" {
+            $script:failHttpDelete = $true
+            { Enable-KjitWebHttps @parameters } | Should -Throw '*HTTP reservation removal failed*'
+            @($script:netshCalls | Where-Object { $_ -match '^http add ' }).Count | Should -Be 0
+            Should -Invoke Set-ItemProperty -Times 0 -Exactly
+            Should -Invoke Start-Service -Times 1 -Exactly
+        }
+
+        It "keeps a previously stopped service stopped after rollback" {
+            $script:initialStatus = "Stopped"
+            $script:failUrl = $true
+            { Enable-KjitWebHttps @parameters } | Should -Throw '*HTTPS reservation failed*'
+            $script:netshCalls | Should -Contain "http add urlacl url=http://*:5240/ sddl=$script:originalSddl"
+            Should -Invoke Start-Service -Times 0 -Exactly
+        }
+
+        It "refuses existing HTTPS reservations before touching the HTTP reservation" {
+            $script:urlAclOutput += "    Reserved URL : https://*:5240/"
+            { Enable-KjitWebHttps @parameters } | Should -Throw '*already exists*'
+            Should -Invoke New-SelfSignedCertificate -Times 0 -Exactly
+            Should -Invoke Stop-Service -Times 0 -Exactly
+            @($script:netshCalls | Where-Object { $_ -match '^http (add|delete) ' }).Count | Should -Be 0
+        }
     }
 
     It "removes only newly created resources when adding the second binding fails" {

@@ -1,5 +1,6 @@
 @model SwitchUserViewModel
 @inject Microsoft.Extensions.Localization.IStringLocalizer<KjitWeb.SharedResource> L
+@inject KjitWeb.Services.ISmartCardAuthenticationService SmartCardAuthentication
 
 @{
     ViewData["Title"] = L["SwitchUserButton"];
@@ -15,6 +16,26 @@
             <div class="alert alert-danger">@Model.ErrorMessage</div>
         }
 
+        <form method="post" asp-action="UseWindowsIdentity" class="mb-3">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-outline-primary w-100">@L["UseWindowsIdentity"]</button>
+        </form>
+
+        @if (SmartCardAuthentication.Enabled)
+        {
+            <form method="post" asp-action="SmartCardSignIn" class="mb-3">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-primary w-100">@L["SmartCardSignIn"]</button>
+            </form>
+            <p class="small text-muted">@L["SmartCardSignInHelp"]</p>
+        }
+        else
+        {
+            <p class="small text-muted">@L["SmartCardDisabledHelp"]</p>
+        }
+
+        <hr />
+        <h2 class="h6">@L["PasswordSignIn"]</h2>
         <form method="post" asp-action="SwitchUser" autocomplete="off">
             @Html.AntiForgeryToken()
 

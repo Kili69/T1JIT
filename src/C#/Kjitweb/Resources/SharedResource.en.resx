@@ -60,4 +60,13 @@
   <data name="ValidationElevationRange" xml:space="preserve"><value>Elevation duration must be between {0} and {1} minutes.</value></data>
   <data name="SuccessUserElevated" xml:space="preserve"><value>User elevated on {0}.</value></data>
   <data name="EventLogWriteError" xml:space="preserve"><value>Could not write to event log. Ensure the application has sufficient permissions.</value></data>
+  <data name="UseWindowsIdentity" xml:space="preserve"><value>Return to Windows identity</value></data>
+  <data name="PasswordSignIn" xml:space="preserve"><value>Sign in with a password</value></data>
+  <data name="SmartCardSignIn" xml:space="preserve"><value>Sign in with a smartcard</value></data>
+  <data name="SmartCardSignInHelp" xml:space="preserve"><value>The browser uses your TLS client certificate. Enter a PIN only in the operating system or card-provider dialog, never in the password field. A cached certificate may be reused; to select another card, close all browser processes or use a separate browser profile/instance and check the signed-in identity.</value></data>
+  <data name="SmartCardDisabledHelp" xml:space="preserve"><value>A smartcard PIN is not a password. Direct smartcard sign-in must be configured by an administrator. You can return to your Windows identity without entering a password.</value></data>
+  <data name="SmartCardHttpsRequired" xml:space="preserve"><value>Smartcard sign-in requires a direct HTTPS connection.</value></data>
+  <data name="SmartCardCertificateMissing" xml:space="preserve"><value>No TLS client certificate was received. Check the smartcard, browser certificate selection and HTTP.sys client certificate negotiation. The application cannot force a new certificate selection.</value></data>
+  <data name="SmartCardDirectoryUnavailable" xml:space="preserve"><value>The directory could not be queried. No user switch was performed. Please contact your administrator.</value></data>
+  <data name="SmartCardSignInRejected" xml:space="preserve"><value>Certificate sign-in was rejected. An administrator must check certificate trust, validity, revocation, smartcard/client-authentication usage, the unique strong AD mapping and the account state. The previous session was retained.</value></data>
 </root>

@@ -7,6 +7,17 @@ on:
       - main
 
 jobs:
+  web-authentication-tests:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Test web authentication and user switching
+        shell: pwsh
+        run: dotnet test .\tests\KjitWeb.Tests\KjitWeb.Tests.csproj --nologo
+
   protect-main-content:
     if: github.ref_name == 'main' || github.base_ref == 'main'
     runs-on: windows-latest

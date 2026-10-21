@@ -11,6 +11,15 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261021.3] - 2026-10-21
+### Added
+
+- Added an explicit return to integrated Windows identity and opt-in smartcard TLS client-certificate sign-in with certificate trust/revocation/EKU checks, unique strong AD public-key mapping, account-state validation, and short-lived sessions.
+
+### Fixed
+
+- Fixed KjitWeb HTTPS migration failing with HTTP.sys error 183 on an existing HTTP reservation. Use supported HTTP.sys queries, replace only matching HTTP reservations after stopping the service, and restore their original permissions on rollback.
+
 ## [0.2.20261021.2] - 2026-10-21
 ### Changed
 

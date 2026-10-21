@@ -18,6 +18,7 @@ try
 {
     // Create the web host and load configuration from appsettings, environment and arguments.
     var builder = WebApplication.CreateBuilder(args);
+    var smartCardEnabled = builder.Configuration.GetValue<bool>("SmartCardAuthentication:Enabled");
     var mutualTlsOptions = builder.Configuration
         .GetSection(MutualTlsOptions.SectionName)
         .Get<MutualTlsOptions>() ?? new MutualTlsOptions();
@@ -60,7 +61,7 @@ try
         // not by HTTP.sys itself. Rejecting anonymous connections here would prevent those
         // requests from ever reaching the app.
         options.Authentication.AllowAnonymous = true;
-        options.ClientCertificateMethod = mutualTlsOptions.Enabled
+        options.ClientCertificateMethod = mutualTlsOptions.Enabled || smartCardEnabled
             ? ClientCertificateMethod.AllowCertificate
             : ClientCertificateMethod.NoCertificate;
     });
@@ -125,6 +126,7 @@ try
     builder.Services.AddSingleton<DebugLogFileWriter>();
     builder.Services.AddSingleton<IConnectionAuditLogger, ConnectionAuditLogger>();
     builder.Services.AddSingleton<WindowsCredentialValidator>();
+    builder.Services.AddScoped<ISmartCardAuthenticationService, SmartCardAuthenticationService>();
     // The event log health monitor is registered once as a singleton so that the background scan
     // loop (IHostedService) and the HTTP-facing IEventLogHealthMonitor share the same instance/state.
     builder.Services.AddSingleton<EventLogHealthMonitor>();

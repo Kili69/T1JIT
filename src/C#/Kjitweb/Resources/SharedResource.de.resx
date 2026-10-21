@@ -60,4 +60,13 @@
   <data name="ValidationElevationRange" xml:space="preserve"><value>Die Elevation-Dauer muss zwischen {0} und {1} Minuten liegen.</value></data>
   <data name="SuccessUserElevated" xml:space="preserve"><value>Benutzer auf {0} erhöht.</value></data>
   <data name="EventLogWriteError" xml:space="preserve"><value>Eventlog konnte nicht geschrieben werden. Stelle sicher, dass die Anwendung ausreichende Berechtigungen hat.</value></data>
+  <data name="UseWindowsIdentity" xml:space="preserve"><value>Zur Windows-Identitaet zurueckkehren</value></data>
+  <data name="PasswordSignIn" xml:space="preserve"><value>Mit Kennwort anmelden</value></data>
+  <data name="SmartCardSignIn" xml:space="preserve"><value>Mit Smartcard anmelden</value></data>
+  <data name="SmartCardSignInHelp" xml:space="preserve"><value>Der Browser verwendet dein TLS-Clientzertifikat. Eine PIN nur im Dialog des Betriebssystems oder Kartenanbieters eingeben, niemals im Kennwortfeld. Ein gespeichertes Zertifikat kann wiederverwendet werden; fuer eine andere Karte alle Browserprozesse schliessen oder ein separates Browserprofil/eine separate Instanz verwenden und die angemeldete Identitaet pruefen.</value></data>
+  <data name="SmartCardDisabledHelp" xml:space="preserve"><value>Eine Smartcard-PIN ist kein Kennwort. Die direkte Smartcard-Anmeldung muss ein Administrator einrichten. Zur Windows-Identitaet kannst du ohne Kennworteingabe zurueckkehren.</value></data>
+  <data name="SmartCardHttpsRequired" xml:space="preserve"><value>Die Smartcard-Anmeldung erfordert eine direkte HTTPS-Verbindung.</value></data>
+  <data name="SmartCardCertificateMissing" xml:space="preserve"><value>Kein TLS-Clientzertifikat empfangen. Smartcard, Zertifikatsauswahl im Browser und HTTP.sys-Clientzertifikatsaushandlung pruefen. Die Anwendung kann keine neue Zertifikatsauswahl erzwingen.</value></data>
+  <data name="SmartCardDirectoryUnavailable" xml:space="preserve"><value>Das Verzeichnis konnte nicht abgefragt werden. Es wurde kein Benutzerwechsel durchgefuehrt. Bitte den Administrator kontaktieren.</value></data>
+  <data name="SmartCardSignInRejected" xml:space="preserve"><value>Zertifikatsanmeldung abgelehnt. Ein Administrator muss Vertrauen, Gueltigkeit, Sperrstatus, Smartcard-/Clientauthentifizierungsverwendung, die eindeutige starke AD-Zuordnung und den Kontostatus pruefen. Die bisherige Sitzung bleibt erhalten.</value></data>
 </root>

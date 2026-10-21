@@ -28,6 +28,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="KjitWeb.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="kjitlogo.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <TargetPath>wwwroot\images\kjitlogo.png</TargetPath>
