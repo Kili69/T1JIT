@@ -379,6 +379,9 @@ Describe "Just-In-Time PowerShell module package" {
                     RemoteAddress = @("192.168.10.0/255.255.255.0", "2001:db8:10::/64")
                 }
             }
+            Mock Get-ItemProperty {
+                [PSCustomObject]@{ Environment = @("ASPNETCORE_URLS=https://*:5240/") }
+            } -ParameterFilter { $Name -eq "Environment" }
 
             $result = @(& $scriptPath -InstallServiceFolder $installPath)
 
@@ -388,6 +391,7 @@ Describe "Just-In-Time PowerShell module package" {
             ($result | Where-Object RemoteAddress -eq "::1").IsLoopback | Should -BeTrue
             $result[0].PSObject.TypeNames | Should -Contain "KjitWeb.AllowedClientAddress"
             $result[0].ConfiguredAllowList | Should -Contain "localhost"
+            Should -Invoke Get-ItemProperty -Times 1 -Exactly -ParameterFilter { $Name -eq "Environment" }
         }
     }
 

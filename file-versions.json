@@ -1,25 +1,75 @@
 {
-  "version": "0.2.20261005.5",
+  "version": "0.2.20261021.1",
   "files": [
     {
-      "path": "CHANGELOG.md",
-      "version": "0.2.20261005.5",
-      "sha256": "a21cad3ab34ead082d5664ca2d1432ebc03eff1522baa01910b1a0434693962f"
+      "path": "build/New-InstallationPackage.ps1",
+      "version": "0.2.20261021.1",
+      "sha256": "f7a0cb068c9b8cb28c90594aed7b5f725c39ec09eeeb539a58278f11cb2f3585"
     },
     {
-      "path": "History.md",
-      "version": "0.2.20261005.5",
-      "sha256": "9cf6133079e1edecb56f25950734a4451365cd8b9c3f2c5f5379d823e64f7073"
+      "path": "build/release_build.ps1",
+      "version": "0.2.20261021.1",
+      "sha256": "81f6322b4ebb1a80f3dc2992e3cf703dea5b78b7910d4d3c696595c85d46d8e7"
+    },
+    {
+      "path": "build/Test-PowerShellModules.ps1",
+      "version": "0.2.20261021.1",
+      "sha256": "98177a51122a41297534e88ab14732611d2a6e1b949678633cf68eeee2037d0f"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "version": "0.2.20261021.1",
+      "sha256": "86301a9197b6480791bae7716ca2ffc686c4636a1d639098d5fac31db07c2f24"
+    },
+    {
+      "path": "src/C#/Kjitweb/enable-kjitweb-https.ps1",
+      "version": "0.2.20261021.1",
+      "sha256": "7c6e5467015ee69d50eea3cf614916bec908091a1505480abb1b4725ec82da3e"
+    },
+    {
+      "path": "src/C#/Kjitweb/get-kjitweb-allowedclient.ps1",
+      "version": "0.2.20261021.1",
+      "sha256": "1cbb43b3a626830abf8d3c75d875ff4f457b25ee4bf4b69571943844886c83c3"
+    },
+    {
+      "path": "src/C#/Kjitweb/install-kjitweb.ps1",
+      "version": "0.2.20261021.1",
+      "sha256": "894bdd6eb13c4f8a66e619aa7cee7d1d557896af690ca0e3c7a4d0078f8e2ddb"
+    },
+    {
+      "path": "src/C#/Kjitweb/README.md",
+      "version": "0.2.20261021.1",
+      "sha256": "30f8fe463c9f560cc3016045a8f8439ebc45a3fd0449e6d0c3b102639a06a98e"
+    },
+    {
+      "path": "src/C#/Kjitweb/set-kjitweb-allowedclient.ps1",
+      "version": "0.2.20261021.1",
+      "sha256": "dc08e442e95526da97d162e79d7cad07b5a3a972c07ec2827d9680ae1faa4bba"
+    },
+    {
+      "path": "src/C#/Kjitweb/update-kjitweb.ps1",
+      "version": "0.2.20261021.1",
+      "sha256": "0b8aaaefd3ecc703eb3e998ed7c35dbeecac5a16b7220121253f023c3975db30"
+    },
+    {
+      "path": "tests/PowerShell/KjitWebHttps.Tests.ps1",
+      "version": "0.2.20261021.1",
+      "sha256": "6b997b7c1b221780bb99edb21f09e8f13dec26a78559f8a0cc1bbf8982dead6e"
+    },
+    {
+      "path": "tests/PowerShell/Modules.Tests.ps1",
+      "version": "0.2.20261021.1",
+      "sha256": "55c3ea1f650aa16769d4513305ac8677830a19338d6df2b4351c95c4d1e9d3bb"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20261005.5",
-      "sha256": "630163e60f0e76c02113cefb5ac5274cbe991aa0e0fa8837ddc9fb5ec796a107"
+      "version": "0.2.20261021.1",
+      "sha256": "64bf75d5fefe8d9ba62cae8481158a82e2758addba8a2915f5cdd9649fda713e"
     },
     {
       "path": "README.md",
-      "version": "0.2.20261005.5",
-      "sha256": "f8986297d6784e6bbc79ce9021d3bf1afcece2952ba0959e4a5a166ca17908ac"
+      "version": "0.2.20261021.1",
+      "sha256": "849cebe125a458312652ee9f30f2668f31ab739dbfa8724e8487218678d21a21"
     }
   ]
 }

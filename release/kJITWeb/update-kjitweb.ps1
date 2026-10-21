@@ -74,7 +74,7 @@ function Copy-DirectoryContents {
 <#
 .SYNOPSIS
     Copies the KjitWeb management scripts (install-kjitweb.ps1, update-kjitweb.ps1,
-    set-kjitweb-allowedclient.ps1, get-kjitweb-allowedclient.ps1) next to the installed service so administrators can find and
+    set-kjitweb-allowedclient.ps1, get-kjitweb-allowedclient.ps1, enable-kjitweb-https.ps1) next to the installed service so administrators can find and
     re-run them later without having to keep or re-extract the original release package.
 .PARAMETER SourceRoot
     The folder containing the management scripts to be copied (normally $PSScriptRoot).
@@ -95,7 +95,8 @@ function Copy-ManagementScripts {
         "install-kjitweb.ps1",
         "update-kjitweb.ps1",
         "set-kjitweb-allowedclient.ps1",
-        "get-kjitweb-allowedclient.ps1"
+        "get-kjitweb-allowedclient.ps1",
+        "enable-kjitweb-https.ps1"
     )
     foreach ($scriptName in $managementScripts) {
         $sourceScriptPath = Join-Path $SourceRoot $scriptName

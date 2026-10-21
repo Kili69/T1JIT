@@ -264,10 +264,12 @@ function Get-ServiceUrlFromAllowedClient {
         [Parameter(Mandatory = $true)]
         [string[]]$Client,
         [Parameter(Mandatory = $true)]
-        [int]$Port
+        [int]$Port,
+        [ValidateSet("http", "https")]
+        [string]$Scheme = "http"
     )
 
-    return "http://*:$Port"
+    return "${Scheme}://*:$Port"
 }
 
 <#
@@ -608,7 +610,16 @@ try {
     }
     $Port = [int]$Matches.port
 
-    $newServiceUrl = Get-ServiceUrlFromAllowedClient -Client $configuredAllowedClientValue -Port $Port
+    $schemes = @($previousServiceUrl -split ';' | ForEach-Object {
+        if ($_ -notmatch '^(https?)://') {
+            throw "Unsupported service URL: '$_'."
+        }
+        $Matches[1].ToLowerInvariant()
+    } | Select-Object -Unique)
+    if ($schemes.Count -ne 1) {
+        throw "Mixed HTTP/HTTPS bindings require manual configuration."
+    }
+    $newServiceUrl = Get-ServiceUrlFromAllowedClient -Client $configuredAllowedClientValue -Port $Port -Scheme $schemes[0]
     $allowedHosts = Get-AllowedHostsFromAllowedClient -Client $configuredAllowedClientValue
     $allowedRemoteAddresses = @(Resolve-AllowedClientAddresses -Client $configuredAllowedClientValue)
     $firewallRuleName = "KjitWeb Port $Port Client Restriction"

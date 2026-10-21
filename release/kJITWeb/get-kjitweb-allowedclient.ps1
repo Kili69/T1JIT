@@ -205,18 +205,15 @@ $configuredAllowList = @($configuration.AllowedClient -split '[,;]' |
     Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
     Select-Object -Unique)
 
-$serviceUrl = $configuration.ServiceUrl
-if ([string]::IsNullOrWhiteSpace($serviceUrl)) {
-    $environmentPath = "HKLM:\SYSTEM\CurrentControlSet\Services\$ServiceName"
-    $environmentValues = (Get-ItemProperty -Path $environmentPath -Name Environment -ErrorAction Stop).Environment
-    $serviceUrlEntry = $environmentValues |
-        Where-Object { $_ -like "ASPNETCORE_URLS=*" } |
-        Select-Object -First 1
-    if ([string]::IsNullOrWhiteSpace($serviceUrlEntry)) {
-        throw "Could not determine the configured service URL for '$ServiceName'."
-    }
-    $serviceUrl = $serviceUrlEntry.Substring("ASPNETCORE_URLS=".Length)
+$environmentPath = "HKLM:\SYSTEM\CurrentControlSet\Services\$ServiceName"
+$environmentValues = (Get-ItemProperty -Path $environmentPath -Name Environment -ErrorAction Stop).Environment
+$serviceUrlEntry = $environmentValues |
+    Where-Object { $_ -like "ASPNETCORE_URLS=*" } |
+    Select-Object -First 1
+if ([string]::IsNullOrWhiteSpace($serviceUrlEntry)) {
+    throw "Could not determine the configured service URL for '$ServiceName'."
 }
+$serviceUrl = $serviceUrlEntry.Substring("ASPNETCORE_URLS=".Length)
 
 if ($serviceUrl -notmatch ':(?<port>\d+)') {
     throw "Could not determine the TCP port from '$serviceUrl'."
@@ -224,8 +221,8 @@ if ($serviceUrl -notmatch ':(?<port>\d+)') {
 $port = [int]$Matches.port
 $firewallRuleName = "KjitWeb Port $port Client Restriction"
 
-$loopbackOnlyBinding = $serviceUrl -match 'http://localhost:' -or
-    ($serviceUrl -match 'http://127\.0\.0\.1:' -and $serviceUrl -match 'http://\[::1\]:')
+$loopbackOnlyBinding = $serviceUrl -match 'https?://localhost:' -or
+    ($serviceUrl -match 'https?://127\.0\.0\.1:' -and $serviceUrl -match 'https?://\[::1\]:')
 if ($loopbackOnlyBinding) {
     $effectiveAddresses = @("127.0.0.1", "::1")
     $source = "HTTP.sys loopback binding"

@@ -57,6 +57,7 @@ $installScriptSource = Join-Path $kjitWebRoot "install-kjitweb.ps1"
 $updateScriptSource = Join-Path $kjitWebRoot "update-kjitweb.ps1"
 $allowedClientScriptSource = Join-Path $kjitWebRoot "set-kjitweb-allowedclient.ps1"
 $getAllowedClientScriptSource = Join-Path $kjitWebRoot "get-kjitweb-allowedclient.ps1"
+$httpsScriptSource = Join-Path $kjitWebRoot "enable-kjitweb-https.ps1"
 $logoSource = Join-Path $kjitWebRoot "kjitlogo.png"
 $appSettingsSource = Join-Path $kjitWebRoot "appsettings.json"
 $appSettingsProdSource = Join-Path $kjitWebRoot "appsettings.Production.json"
@@ -192,6 +193,7 @@ Copy-Item $installScriptSource (Join-Path $releaseKJITWebDir "install-kjitweb.ps
 Copy-Item $updateScriptSource (Join-Path $releaseKJITWebDir "update-kjitweb.ps1") -Force
 Copy-Item $allowedClientScriptSource (Join-Path $releaseKJITWebDir "set-kjitweb-allowedclient.ps1") -Force
 Copy-Item $getAllowedClientScriptSource (Join-Path $releaseKJITWebDir "get-kjitweb-allowedclient.ps1") -Force
+Copy-Item $httpsScriptSource (Join-Path $releaseKJITWebDir "enable-kjitweb-https.ps1") -Force
 Copy-Item $logoSource (Join-Path $releaseKJITWebDir "kjitlogo.png") -Force
 
 # Keep appsettings next to install script (used by install-kjitweb.ps1 for DebugLog path fallback).

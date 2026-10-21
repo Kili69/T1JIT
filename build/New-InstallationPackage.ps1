@@ -127,6 +127,7 @@ try {
         "GroupPolicy/New-T1JitLocalAdministratorsGpo.ps1",
         "kJITWeb/install-kjitweb.ps1",
         "kJITWeb/get-kjitweb-allowedclient.ps1",
+        "kJITWeb/enable-kjitweb-https.ps1",
         "kJITWeb/publish-service/KjitWeb.dll"
     )
     foreach ($relativePath in $requiredFiles) {

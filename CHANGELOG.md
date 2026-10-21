@@ -11,6 +11,15 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261021.1] - 2026-10-21
+### Added
+
+- Added a KjitWeb HTTP-to-HTTPS migration script with existing or self-signed certificates, TLS verification, rollback, packaging, documentation, and PowerShell tests.
+
+### Changed
+
+- Updated KjitWeb installation, update, and allowed-client scripts to support HTTPS configuration.
+
 ## [0.2.20261005.5] - 2026-10-05
 ### Changed
 

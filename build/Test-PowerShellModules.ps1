@@ -4,7 +4,7 @@
     Runs the Pester unit tests for the packaged PowerShell modules.
 .DESCRIPTION
     Uses PowerShell 7 and Pester 5 to validate the module manifest, parse every packaged
-    module file, and execute Get-JITConfig in Windows PowerShell 5.1. A missing compatible
+    module file, test KjitWeb HTTPS migration, and execute Get-JITConfig in Windows PowerShell 5.1. A missing compatible
     Pester installation or any failed test terminates the script with an error.
 .PARAMETER ModuleRoot
     Module directory to test. Defaults to release\modules.
@@ -69,7 +69,10 @@ $container = New-PesterContainer -Path $testPath -Data @{
 }
 
 $configuration = New-PesterConfiguration
-$configuration.Run.Container = $container
+$configuration.Run.Container = @(
+    $container
+    New-PesterContainer -Path (Join-Path $repoRoot "tests\PowerShell\KjitWebHttps.Tests.ps1")
+)
 $configuration.Run.PassThru = $true
 $configuration.Output.Verbosity = "Detailed"
 $result = Invoke-Pester -Configuration $configuration
