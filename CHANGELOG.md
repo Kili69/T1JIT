@@ -11,6 +11,11 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261109.4] - 2026-11-09
+### Changed
+
+- Documented 1 outgoing commit(s) in `History.md` before the GitHub push.
+
 ## [0.2.20261109.3] - 2026-11-09### Fixed
 
 - Corrected spelling mistakes in `Config-JIT.ps1` console messages and comments.
