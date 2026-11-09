@@ -1,25 +1,25 @@
 {
-  "version": "0.2.20261109.1",
+  "version": "0.2.20261109.2",
   "files": [
     {
       "path": "CHANGELOG.md",
-      "version": "0.2.20261109.1",
-      "sha256": "a3f20772914d470f79c59909f5dd1c74d38f4de572c29caf7dee729db8e91793"
+      "version": "0.2.20261109.2",
+      "sha256": "4e1e8a6a4c4e85f71035a660cf0fc99ff48335b67a9be4583b858f615bdd0b35"
     },
     {
-      "path": "src/Powershell/Scripts/ElevateUser.ps1",
-      "version": "0.2.20261109.1",
-      "sha256": "8b9dbfa1252c2de93d51563366dca1075c968160039ebc890d51cac8b9cdf0f0"
+      "path": "History.md",
+      "version": "0.2.20261109.2",
+      "sha256": "81708906844d0b40e87b7ee1d7e326970ff31e936fca46905e755354f3e30e83"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20261109.1",
-      "sha256": "e6667e1a727ef36a0a382a1318221eebccec4b8acd867ea147717a44b4d877fe"
+      "version": "0.2.20261109.2",
+      "sha256": "8927ab4d37a6b5d2234a22310924d5ddaab8ce3bc820f3c2f02b2d10729cbe4e"
     },
     {
       "path": "README.md",
-      "version": "0.2.20261109.1",
-      "sha256": "424ed93cc14d5a19e1d7ea45c48457c0ac3d4fbccab908fe9cc247daf4b1994d"
+      "version": "0.2.20261109.2",
+      "sha256": "113ff66766d5b1e4e542a697f51764696d894c9a24e3b47397bdf451dd148427"
     }
   ]
 }

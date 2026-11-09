@@ -11,6 +11,11 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261109.2] - 2026-11-09
+### Changed
+
+- Documented 1 outgoing commit(s) in `History.md` before the GitHub push.
+
 ## [0.2.20261109.1] - 2026-11-09### Security
 
 - Fixed an AD filter injection in `ElevateUser.ps1`: `ServerGroup` and `UserDN` from the elevation request are now escaped, exactly one matching object is required, and the delegation check uses the server name of the resolved group.
