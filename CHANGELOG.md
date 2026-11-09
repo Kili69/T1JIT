@@ -11,6 +11,10 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261109.1] - 2026-11-09### Security
+
+- Fixed an AD filter injection in `ElevateUser.ps1`: `ServerGroup` and `UserDN` from the elevation request are now escaped, exactly one matching object is required, and the delegation check uses the server name of the resolved group.
+
 ## [0.2.20261021.4] - 2026-10-21
 ### Changed
 
