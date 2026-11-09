@@ -44,9 +44,9 @@
     Version 0.1.20231109
         - New parameter to enable of disable the delegation model
     Version 0.1.20231130
-        - better validation of input paramters
+        - better validation of input parameters
         - Support of spaces in Tier 0 computer OU
-        - Terminate script if the current configuration file is created with a newe config-jit.ps1 script
+        - Terminate script if the current configuration file is created with a new config-jit.ps1 script
         - Set full control to the Tier 1 computer Group OU
     Version 0.1.20231201
         - New parameter in config file LDAPT1computers
@@ -76,18 +76,18 @@
         - New Parameter advancedsetup
             The LDAP configuration string will only be visible if this switch is available
         - New Environment variable
-            A global environment variable will created to determnine the configuration file. This environment variable will
+            A global environment variable will created to determine the configuration file. This environment variable will
             be used in the request and elevate script to read a central configuration without using the config parameter
         - removed all parameters except InstallationDirectory and AdvancedSetup
         - new switch parameter -silent
             This parameter installs the GMSA on the local computer, create the Windows Eventlog and the schedule task
             This parameter can be used if the solution run on multiple servers. this parameter required the JIT.config file
-            JIT.CONFIG can be availabel through
+            JIT.CONFIG can be available through
                 - Environment variable
                 - configurationFile parameter
                 - local jit.config
-        - Schedule task to elevate users run in paralell
-            The userelevate schedule task run in paralell if multiple request events send to the event log
+        - Schedule task to elevate users run in parallel
+            The userelevate schedule task run in parallel if multiple request events send to the event log
      Version 0.1.20240801
         - Updated dialog messages
     Version 0.1.20241004
@@ -778,7 +778,7 @@ function CreateOU {
         Write-Host "Access denied to create $OUPath in $domainDNS"
         return $false
     } catch {
-        Write-Host "A error occured while create OU Structure"
+        Write-Host "A error occurred while create OU Structure"
         Write-Host $Error[0].CategoryInfo.GetType()
         return $false
     }
@@ -1214,8 +1214,8 @@ function Invoke-JitConfiguration {
         exit
     }
     #region validate configuration file for silent installation
-    #the quiet paramter required the configuration script or the Just-In-Time environment.
-    #   The configuration scirpt will terminate if the configuraiton file is not accessible
+    #the quiet parameter required the configuration script or the Just-In-Time environment.
+    #   The configuration script will terminate if the configuration file is not accessible
     # Quiet setup requires an accessible explicit or process-level configuration source.
     if ($quiet) {
         if (![string]::IsNullOrWhiteSpace($configurationFile)) {
@@ -1307,7 +1307,7 @@ function Invoke-JitConfiguration {
                 } else {
                     Write-Host "The Ou '$OU' doesn't exist" -ForegroundColor Yellow
                     if (CreateOU -OUPath $OU -DomainDNS (Get-ADDomain).DNSRoot) {
-                        Write-Host "'$OU' succesfully created" -ForegroundColor Green
+                        Write-Host "'$OU' successfully created" -ForegroundColor Green
                     }
                 }
             } catch {
@@ -1376,7 +1376,7 @@ function Invoke-JitConfiguration {
                 Write-Host "Please enter either group's SamAccountName or DistinguishedName" -ForegroundColor Yellow
                 $T0computergroup = ""
             } catch {
-                Write-Host "unexpected occured script terminated" -ForegroundColor Red
+                Write-Host "unexpected occurred script terminated" -ForegroundColor Red
                 Write-Host $Error[0]
                 return
             }
@@ -1392,7 +1392,7 @@ function Invoke-JitConfiguration {
 
         # Validate the Tier 0 OU as a relative path beneath the current domain root.
         do {
-            $Tier0OUDN = Read-Host "Tier 0 OU realtive distinguished name [$($config.LDAPT0ComputerPath)]"
+            $Tier0OUDN = Read-Host "Tier 0 OU relative distinguished name [$($config.LDAPT0ComputerPath)]"
             if ($Tier0OUDN -eq "") {
                 $Tier0OUDN = $config.LDAPT0ComputerPath
             }
@@ -1426,10 +1426,10 @@ function Invoke-JitConfiguration {
                     }
                 }
             } catch [System.Management.Automation.ArgumentTransformationMetadataException] {
-                Write-Host "Invalid number please use a numer between 5 and 1439" -ForegroundColor Red
+                Write-Host "Invalid number please use a number between 5 and 1439" -ForegroundColor Red
                 $GroupManagementTaskRerun = $Null
             } catch {
-                Write-Host "a unexpected error is occured $($error[0].CategoryInfo)"
+                Write-Host "a unexpected error is occurred $($error[0].CategoryInfo)"
                 $GroupManagementTaskRerun = $Null
             }
         } while (($GroupManagementTaskRerun -lt 5) -or ($GroupManagementTaskRerun -gt 1439))
