@@ -1,30 +1,25 @@
 {
-  "version": "0.2.20261120.1",
+  "version": "0.2.20261120.2",
   "files": [
     {
       "path": "CHANGELOG.md",
-      "version": "0.2.20261120.1",
-      "sha256": "6434dae289e498f373bcb6bcc8aaf94a66c23333e00ffcc91afb7a63b95abc1a"
+      "version": "0.2.20261120.2",
+      "sha256": "2589837adda79ccb0126bf44cc78658c9c7e916e6c4181cd4aa3130b7dba1277"
     },
     {
-      "path": "README.md",
-      "version": "0.2.20261120.1",
-      "sha256": "6b2a28008048c18ee781a2bf00d7f90a07c02348db61d710ceeb35798b177880"
-    },
-    {
-      "path": "src/Powershell/modules/0.1/just-in-time-configuration.psm1",
-      "version": "0.2.20261120.1",
-      "sha256": "e3299d4a87ae0dc63fad5df0438f13798952753248e6f53af6215ba576a47b50"
-    },
-    {
-      "path": "tests/PowerShell/Modules.Tests.ps1",
-      "version": "0.2.20261120.1",
-      "sha256": "fb7bd8bdf5ebac42ac3a01d96a217f79df7cfdb561eaee1f7ef63ce44d3cac11"
+      "path": "History.md",
+      "version": "0.2.20261120.2",
+      "sha256": "ab651bf199d832da7f7516893447909f8a5b45fc8015dfb6aa7666cbe5c05790"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20261120.1",
-      "sha256": "329acd6cbdd53b3eac5c9065016ea2ce0cb70992b4e7e70b7a839dbef2f13264"
+      "version": "0.2.20261120.2",
+      "sha256": "aadb6713e8ed54c483fe6e6acaa0a02dc5941000105b334ecfae710a18d3d9a6"
+    },
+    {
+      "path": "README.md",
+      "version": "0.2.20261120.2",
+      "sha256": "b0bf0ea592b414e05de5fecce1c75d102384af2cea3d8eecd4850d98c33905a0"
     }
   ]
 }
