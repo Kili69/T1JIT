@@ -822,6 +822,15 @@
             	If this list is empty, the application may default to searching the entire directory or use other configured search bases, which may result in broader queries and potentially more results. By specifying the T1SearchBaseLdapPaths, administrators can optimize server discovery by limiting the search scope to specific OUs or containers that contain Tier 1 server objects, improving performance and relevance of query results.	
             </summary>
         </member>
+        <member name="P:KjitWeb.Services.JitConfiguration.ComputerSearchFilter">
+            <summary>
+            Gets the LDAP filter used to discover eligible Tier 1 computer objects.
+            </summary>
+            <value>
+            The value of <c>ComputerSearch</c>, or its legacy alias <c>LDAPT1Computers</c>,
+            with a backward-compatible computer filter when neither is configured.
+            </value>
+        </member>
         <member name="M:KjitWeb.Services.JitConfiguration.#ctor">
             <summary>
             	The JitConfiguration class constructor initializes the configuration settings for Just-In-Time access management by reading from a specified JIT.config file.

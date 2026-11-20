@@ -11,6 +11,11 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261120.1] - 2026-11-20
+### Fixed
+
+- Fixed KjitWeb computer discovery to use the configured `ComputerSearch` / `LDAPT1Computers` LDAP filter instead of ignoring the setting and querying all computer objects.
+
 ## [0.2.20261109.4] - 2026-11-09
 ### Changed
 

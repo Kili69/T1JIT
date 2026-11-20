@@ -1,25 +1,35 @@
 {
-  "version": "0.2.20261109.4",
+  "version": "0.2.20261120.1",
   "files": [
     {
       "path": "CHANGELOG.md",
-      "version": "0.2.20261109.4",
-      "sha256": "ba84022a1692340b7666f836ceab062e124bfc12f5d47c021b18ac215028a06d"
+      "version": "0.2.20261120.1",
+      "sha256": "828a4a47aabee37f78c246613d8928b0d86510cfcff14bdd86a693b04f67a64c"
     },
     {
-      "path": "History.md",
-      "version": "0.2.20261109.4",
-      "sha256": "1dc54955aba9d091ac3277cf1bd256807ae5c984dad876a7cb9bc5a18a06e832"
+      "path": "src/C#/Kjitweb/Services/ActiveDirectoryService.cs",
+      "version": "0.2.20261120.1",
+      "sha256": "0b847263a1ae21503cd9c519068ce2e2585eff7a857d64c67053c3244e135db5"
+    },
+    {
+      "path": "src/C#/Kjitweb/Services/configuration.cs",
+      "version": "0.2.20261120.1",
+      "sha256": "a83cc743209f15cc74389fc7c5438371ede60773b7a8eefd0d221902e2e49d90"
+    },
+    {
+      "path": "tests/KjitWeb.Tests/JitConfigurationTests.cs",
+      "version": "0.2.20261120.1",
+      "sha256": "de6748d96e40ef6ecc3b30c4ead3d97a6af634558a5838928a2130dae5b6d3d7"
     },
     {
       "path": "src/Powershell/modules/Just-In-time.psd1",
-      "version": "0.2.20261109.4",
-      "sha256": "accc9d2b1d6f388702053d9724789533199c19ebafbaa6a9293917f421a894a8"
+      "version": "0.2.20261120.1",
+      "sha256": "f074b8ddba3f9f942af8c9b9cc2f7a724ee1dcef960ab35157b12778cdd226d7"
     },
     {
       "path": "README.md",
-      "version": "0.2.20261109.4",
-      "sha256": "6589bd8835f91ee4fc4f2d4298299268ea2c5412cddd5c86d6e7c7af16ec457a"
+      "version": "0.2.20261120.1",
+      "sha256": "f27c057468057f4d87f9422d7f3e4e25917cbb679a2ea816015360b741a94e25"
     }
   ]
 }

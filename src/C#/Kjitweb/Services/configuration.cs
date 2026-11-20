@@ -101,6 +101,14 @@ public class JitConfiguration
 	/// </summary>
 	public IReadOnlyList<string> T1SearchBaseLdapPaths { get; }
 	/// <summary>
+	/// Gets the LDAP filter used to discover eligible Tier 1 computer objects.
+	/// </summary>
+	/// <value>
+	/// The value of <c>ComputerSearch</c>, or its legacy alias <c>LDAPT1Computers</c>,
+	/// with a backward-compatible computer filter when neither is configured.
+	/// </value>
+	public string ComputerSearchFilter { get; }
+	/// <summary>
 	/// 	The JitConfiguration class constructor initializes the configuration settings for Just-In-Time access management by reading from a specified JIT.config file.
 	/// 	If the constructor is called without parameters, it attempts to build a default path to the JIT.config file based on the domain information of the system, looking for the file in the SYSVOL share of the domain.
 	/// </summary>
@@ -139,6 +147,9 @@ public class JitConfiguration
 		AdminPreFix = ReadString(document.RootElement, "AdminPreFix", string.Empty); // We read the AdminPreFix from the root element of the JSON document using the ReadString helper method, which extracts a string value for the "AdminPreFix" property, with a fallback default value of an empty string if it is not specified. This allows us to have a configurable prefix for administrative accounts, while still providing a sensible default value that can be used if the configuration does not specify one.
 		DomainSeparator = ReadString(document.RootElement, "DomainSeparator", string.Empty); // We read the DomainSeparator from the root element of the JSON document using the ReadString helper method, which extracts a string value for the "DomainSeparator" property, with a fallback default value of an empty string if it is not specified. This allows us to have a configurable separator for domain and server names when constructing server group names for event logging purposes, while still providing a sensible default value that can be used if the configuration does not specify one.
 		EnableMultiDomainSupport = ReadBoolean(document.RootElement, "EnableMultiDomainSupport", true);
+		ComputerSearchFilter = ReadOptionalString(document.RootElement, "ComputerSearch")
+			?? ReadOptionalString(document.RootElement, "LDAPT1Computers")
+			?? "(&(objectCategory=computer)(name=*))";
 		GroupOuDistinguishedName = ReadOptionalString(document.RootElement, "AdminGroupOU")
 			?? ReadOptionalString(document.RootElement, "OU");
 		DelegationConfigPath = ReadDelegationConfigPath(document.RootElement); // We read the DelegationConfigPath from the root element of the JSON document using the ReadDelegationConfigPath helper method, which extracts a string value for the "DelegationConfigPath" property and returns null if it is not specified or is empty. This allows us to have an optional configuration setting for the file path to a delegation configuration file that defines rules for limiting server discovery based on group membership. If this setting is provided, the application will read the delegation rules from the specified file and apply them when determining which servers to include in the results of server discovery queries. If this setting is not provided, the application will not apply any delegation rules and will return all servers that match the configured search criteria.
