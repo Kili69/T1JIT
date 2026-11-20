@@ -6,6 +6,65 @@ the repository's pre-push hook.
 
 <!-- history-enforcement-start:a11dbdc039fffc56405adcb574fe4e54958f9f30 -->
 <!-- history-entries -->
+## 2026-11-20 15:00:59 +01:00 - `dev` to `origin/dev`
+
+Commits:
+
+<!-- commit:b3550dddb485436d0a3403fe529b10e1b43962e2 -->
+- `b3550dd` Modernize README documentation
+<!-- commit:e2f9b78cf8958ea44614faf99c907b7f638fb126 -->
+- `e2f9b78` Document GitHub push history
+<!-- commit:455b7dc42f4a3babe89f59ff8c283727e05836e0 -->
+- `455b7dc` Align README branch validation
+<!-- commit:6c50fb973f1c2ff9f1782d855dc9949583e04e05 -->
+- `6c50fb9` Document GitHub push history
+<!-- commit:1af9c9a422f759c96f8d4fb8ae29d7dfdc8073f7 -->
+- `1af9c9a` Normalize version manifest hashes
+<!-- commit:632c410568a1ff01afc86bb46dff6ccd5d08b495 -->
+- `632c410` Document GitHub push history
+<!-- commit:849e327bd6b12d6f9314988d0f1e043e2d245dbf -->
+- `849e327` Merge README documentation update
+<!-- commit:d5ec4ad81dd87de35398a93c4903e7cad9960e16 -->
+- `d5ec4ad` Validate version policy merge commits
+<!-- commit:ded3e10887ad471b75e4e0a9ad96ffb428a728dd -->
+- `ded3e10` Document GitHub push history
+<!-- commit:52f9d7c8f5d204ff58c7845ec141d0230e015c50 -->
+- `52f9d7c` Merge version policy validation fix
+<!-- commit:e82e7c615ed0efe45946ca262d661c298b83653e -->
+- `e82e7c6` Fix README version policy badge
+<!-- commit:10240e25f92f8b8f41a41a98c9f08d357f3c3fc1 -->
+- `10240e2` Document GitHub push history
+<!-- commit:878849e06f9d3c0c1a789ac97bb86c37c4880b29 -->
+- `878849e` Merge pull request #22 from Kili69/fix-readme-policy-badge
+<!-- commit:384e3af16063f9a471ebf9ebad240e81aefe4e64 -->
+- `384e3af` Fix Get-JitServerOU to return only configured OUs
+<!-- commit:7c93ccea325c3d4af136110e758b0726eed31426 -->
+- `7c93cce` Document GitHub push history
+<!-- commit:d744e71f9e24652e38e1a02bfe6931ff27150f5e -->
+- `d744e71` Merge OU-only Get-JitServerOU correction
+<!-- commit:6d2c50828d24e1ac1e12386dc85fe94a58508c88 -->
+- `6d2c508` Merge main into dev preserving development features
+
+Changed files:
+
+- `M -> .github/workflows/version-policy.yml`
+- `M -> CHANGELOG.md`
+- `M -> README.md`
+- `M -> VERSION`
+- `M -> build/Update-Version.ps1`
+- `M -> file-versions.json`
+- `M -> release/VERSION`
+- `M -> release/file-versions.json`
+- `M -> release/kJITWeb/publish-service/KjitWeb.dll`
+- `M -> release/kJITWeb/publish-service/KjitWeb.exe`
+- `M -> release/kJITWeb/publish-service/KjitWeb.pdb`
+- `M -> release/kJITWeb/publish-service/KjitWeb.staticwebassets.endpoints.json`
+- `M -> release/kJITWeb/publish-service/de/KjitWeb.resources.dll`
+- `M -> release/kJITWeb/publish-service/en/KjitWeb.resources.dll`
+- `M -> release/modules/0.1/KjitCore.dll`
+- `M -> release/modules/Just-In-time.psd1`
+- `M -> src/Powershell/modules/Just-In-time.psd1`
+
 
 ## 2026-11-20 14:40:39 +01:00 - `main` to `origin/main`
 
@@ -7008,3 +7067,4 @@ Changes:
 - Added a full-page processing lock that prevents duplicate elevation requests.
 - Extended Active Directory queries and web models for active elevation information.
 - Updated installation documentation, release scripts, modules, and published KjitWeb artifacts.
+
