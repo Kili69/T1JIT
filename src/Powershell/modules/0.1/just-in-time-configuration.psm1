@@ -187,43 +187,28 @@ function Get-JitServerOU{
         Returns the configured Active Directory search bases for JIT servers.
     .DESCRIPTION
         Reads the JSON configuration file identified by the JustInTimeConfig
-        environment variable. The configured T1Searchbase entries are displayed as
-        a readable list, while the complete configuration object is written to the
-        success pipeline for further processing.
+        environment variable and writes only the configured T1Searchbase
+        distinguished names to the success pipeline.
     .EXAMPLE
         Get-JitServerOU
 
-        Displays all configured JIT server search bases and returns the complete
-        configuration object.
+        Returns all configured JIT server search bases.
     .EXAMPLE
-        $searchBases = (Get-JitServerOU).T1Searchbase
+        $searchBases = @(Get-JitServerOU)
 
-        Displays the configured search bases and stores them for further processing.
+        Stores the configured search bases as an array for further processing.
     .INPUTS
         None. Pipeline input is not supported.
     .OUTPUTS
-        System.Management.Automation.PSCustomObject. The complete deserialized JIT
-        configuration object.
+        System.String. The configured search base distinguished names.
+        No output is returned when no search bases are configured.
     .NOTES
         This function is exported by the Just-In-time module. It requires a valid
         JustInTimeConfig environment variable and a readable JSON configuration file.
     #>
 
-    # Keep presentation on the host stream so only the configuration object enters
-    # the success pipeline.
     $config = Get-Content $env:JustInTimeConfig | ConvertFrom-Json
-    $searchBases = @($config.T1Searchbase)
-
-    Write-Host "Configured JIT server search bases:" -ForegroundColor Cyan
-    if ($searchBases.Count -eq 0) {
-        Write-Host "  No search bases are configured." -ForegroundColor Yellow
-    } else {
-        foreach ($searchBase in $searchBases) {
-            Write-Host "  - $searchBase"
-        }
-    }
-
-    return $config
+    return $config.T1Searchbase
 }
 function Write-JitConfigurationJsonAtomically {
     <#

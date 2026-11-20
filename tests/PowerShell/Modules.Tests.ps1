@@ -7,6 +7,12 @@ param(
     [string]$ExpectedVersion
 )
 
+BeforeDiscovery {
+    $discoveryVersionedModulePath = Join-Path $ModuleRoot "0.1"
+    $discoveryReleaseRoot = Split-Path -Path $ModuleRoot -Parent
+    $discoveryRepoRoot = Split-Path -Path $discoveryReleaseRoot -Parent
+}
+
 BeforeAll {
     $manifestPath = Join-Path $ModuleRoot "Just-In-time.psd1"
     $versionedModulePath = Join-Path $ModuleRoot "0.1"
@@ -19,6 +25,50 @@ Describe "Just-In-Time PowerShell module package" {
         Test-Path -LiteralPath $manifestPath -PathType Leaf | Should -BeTrue
         $manifest = Test-ModuleManifest -Path $manifestPath -ErrorAction Stop
         $manifest.Version.ToString() | Should -Be $ExpectedVersion
+    }
+
+    Describe "JIT server search base output" -ForEach @(
+        @{ Path = (Join-Path $discoveryRepoRoot "src\PowerShell\modules\0.1\just-in-time-configuration.psm1") }
+        @{ Path = (Join-Path $discoveryVersionedModulePath "just-in-time-configuration.psm1") }
+    ) {
+        BeforeAll {
+            $tokens = $null
+            $parseErrors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                $Path,
+                [ref]$tokens,
+                [ref]$parseErrors
+            )
+            $function = $ast.Find({
+                param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                    $node.Name -eq "Get-JitServerOU"
+            }, $true)
+            $parseErrors | Should -BeNullOrEmpty
+            $function | Should -Not -BeNullOrEmpty
+            Invoke-Expression $function.Extent.Text
+        }
+
+        It "returns only OU strings for <Case> in <Path>" -ForEach @(
+            @{ Case = "one OU"; SearchBases = @("OU=Servers,DC=contoso,DC=com") }
+            @{ Case = "multiple OUs"; SearchBases = @("OU=Servers,DC=contoso,DC=com", "OU=Applications,DC=contoso,DC=com") }
+            @{ Case = "no OUs"; SearchBases = @() }
+        ) {
+            $script:configurationJson = ConvertTo-Json -InputObject @{
+                T1Searchbase = $SearchBases
+                AdminPreFix = "Admin_"
+                MaxElevatedTime = 1440
+            }
+            Mock Get-Content { $script:configurationJson }
+
+            $result = @(Get-JitServerOU *>&1)
+
+            $result.Count | Should -Be $SearchBases.Count
+            for ($index = 0; $index -lt $SearchBases.Count; $index++) {
+                $result[$index] | Should -BeOfType ([string])
+                $result[$index] | Should -BeExactly $SearchBases[$index]
+            }
+        }
     }
 
     Describe "KjitWeb firewall configuration" {
