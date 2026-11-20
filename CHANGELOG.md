@@ -11,6 +11,11 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261120.5] - 2026-11-20
+### Changed
+
+- Merged the production branch into `dev`, preserving development features and both branch histories while bringing over the version-policy, normalized-hash, and README badge fixes.
+
 ## [0.2.20261120.4] - 2026-11-20
 ### Changed
 
@@ -30,6 +35,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 ### Fixed
 
 - Fixed KjitWeb computer discovery to use the configured `ComputerSearch` / `LDAPT1Computers` LDAP filter instead of ignoring the setting and querying all computer objects.
+- `Get-JitServerOU` now returns only configured OU distinguished names, without the complete JIT configuration or additional display text (also released on `main` with this version).
 
 ## [0.2.20261109.4] - 2026-11-09
 ### Changed
@@ -77,7 +83,36 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 - Updated KjitWeb installation, update, and allowed-client scripts to support HTTPS configuration.
 
+## [0.2.20261006.2] - 2026-10-06
+### Changed
+
+- Documented 1 outgoing commit in `History.md` before the GitHub push.
+
+## [0.2.20261006.1] - 2026-10-06
+### Fixed
+
+- The README version-policy badge now reports the current `main` branch workflow status instead of the stale failed `dev` run.
+
+## [0.2.20261005.8] - 2026-10-05
+### Changed
+
+- Documented 1 outgoing commit(s) in `History.md` before the GitHub push.
+
+## [0.2.20261005.7] - 2026-10-05
+### Fixed
+
+- Version-policy validation now checks merge commits against the merged PR parent instead of revalidating the complete PR as changes to its history commit.
+
+## [0.2.20261005.6] - 2026-10-05
+### Changed
+
+- Documented 1 outgoing commit(s) in `History.md` before the GitHub push.
+
 ## [0.2.20261005.5] - 2026-10-05
+### Fixed
+
+- File-version hashes now use Git-normalized blob content so version validation is independent of Windows line-ending conversion.
+
 ### Changed
 
 - Documented 1 outgoing commit(s) in `History.md` before the GitHub push.
@@ -87,7 +122,15 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 - Resolved Markdown lint warnings in the README by using semantic command-reference headings and valid callout spacing.
 
+### Changed
+
+- Documented 1 outgoing commit(s) in `History.md` before the GitHub push.
+
 ## [0.2.20261005.3] - 2026-10-05
+### Fixed
+
+- Version-policy validation now uses the pull request target branch for the README heading so the same content remains valid after merging.
+
 ### Changed
 
 - Documented 1 outgoing commit(s) in `History.md` before the GitHub push.
@@ -97,6 +140,10 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 - Enforced `MaxConcurrentServer` before privileged group membership changes and serialized elevation task instances to prevent parallel requests from bypassing the configured limit.
 - Added prominent installer and README warnings that KjitWeb uses plain HTTP by default and that trusted SSL/TLS termination is strongly recommended to protect Switch User credentials and authenticated session cookies.
+
+### Changed
+
+- Documented 1 outgoing commit(s) in `History.md` before the GitHub push.
 
 ## [0.2.20261005.1] - 2026-10-05
 ### Changed
