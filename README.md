@@ -1,4 +1,4 @@
-# Just-In-Time Solution for Active Directory Member Servers - Version 0.2.20261120.2 (dev)
+# Just-In-Time Solution for Active Directory Member Servers - Version 0.2.20261120.3 (dev)
 
 <p align="center"><img src="./release/kJITWeb/kjitlogo.png" alt="T1JIT logo" width="180"></p>
 <p align="center"><strong>Time-limited local administrator access for Active Directory member servers</strong></p>
@@ -552,7 +552,7 @@ Get-JitDelegation | Select-Object -ExpandProperty SID
 
 ### Get-JitServerOU
 
-Displays the configured `T1Searchbase` distinguished names and returns the complete deserialized T1JIT configuration object.
+Returns only the configured `T1Searchbase` distinguished names as strings, without the rest of the T1JIT configuration or additional display text. Returns no output when no search bases are configured.
 
 #### Syntax
 
@@ -566,7 +566,7 @@ The command accepts no parameters or pipeline input. It reads the JSON file iden
 
 ```powershell
 Get-JitServerOU
-(Get-JitServerOU).T1Searchbase
+$searchBases = @(Get-JitServerOU)
 ```
 
 ### Add-JitDelegation

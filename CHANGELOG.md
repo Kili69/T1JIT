@@ -11,6 +11,11 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.20261120.3] - 2026-11-20
+### Fixed
+
+- `Get-JitServerOU` now returns only configured OU distinguished names, without the complete JIT configuration or additional display text.
+
 ## [0.2.20261120.2] - 2026-11-20
 ### Changed
 
